@@ -10,8 +10,16 @@ pub fn build(b: *std.Build) void {
     const sdl3_dep = b.dependency("sdl3", .{
         .target = target,
         .optimize = optimize,
+
         .c_sdl_preferred_linkage = .dynamic,
     });
+
+    const upstream_sdl3 = sdl3_dep.builder.dependency("sdl", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const vulkan_headers = b.dependency("vulkan-headers", .{});
 
     const sdl3_mod = sdl3_dep.module("sdl3");
 
@@ -26,6 +34,8 @@ pub fn build(b: *std.Build) void {
             .{ .name = "sdl3", .module = sdl3_mod },
         },
     });
+    gpu_mod.addIncludePath(upstream_sdl3.path("include/"));
+    gpu_mod.addIncludePath(vulkan_headers.path("include/"));
 
     gpu_mod.addCSourceFiles(.{
         .root = gpu_root,
