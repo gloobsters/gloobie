@@ -21,7 +21,7 @@
 
 #include <SDL3/SDL.h>
 
-#include "SDL_hashtable.h"
+#include "hashtable.h"
 
 typedef struct SDL_HashItem
 {

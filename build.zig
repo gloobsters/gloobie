@@ -30,18 +30,18 @@ pub fn build(b: *std.Build) void {
     gpu_mod.addCSourceFiles(.{
         .root = gpu_root,
         .language = .c,
-        .files = &.{"hashtable/SDL_hashtable.c"},
+        .files = &.{"hashtable/hashtable.c"},
     });
 
     gpu_mod.addCSourceFiles(.{
         .root = gpu_root,
         .files = &.{
-            "SDL_gpu.c",
-            "vulkan/SDL_gpu_vulkan.c",
+            "gpu.c",
+            "vulkan/gpu_vulkan.c",
         },
         .language = .c,
     });
-    gpu_mod.addCMacro("SDL_GPU_VULKAN", "1");
+    gpu_mod.addCMacro("GPU_VULKAN", "1");
 
     const gloobie_mod = b.addModule("gloobie", .{
         .root_source_file = b.path("client/main.zig"),

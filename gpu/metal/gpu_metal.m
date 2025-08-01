@@ -19,20 +19,16 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#include "SDL_internal.h"
-
-#ifdef SDL_GPU_METAL
-
 #include <Metal/Metal.h>
 #include <QuartzCore/CoreAnimation.h>
 
-#include "../SDL_sysgpu.h"
+#include "../sysgpu.h"
 
 // Defines
 
 #define METAL_FIRST_VERTEX_BUFFER_SLOT 14
 #define WINDOW_PROPERTY_DATA           "SDL_GPUMetalWindowPropertyData"
-#define SDL_GPU_SHADERSTAGE_COMPUTE    2
+#define GPU_SHADERSTAGE_COMPUTE    2
 
 #define TRACK_RESOURCE(resource, type, array, count, capacity)   \
     do {                                                         \
@@ -72,135 +68,135 @@
 
 // Forward Declarations
 
-static bool METAL_Wait(SDL_GPURenderer *driverData);
+static bool METAL_Wait(GPU_Renderer *driverData);
 static void METAL_ReleaseWindow(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     SDL_Window *window);
-static void METAL_INTERNAL_DestroyBlitResources(SDL_GPURenderer *driverData);
+static void METAL_INTERNAL_DestroyBlitResources(GPU_Renderer *driverData);
 
 // Conversions
 
 #define RETURN_FORMAT(availability, format) \
     if (availability) { return format; } else { return MTLPixelFormatInvalid; }
 
-static MTLPixelFormat SDLToMetal_TextureFormat(SDL_GPUTextureFormat format)
+static MTLPixelFormat SDLToMetal_TextureFormat(GPU_TextureFormat format)
 {
     switch (format) {
-        case SDL_GPU_TEXTUREFORMAT_INVALID: return MTLPixelFormatInvalid;
-        case SDL_GPU_TEXTUREFORMAT_A8_UNORM: return MTLPixelFormatA8Unorm;
-        case SDL_GPU_TEXTUREFORMAT_R8_UNORM: return MTLPixelFormatR8Unorm;
-        case SDL_GPU_TEXTUREFORMAT_R8G8_UNORM: return MTLPixelFormatRG8Unorm;
-        case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM: return MTLPixelFormatRGBA8Unorm;
-        case SDL_GPU_TEXTUREFORMAT_R16_UNORM: return MTLPixelFormatR16Unorm;
-        case SDL_GPU_TEXTUREFORMAT_R16G16_UNORM: return MTLPixelFormatRG16Unorm;
-        case SDL_GPU_TEXTUREFORMAT_R16G16B16A16_UNORM: return MTLPixelFormatRGBA16Unorm;
-        case SDL_GPU_TEXTUREFORMAT_R10G10B10A2_UNORM: return MTLPixelFormatRGB10A2Unorm;
-        case SDL_GPU_TEXTUREFORMAT_B5G6R5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatB5G6R5Unorm);
-        case SDL_GPU_TEXTUREFORMAT_B5G5R5A1_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatBGR5A1Unorm);
-        case SDL_GPU_TEXTUREFORMAT_B4G4R4A4_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatABGR4Unorm);
-        case SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM: return MTLPixelFormatBGRA8Unorm;
-        case SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC1_RGBA);
-        case SDL_GPU_TEXTUREFORMAT_BC2_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC2_RGBA);
-        case SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC3_RGBA);
-        case SDL_GPU_TEXTUREFORMAT_BC4_R_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC4_RUnorm);
-        case SDL_GPU_TEXTUREFORMAT_BC5_RG_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC5_RGUnorm);
-        case SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC7_RGBAUnorm);
-        case SDL_GPU_TEXTUREFORMAT_BC6H_RGB_FLOAT: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC6H_RGBFloat);
-        case SDL_GPU_TEXTUREFORMAT_BC6H_RGB_UFLOAT: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC6H_RGBUfloat);
-        case SDL_GPU_TEXTUREFORMAT_R8_SNORM: return MTLPixelFormatR8Snorm;
-        case SDL_GPU_TEXTUREFORMAT_R8G8_SNORM: return MTLPixelFormatRG8Snorm;
-        case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_SNORM: return MTLPixelFormatRGBA8Snorm;
-        case SDL_GPU_TEXTUREFORMAT_R16_SNORM: return MTLPixelFormatR16Snorm;
-        case SDL_GPU_TEXTUREFORMAT_R16G16_SNORM: return MTLPixelFormatRG16Snorm;
-        case SDL_GPU_TEXTUREFORMAT_R16G16B16A16_SNORM: return MTLPixelFormatRGBA16Snorm;
-        case SDL_GPU_TEXTUREFORMAT_R16_FLOAT: return MTLPixelFormatR16Float;
-        case SDL_GPU_TEXTUREFORMAT_R16G16_FLOAT: return MTLPixelFormatRG16Float;
-        case SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT: return MTLPixelFormatRGBA16Float;
-        case SDL_GPU_TEXTUREFORMAT_R32_FLOAT: return MTLPixelFormatR32Float;
-        case SDL_GPU_TEXTUREFORMAT_R32G32_FLOAT: return MTLPixelFormatRG32Float;
-        case SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT: return MTLPixelFormatRGBA32Float;
-        case SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT: return MTLPixelFormatRG11B10Float;
-        case SDL_GPU_TEXTUREFORMAT_R8_UINT: return MTLPixelFormatR8Uint;
-        case SDL_GPU_TEXTUREFORMAT_R8G8_UINT: return MTLPixelFormatRG8Uint;
-        case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UINT: return MTLPixelFormatRGBA8Uint;
-        case SDL_GPU_TEXTUREFORMAT_R16_UINT: return MTLPixelFormatR16Uint;
-        case SDL_GPU_TEXTUREFORMAT_R16G16_UINT: return MTLPixelFormatRG16Uint;
-        case SDL_GPU_TEXTUREFORMAT_R16G16B16A16_UINT: return MTLPixelFormatRGBA16Uint;
-        case SDL_GPU_TEXTUREFORMAT_R32_UINT: return MTLPixelFormatR32Uint;
-        case SDL_GPU_TEXTUREFORMAT_R32G32_UINT: return MTLPixelFormatRG32Uint;
-        case SDL_GPU_TEXTUREFORMAT_R32G32B32A32_UINT: return MTLPixelFormatRGBA32Uint;
-        case SDL_GPU_TEXTUREFORMAT_R8_INT: return MTLPixelFormatR8Sint;
-        case SDL_GPU_TEXTUREFORMAT_R8G8_INT: return MTLPixelFormatRG8Sint;
-        case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_INT: return MTLPixelFormatRGBA8Sint;
-        case SDL_GPU_TEXTUREFORMAT_R16_INT: return MTLPixelFormatR16Sint;
-        case SDL_GPU_TEXTUREFORMAT_R16G16_INT: return MTLPixelFormatRG16Sint;
-        case SDL_GPU_TEXTUREFORMAT_R16G16B16A16_INT: return MTLPixelFormatRGBA16Sint;
-        case SDL_GPU_TEXTUREFORMAT_R32_INT: return MTLPixelFormatR32Sint;
-        case SDL_GPU_TEXTUREFORMAT_R32G32_INT: return MTLPixelFormatRG32Sint;
-        case SDL_GPU_TEXTUREFORMAT_R32G32B32A32_INT: return MTLPixelFormatRGBA32Sint;
-        case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB: return MTLPixelFormatRGBA8Unorm_sRGB;
-        case SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB: return MTLPixelFormatBGRA8Unorm_sRGB;
-        case SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC1_RGBA_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_BC2_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC2_RGBA_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC3_RGBA_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC7_RGBAUnorm_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_D16_UNORM: RETURN_FORMAT(@available(iOS 13.0, tvOS 13.0, *), MTLPixelFormatDepth16Unorm);
-        case SDL_GPU_TEXTUREFORMAT_D24_UNORM:
+        case GPU_TEXTUREFORMAT_INVALID: return MTLPixelFormatInvalid;
+        case GPU_TEXTUREFORMAT_A8_UNORM: return MTLPixelFormatA8Unorm;
+        case GPU_TEXTUREFORMAT_R8_UNORM: return MTLPixelFormatR8Unorm;
+        case GPU_TEXTUREFORMAT_R8G8_UNORM: return MTLPixelFormatRG8Unorm;
+        case GPU_TEXTUREFORMAT_R8G8B8A8_UNORM: return MTLPixelFormatRGBA8Unorm;
+        case GPU_TEXTUREFORMAT_R16_UNORM: return MTLPixelFormatR16Unorm;
+        case GPU_TEXTUREFORMAT_R16G16_UNORM: return MTLPixelFormatRG16Unorm;
+        case GPU_TEXTUREFORMAT_R16G16B16A16_UNORM: return MTLPixelFormatRGBA16Unorm;
+        case GPU_TEXTUREFORMAT_R10G10B10A2_UNORM: return MTLPixelFormatRGB10A2Unorm;
+        case GPU_TEXTUREFORMAT_B5G6R5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatB5G6R5Unorm);
+        case GPU_TEXTUREFORMAT_B5G5R5A1_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatBGR5A1Unorm);
+        case GPU_TEXTUREFORMAT_B4G4R4A4_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatABGR4Unorm);
+        case GPU_TEXTUREFORMAT_B8G8R8A8_UNORM: return MTLPixelFormatBGRA8Unorm;
+        case GPU_TEXTUREFORMAT_BC1_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC1_RGBA);
+        case GPU_TEXTUREFORMAT_BC2_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC2_RGBA);
+        case GPU_TEXTUREFORMAT_BC3_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC3_RGBA);
+        case GPU_TEXTUREFORMAT_BC4_R_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC4_RUnorm);
+        case GPU_TEXTUREFORMAT_BC5_RG_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC5_RGUnorm);
+        case GPU_TEXTUREFORMAT_BC7_RGBA_UNORM: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC7_RGBAUnorm);
+        case GPU_TEXTUREFORMAT_BC6H_RGB_FLOAT: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC6H_RGBFloat);
+        case GPU_TEXTUREFORMAT_BC6H_RGB_UFLOAT: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC6H_RGBUfloat);
+        case GPU_TEXTUREFORMAT_R8_SNORM: return MTLPixelFormatR8Snorm;
+        case GPU_TEXTUREFORMAT_R8G8_SNORM: return MTLPixelFormatRG8Snorm;
+        case GPU_TEXTUREFORMAT_R8G8B8A8_SNORM: return MTLPixelFormatRGBA8Snorm;
+        case GPU_TEXTUREFORMAT_R16_SNORM: return MTLPixelFormatR16Snorm;
+        case GPU_TEXTUREFORMAT_R16G16_SNORM: return MTLPixelFormatRG16Snorm;
+        case GPU_TEXTUREFORMAT_R16G16B16A16_SNORM: return MTLPixelFormatRGBA16Snorm;
+        case GPU_TEXTUREFORMAT_R16_FLOAT: return MTLPixelFormatR16Float;
+        case GPU_TEXTUREFORMAT_R16G16_FLOAT: return MTLPixelFormatRG16Float;
+        case GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT: return MTLPixelFormatRGBA16Float;
+        case GPU_TEXTUREFORMAT_R32_FLOAT: return MTLPixelFormatR32Float;
+        case GPU_TEXTUREFORMAT_R32G32_FLOAT: return MTLPixelFormatRG32Float;
+        case GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT: return MTLPixelFormatRGBA32Float;
+        case GPU_TEXTUREFORMAT_R11G11B10_UFLOAT: return MTLPixelFormatRG11B10Float;
+        case GPU_TEXTUREFORMAT_R8_UINT: return MTLPixelFormatR8Uint;
+        case GPU_TEXTUREFORMAT_R8G8_UINT: return MTLPixelFormatRG8Uint;
+        case GPU_TEXTUREFORMAT_R8G8B8A8_UINT: return MTLPixelFormatRGBA8Uint;
+        case GPU_TEXTUREFORMAT_R16_UINT: return MTLPixelFormatR16Uint;
+        case GPU_TEXTUREFORMAT_R16G16_UINT: return MTLPixelFormatRG16Uint;
+        case GPU_TEXTUREFORMAT_R16G16B16A16_UINT: return MTLPixelFormatRGBA16Uint;
+        case GPU_TEXTUREFORMAT_R32_UINT: return MTLPixelFormatR32Uint;
+        case GPU_TEXTUREFORMAT_R32G32_UINT: return MTLPixelFormatRG32Uint;
+        case GPU_TEXTUREFORMAT_R32G32B32A32_UINT: return MTLPixelFormatRGBA32Uint;
+        case GPU_TEXTUREFORMAT_R8_INT: return MTLPixelFormatR8Sint;
+        case GPU_TEXTUREFORMAT_R8G8_INT: return MTLPixelFormatRG8Sint;
+        case GPU_TEXTUREFORMAT_R8G8B8A8_INT: return MTLPixelFormatRGBA8Sint;
+        case GPU_TEXTUREFORMAT_R16_INT: return MTLPixelFormatR16Sint;
+        case GPU_TEXTUREFORMAT_R16G16_INT: return MTLPixelFormatRG16Sint;
+        case GPU_TEXTUREFORMAT_R16G16B16A16_INT: return MTLPixelFormatRGBA16Sint;
+        case GPU_TEXTUREFORMAT_R32_INT: return MTLPixelFormatR32Sint;
+        case GPU_TEXTUREFORMAT_R32G32_INT: return MTLPixelFormatRG32Sint;
+        case GPU_TEXTUREFORMAT_R32G32B32A32_INT: return MTLPixelFormatRGBA32Sint;
+        case GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB: return MTLPixelFormatRGBA8Unorm_sRGB;
+        case GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB: return MTLPixelFormatBGRA8Unorm_sRGB;
+        case GPU_TEXTUREFORMAT_BC1_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC1_RGBA_sRGB);
+        case GPU_TEXTUREFORMAT_BC2_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC2_RGBA_sRGB);
+        case GPU_TEXTUREFORMAT_BC3_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC3_RGBA_sRGB);
+        case GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB: RETURN_FORMAT(@available(iOS 16.4, tvOS 16.4, *), MTLPixelFormatBC7_RGBAUnorm_sRGB);
+        case GPU_TEXTUREFORMAT_D16_UNORM: RETURN_FORMAT(@available(iOS 13.0, tvOS 13.0, *), MTLPixelFormatDepth16Unorm);
+        case GPU_TEXTUREFORMAT_D24_UNORM:
 #ifdef SDL_PLATFORM_MACOS
             return MTLPixelFormatDepth24Unorm_Stencil8;
 #else
             return MTLPixelFormatInvalid;
 #endif
-        case SDL_GPU_TEXTUREFORMAT_D32_FLOAT: return MTLPixelFormatDepth32Float;
-        case SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT:
+        case GPU_TEXTUREFORMAT_D32_FLOAT: return MTLPixelFormatDepth32Float;
+        case GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT:
 #ifdef SDL_PLATFORM_MACOS
             return MTLPixelFormatDepth24Unorm_Stencil8;
 #else
             return MTLPixelFormatInvalid;
 #endif
-        case SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT: return MTLPixelFormatDepth32Float_Stencil8;
-        case SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_4x4_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x4_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x4_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x5_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x5_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x6_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x6_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x5_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x6_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x6_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x8_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x8_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x5_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x6_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x6_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x8_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x8_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x10_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x10_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x10_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x10_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x12_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x12_LDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_4x4_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x4_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x4_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x5_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x5_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x6_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x6_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x5_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x6_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x6_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x8_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x8_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x5_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x6_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x6_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x8_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x8_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x10_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x10_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x10_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x10_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x12_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x12_sRGB);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_4x4_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_4x4_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x4_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_5x4_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_5x5_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_6x5_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x6_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_6x6_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_8x5_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x6_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_8x6_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x8_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_8x8_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x5_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x6_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x6_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x8_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x8_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x10_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x10_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x10_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_12x10_HDR);
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x12_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_12x12_HDR);
+        case GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT: return MTLPixelFormatDepth32Float_Stencil8;
+        case GPU_TEXTUREFORMAT_ASTC_4x4_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_4x4_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_5x4_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x4_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_5x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x5_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_6x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x5_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_6x6_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x6_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_8x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x5_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_8x6_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x6_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_8x8_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x8_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x5_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x5_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x6_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x6_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x8_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x8_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x10_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x10_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_12x10_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x10_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_12x12_UNORM: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x12_LDR);
+        case GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_4x4_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_5x4_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x4_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_5x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_5x5_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_6x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x5_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_6x6_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_6x6_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_8x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x5_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_8x6_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x6_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_8x8_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_8x8_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_10x5_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x5_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_10x6_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x6_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_10x8_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x8_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_10x10_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_10x10_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_12x10_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x10_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_12x12_UNORM_SRGB: RETURN_FORMAT(@available(macOS 11.0, *), MTLPixelFormatASTC_12x12_sRGB);
+        case GPU_TEXTUREFORMAT_ASTC_4x4_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_4x4_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_5x4_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_5x4_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_5x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_5x5_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_6x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_6x5_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_6x6_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_6x6_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_8x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_8x5_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_8x6_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_8x6_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_8x8_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_8x8_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x5_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x5_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x6_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x6_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x8_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x8_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_10x10_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_10x10_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_12x10_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_12x10_HDR);
+        case GPU_TEXTUREFORMAT_ASTC_12x12_FLOAT: RETURN_FORMAT(@available(macOS 11.0, iOS 13.0, tvOS 16.0, *), MTLPixelFormatASTC_12x12_HDR);
     }
 }
 
@@ -239,7 +235,7 @@ static MTLVertexFormat SDLToMetal_VertexFormat[] = {
     MTLVertexFormatHalf2,             // HALF2
     MTLVertexFormatHalf4              // HALF4
 };
-SDL_COMPILE_TIME_ASSERT(SDLToMetal_VertexFormat, SDL_arraysize(SDLToMetal_VertexFormat) == SDL_GPU_VERTEXELEMENTFORMAT_MAX_ENUM_VALUE);
+SDL_COMPILE_TIME_ASSERT(SDLToMetal_VertexFormat, SDL_arraysize(SDLToMetal_VertexFormat) == GPU_VERTEXELEMENTFORMAT_MAX_ENUM_VALUE);
 
 static MTLIndexType SDLToMetal_IndexType[] = {
     MTLIndexTypeUInt16, // 16BIT
@@ -286,7 +282,7 @@ static MTLBlendFactor SDLToMetal_BlendFactor[] = {
     MTLBlendFactorOneMinusBlendColor,       // ONE_MINUS_CONSTANT_COLOR
     MTLBlendFactorSourceAlphaSaturated,     // SRC_ALPHA_SATURATE
 };
-SDL_COMPILE_TIME_ASSERT(SDLToMetal_BlendFactor, SDL_arraysize(SDLToMetal_BlendFactor) == SDL_GPU_BLENDFACTOR_MAX_ENUM_VALUE);
+SDL_COMPILE_TIME_ASSERT(SDLToMetal_BlendFactor, SDL_arraysize(SDLToMetal_BlendFactor) == GPU_BLENDFACTOR_MAX_ENUM_VALUE);
 
 static MTLBlendOperation SDLToMetal_BlendOp[] = {
     MTLBlendOperationAdd,             // INVALID
@@ -296,7 +292,7 @@ static MTLBlendOperation SDLToMetal_BlendOp[] = {
     MTLBlendOperationMin,             // MIN
     MTLBlendOperationMax,             // MAX
 };
-SDL_COMPILE_TIME_ASSERT(SDLToMetal_BlendOp, SDL_arraysize(SDLToMetal_BlendOp) == SDL_GPU_BLENDOP_MAX_ENUM_VALUE);
+SDL_COMPILE_TIME_ASSERT(SDLToMetal_BlendOp, SDL_arraysize(SDLToMetal_BlendOp) == GPU_BLENDOP_MAX_ENUM_VALUE);
 
 static MTLCompareFunction SDLToMetal_CompareOp[] = {
     MTLCompareFunctionNever,        // INVALID
@@ -309,7 +305,7 @@ static MTLCompareFunction SDLToMetal_CompareOp[] = {
     MTLCompareFunctionGreaterEqual, // GREATER_OR_EQUAL
     MTLCompareFunctionAlways,       // ALWAYS
 };
-SDL_COMPILE_TIME_ASSERT(SDLToMetal_CompareOp, SDL_arraysize(SDLToMetal_CompareOp) == SDL_GPU_COMPAREOP_MAX_ENUM_VALUE);
+SDL_COMPILE_TIME_ASSERT(SDLToMetal_CompareOp, SDL_arraysize(SDLToMetal_CompareOp) == GPU_COMPAREOP_MAX_ENUM_VALUE);
 
 static MTLStencilOperation SDLToMetal_StencilOp[] = {
     MTLStencilOperationKeep,           // INVALID
@@ -322,7 +318,7 @@ static MTLStencilOperation SDLToMetal_StencilOp[] = {
     MTLStencilOperationIncrementWrap,  // INCREMENT_AND_WRAP
     MTLStencilOperationDecrementWrap,  // DECREMENT_AND_WRAP
 };
-SDL_COMPILE_TIME_ASSERT(SDLToMetal_StencilOp, SDL_arraysize(SDLToMetal_StencilOp) == SDL_GPU_STENCILOP_MAX_ENUM_VALUE);
+SDL_COMPILE_TIME_ASSERT(SDLToMetal_StencilOp, SDL_arraysize(SDLToMetal_StencilOp) == GPU_STENCILOP_MAX_ENUM_VALUE);
 
 static MTLSamplerAddressMode SDLToMetal_SamplerAddressMode[] = {
     MTLSamplerAddressModeRepeat,       // REPEAT
@@ -359,33 +355,33 @@ static MTLVertexStepFunction SDLToMetal_StepFunction[] = {
 };
 
 static NSUInteger SDLToMetal_SampleCount[] = {
-    1, // SDL_GPU_SAMPLECOUNT_1
-    2, // SDL_GPU_SAMPLECOUNT_2
-    4, // SDL_GPU_SAMPLECOUNT_4
-    8  // SDL_GPU_SAMPLECOUNT_8
+    1, // GPU_SAMPLECOUNT_1
+    2, // GPU_SAMPLECOUNT_2
+    4, // GPU_SAMPLECOUNT_4
+    8  // GPU_SAMPLECOUNT_8
 };
 
-static SDL_GPUTextureFormat SwapchainCompositionToFormat[] = {
-    SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,      // SDR
-    SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB, // SDR_LINEAR
-    SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT,  // HDR_EXTENDED_LINEAR
-    SDL_GPU_TEXTUREFORMAT_R10G10B10A2_UNORM,   // HDR10_ST2084
+static GPU_TextureFormat SwapchainCompositionToFormat[] = {
+    GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,      // SDR
+    GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB, // SDR_LINEAR
+    GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT,  // HDR_EXTENDED_LINEAR
+    GPU_TEXTUREFORMAT_R10G10B10A2_UNORM,   // HDR10_ST2084
 };
 
 static CFStringRef SwapchainCompositionToColorSpace[4]; // initialized on device creation
 
-static MTLTextureType SDLToMetal_TextureType(SDL_GPUTextureType textureType, bool isMSAA)
+static MTLTextureType SDLToMetal_TextureType(GPU_TextureType textureType, bool isMSAA)
 {
     switch (textureType) {
-    case SDL_GPU_TEXTURETYPE_2D:
+    case GPU_TEXTURETYPE_2D:
         return isMSAA ? MTLTextureType2DMultisample : MTLTextureType2D;
-    case SDL_GPU_TEXTURETYPE_2D_ARRAY:
+    case GPU_TEXTURETYPE_2D_ARRAY:
         return MTLTextureType2DArray;
-    case SDL_GPU_TEXTURETYPE_3D:
+    case GPU_TEXTURETYPE_3D:
         return MTLTextureType3D;
-    case SDL_GPU_TEXTURETYPE_CUBE:
+    case GPU_TEXTURETYPE_CUBE:
         return MTLTextureTypeCube;
-    case SDL_GPU_TEXTURETYPE_CUBE_ARRAY:
+    case GPU_TEXTURETYPE_CUBE_ARRAY:
         return MTLTextureTypeCubeArray;
     default:
         return MTLTextureType2D;
@@ -393,19 +389,19 @@ static MTLTextureType SDLToMetal_TextureType(SDL_GPUTextureType textureType, boo
 }
 
 static MTLColorWriteMask SDLToMetal_ColorWriteMask(
-    SDL_GPUColorComponentFlags mask)
+    GPU_ColorComponentFlags mask)
 {
     MTLColorWriteMask result = 0;
-    if (mask & SDL_GPU_COLORCOMPONENT_R) {
+    if (mask & GPU_COLORCOMPONENT_R) {
         result |= MTLColorWriteMaskRed;
     }
-    if (mask & SDL_GPU_COLORCOMPONENT_G) {
+    if (mask & GPU_COLORCOMPONENT_G) {
         result |= MTLColorWriteMaskGreen;
     }
-    if (mask & SDL_GPU_COLORCOMPONENT_B) {
+    if (mask & GPU_COLORCOMPONENT_B) {
         result |= MTLColorWriteMaskBlue;
     }
-    if (mask & SDL_GPU_COLORCOMPONENT_A) {
+    if (mask & GPU_COLORCOMPONENT_A) {
         result |= MTLColorWriteMaskAlpha;
     }
     return result;
@@ -454,11 +450,11 @@ typedef struct MetalWindowData
     SDL_Window *window;
     SDL_MetalView view;
     CAMetalLayer *layer;
-    SDL_GPUPresentMode presentMode;
+    GPU_PresentMode presentMode;
     id<CAMetalDrawable> drawable;
     MetalTexture texture;
     MetalTextureContainer textureContainer;
-    SDL_GPUFence *inFlightFences[MAX_FRAMES_IN_FLIGHT];
+    GPU_Fence *inFlightFences[MAX_FRAMES_IN_FLIGHT];
     Uint32 frameCounter;
 } MetalWindowData;
 
@@ -467,7 +463,7 @@ typedef struct MetalShader
     id<MTLLibrary> library;
     id<MTLFunction> function;
 
-    SDL_GPUShaderStage stage;
+    GPU_ShaderStage stage;
     Uint32 numSamplers;
     Uint32 numUniformBuffers;
     Uint32 numStorageBuffers;
@@ -480,8 +476,8 @@ typedef struct MetalGraphicsPipeline
 
     id<MTLRenderPipelineState> handle;
 
-    SDL_GPURasterizerState rasterizerState;
-    SDL_GPUPrimitiveType primitiveType;
+    GPU_RasterizerState rasterizerState;
+    GPU_PrimitiveType primitiveType;
 
     id<MTLDepthStencilState> depth_stencil_state;
 } MetalGraphicsPipeline;
@@ -543,7 +539,7 @@ typedef struct MetalCommandBuffer
     MetalGraphicsPipeline *graphics_pipeline;
     MetalBuffer *indexBuffer;
     Uint32 indexBufferOffset;
-    SDL_GPUIndexElementSize index_element_size;
+    GPU_IndexElementSize index_element_size;
 
     // Copy Pass
     id<MTLBlitCommandEncoder> blitEncoder;
@@ -618,14 +614,14 @@ typedef struct MetalSampler
 
 typedef struct BlitPipeline
 {
-    SDL_GPUGraphicsPipeline *pipeline;
-    SDL_GPUTextureFormat format;
+    GPU_GraphicsPipeline *pipeline;
+    GPU_TextureFormat format;
 } BlitPipeline;
 
 struct MetalRenderer
 {
     // Reference to the parent device
-    SDL_GPUDevice *sdlGPUDevice;
+    GPU_Device *sdlGPUDevice;
 
     id<MTLDevice> device;
     id<MTLCommandQueue> queue;
@@ -663,15 +659,15 @@ struct MetalRenderer
     Uint32 textureContainersToDestroyCapacity;
 
     // Blit
-    SDL_GPUShader *blitVertexShader;
-    SDL_GPUShader *blitFrom2DShader;
-    SDL_GPUShader *blitFrom2DArrayShader;
-    SDL_GPUShader *blitFrom3DShader;
-    SDL_GPUShader *blitFromCubeShader;
-    SDL_GPUShader *blitFromCubeArrayShader;
+    GPU_Shader *blitVertexShader;
+    GPU_Shader *blitFrom2DShader;
+    GPU_Shader *blitFrom2DArrayShader;
+    GPU_Shader *blitFrom3DShader;
+    GPU_Shader *blitFromCubeShader;
+    GPU_Shader *blitFromCubeArrayShader;
 
-    SDL_GPUSampler *blitNearestSampler;
-    SDL_GPUSampler *blitLinearSampler;
+    GPU_Sampler *blitNearestSampler;
+    GPU_Sampler *blitLinearSampler;
 
     BlitPipelineCacheEntry *blitPipelines;
     Uint32 blitPipelineCount;
@@ -698,7 +694,7 @@ static inline Uint32 METAL_INTERNAL_NextHighestAlignment(
 
 // Quit
 
-static void METAL_DestroyDevice(SDL_GPUDevice *device)
+static void METAL_DestroyDevice(GPU_Device *device)
 {
     MetalRenderer *renderer = (MetalRenderer *)device->driverData;
 
@@ -762,7 +758,7 @@ static void METAL_DestroyDevice(SDL_GPUDevice *device)
     SDL_free(device);
 }
 
-static SDL_PropertiesID METAL_GetDeviceProperties(SDL_GPUDevice *device)
+static SDL_PropertiesID METAL_GetDeviceProperties(GPU_Device *device)
 {
     MetalRenderer *renderer = (MetalRenderer *)device->driverData;
     return renderer->props;
@@ -838,7 +834,7 @@ static bool METAL_INTERNAL_IsValidMetalLibrary(
 // This function assumes that it's called from within an autorelease pool
 static MetalLibraryFunction METAL_INTERNAL_CompileShader(
     MetalRenderer *renderer,
-    SDL_GPUShaderFormat format,
+    GPU_ShaderFormat format,
     const Uint8 *code,
     size_t codeSize,
     const char *entrypoint)
@@ -853,7 +849,7 @@ static MetalLibraryFunction METAL_INTERNAL_CompileShader(
         entrypoint = "main0";
     }
 
-    if (format == SDL_GPU_SHADERFORMAT_MSL) {
+    if (format == GPU_SHADERFORMAT_MSL) {
         NSString *codeString = [[NSString alloc]
             initWithBytes:code
                    length:codeSize
@@ -862,7 +858,7 @@ static MetalLibraryFunction METAL_INTERNAL_CompileShader(
             newLibraryWithSource:codeString
                          options:nil
                            error:&error];
-    } else if (format == SDL_GPU_SHADERFORMAT_METALLIB) {
+    } else if (format == GPU_SHADERFORMAT_METALLIB) {
         if (!METAL_INTERNAL_IsValidMetalLibrary(code, codeSize)) {
             SET_STRING_ERROR_AND_RETURN(
                 "The provided shader code is not a valid Metal library!",
@@ -923,8 +919,8 @@ static void METAL_INTERNAL_DestroyTextureContainer(
 }
 
 static void METAL_ReleaseTexture(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTexture *texture)
+    GPU_Renderer *driverData,
+    GPU_Texture *texture)
 {
     MetalRenderer *renderer = (MetalRenderer *)driverData;
     MetalTextureContainer *container = (MetalTextureContainer *)texture;
@@ -945,8 +941,8 @@ static void METAL_ReleaseTexture(
 }
 
 static void METAL_ReleaseSampler(
-    SDL_GPURenderer *driverData,
-    SDL_GPUSampler *sampler)
+    GPU_Renderer *driverData,
+    GPU_Sampler *sampler)
 {
     @autoreleasepool {
         MetalSampler *metalSampler = (MetalSampler *)sampler;
@@ -970,8 +966,8 @@ static void METAL_INTERNAL_DestroyBufferContainer(
 }
 
 static void METAL_ReleaseBuffer(
-    SDL_GPURenderer *driverData,
-    SDL_GPUBuffer *buffer)
+    GPU_Renderer *driverData,
+    GPU_Buffer *buffer)
 {
     MetalRenderer *renderer = (MetalRenderer *)driverData;
     MetalBufferContainer *container = (MetalBufferContainer *)buffer;
@@ -992,17 +988,17 @@ static void METAL_ReleaseBuffer(
 }
 
 static void METAL_ReleaseTransferBuffer(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTransferBuffer *transferBuffer)
+    GPU_Renderer *driverData,
+    GPU_TransferBuffer *transferBuffer)
 {
     METAL_ReleaseBuffer(
         driverData,
-        (SDL_GPUBuffer *)transferBuffer);
+        (GPU_Buffer *)transferBuffer);
 }
 
 static void METAL_ReleaseShader(
-    SDL_GPURenderer *driverData,
-    SDL_GPUShader *shader)
+    GPU_Renderer *driverData,
+    GPU_Shader *shader)
 {
     @autoreleasepool {
         MetalShader *metalShader = (MetalShader *)shader;
@@ -1013,8 +1009,8 @@ static void METAL_ReleaseShader(
 }
 
 static void METAL_ReleaseComputePipeline(
-    SDL_GPURenderer *driverData,
-    SDL_GPUComputePipeline *computePipeline)
+    GPU_Renderer *driverData,
+    GPU_ComputePipeline *computePipeline)
 {
     @autoreleasepool {
         MetalComputePipeline *metalComputePipeline = (MetalComputePipeline *)computePipeline;
@@ -1024,8 +1020,8 @@ static void METAL_ReleaseComputePipeline(
 }
 
 static void METAL_ReleaseGraphicsPipeline(
-    SDL_GPURenderer *driverData,
-    SDL_GPUGraphicsPipeline *graphicsPipeline)
+    GPU_Renderer *driverData,
+    GPU_GraphicsPipeline *graphicsPipeline)
 {
     @autoreleasepool {
         MetalGraphicsPipeline *metalGraphicsPipeline = (MetalGraphicsPipeline *)graphicsPipeline;
@@ -1037,9 +1033,9 @@ static void METAL_ReleaseGraphicsPipeline(
 
 // Pipeline Creation
 
-static SDL_GPUComputePipeline *METAL_CreateComputePipeline(
-    SDL_GPURenderer *driverData,
-    const SDL_GPUComputePipelineCreateInfo *createinfo)
+static GPU_ComputePipeline *METAL_CreateComputePipeline(
+    GPU_Renderer *driverData,
+    const GPU_ComputePipelineCreateInfo *createinfo)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
@@ -1062,8 +1058,8 @@ static SDL_GPUComputePipeline *METAL_CreateComputePipeline(
         MTLComputePipelineDescriptor *descriptor = [MTLComputePipelineDescriptor new];
         descriptor.computeFunction = libraryFunction.function;
 
-        if (renderer->debugMode && SDL_HasProperty(createinfo->props, SDL_PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING)) {
-            const char *name = SDL_GetStringProperty(createinfo->props, SDL_PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING, NULL);
+        if (renderer->debugMode && SDL_HasProperty(createinfo->props, GPU_PROP_COMPUTEPIPELINE_CREATE_NAME_STRING)) {
+            const char *name = SDL_GetStringProperty(createinfo->props, GPU_PROP_COMPUTEPIPELINE_CREATE_NAME_STRING, NULL);
             descriptor.label = @(name);
         }
 
@@ -1084,20 +1080,20 @@ static SDL_GPUComputePipeline *METAL_CreateComputePipeline(
         pipeline->threadcountY = createinfo->threadcount_y;
         pipeline->threadcountZ = createinfo->threadcount_z;
 
-        return (SDL_GPUComputePipeline *)pipeline;
+        return (GPU_ComputePipeline *)pipeline;
     }
 }
 
-static SDL_GPUGraphicsPipeline *METAL_CreateGraphicsPipeline(
-    SDL_GPURenderer *driverData,
-    const SDL_GPUGraphicsPipelineCreateInfo *createinfo)
+static GPU_GraphicsPipeline *METAL_CreateGraphicsPipeline(
+    GPU_Renderer *driverData,
+    const GPU_GraphicsPipelineCreateInfo *createinfo)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
         MetalShader *vertexShader = (MetalShader *)createinfo->vertex_shader;
         MetalShader *fragmentShader = (MetalShader *)createinfo->fragment_shader;
         MTLRenderPipelineDescriptor *pipelineDescriptor;
-        const SDL_GPUColorTargetBlendState *blendState;
+        const GPU_ColorTargetBlendState *blendState;
         MTLVertexDescriptor *vertexDescriptor;
         Uint32 binding;
         MTLDepthStencilDescriptor *depthStencilDescriptor;
@@ -1109,10 +1105,10 @@ static SDL_GPUGraphicsPipeline *METAL_CreateGraphicsPipeline(
         MetalGraphicsPipeline *result = NULL;
 
         if (renderer->debugMode) {
-            if (vertexShader->stage != SDL_GPU_SHADERSTAGE_VERTEX) {
+            if (vertexShader->stage != GPU_SHADERSTAGE_VERTEX) {
                 SDL_assert_release(!"CreateGraphicsPipeline was passed a fragment shader for the vertex stage");
             }
-            if (fragmentShader->stage != SDL_GPU_SHADERSTAGE_FRAGMENT) {
+            if (fragmentShader->stage != GPU_SHADERSTAGE_FRAGMENT) {
                 SDL_assert_release(!"CreateGraphicsPipeline was passed a vertex shader for the fragment stage");
             }
         }
@@ -1122,7 +1118,7 @@ static SDL_GPUGraphicsPipeline *METAL_CreateGraphicsPipeline(
 
         for (Uint32 i = 0; i < createinfo->target_info.num_color_targets; i += 1) {
             blendState = &createinfo->target_info.color_target_descriptions[i].blend_state;
-            SDL_GPUColorComponentFlags colorWriteMask = blendState->enable_color_write_mask ?
+            GPU_ColorComponentFlags colorWriteMask = blendState->enable_color_write_mask ?
                 blendState->color_write_mask :
                 0xF;
 
@@ -1206,8 +1202,8 @@ static SDL_GPUGraphicsPipeline *METAL_CreateGraphicsPipeline(
             pipelineDescriptor.vertexDescriptor = vertexDescriptor;
         }
 
-        if (renderer->debugMode && SDL_HasProperty(createinfo->props, SDL_PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING)) {
-            const char *name = SDL_GetStringProperty(createinfo->props, SDL_PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING, NULL);
+        if (renderer->debugMode && SDL_HasProperty(createinfo->props, GPU_PROP_GRAPHICSPIPELINE_CREATE_NAME_STRING)) {
+            const char *name = SDL_GetStringProperty(createinfo->props, GPU_PROP_GRAPHICSPIPELINE_CREATE_NAME_STRING, NULL);
             pipelineDescriptor.label = @(name);
         }
 
@@ -1231,15 +1227,15 @@ static SDL_GPUGraphicsPipeline *METAL_CreateGraphicsPipeline(
         result->header.num_fragment_uniform_buffers = fragmentShader->numUniformBuffers;
         result->header.num_fragment_storage_buffers = fragmentShader->numStorageBuffers;
         result->header.num_fragment_storage_textures = fragmentShader->numStorageTextures;
-        return (SDL_GPUGraphicsPipeline *)result;
+        return (GPU_GraphicsPipeline *)result;
     }
 }
 
 // Debug Naming
 
 static void METAL_SetBufferName(
-    SDL_GPURenderer *driverData,
-    SDL_GPUBuffer *buffer,
+    GPU_Renderer *driverData,
+    GPU_Buffer *buffer,
     const char *text)
 {
     @autoreleasepool {
@@ -1261,8 +1257,8 @@ static void METAL_SetBufferName(
 }
 
 static void METAL_SetTextureName(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTexture *texture,
+    GPU_Renderer *driverData,
+    GPU_Texture *texture,
     const char *text)
 {
     @autoreleasepool {
@@ -1284,7 +1280,7 @@ static void METAL_SetTextureName(
 }
 
 static void METAL_InsertDebugLabel(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     const char *text)
 {
     @autoreleasepool {
@@ -1306,7 +1302,7 @@ static void METAL_InsertDebugLabel(
 }
 
 static void METAL_PushDebugGroup(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     const char *name)
 {
     @autoreleasepool {
@@ -1326,7 +1322,7 @@ static void METAL_PushDebugGroup(
 }
 
 static void METAL_PopDebugGroup(
-    SDL_GPUCommandBuffer *commandBuffer)
+    GPU_CommandBuffer *commandBuffer)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -1345,9 +1341,9 @@ static void METAL_PopDebugGroup(
 
 // Resource Creation
 
-static SDL_GPUSampler *METAL_CreateSampler(
-    SDL_GPURenderer *driverData,
-    const SDL_GPUSamplerCreateInfo *createinfo)
+static GPU_Sampler *METAL_CreateSampler(
+    GPU_Renderer *driverData,
+    const GPU_SamplerCreateInfo *createinfo)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
@@ -1366,8 +1362,8 @@ static SDL_GPUSampler *METAL_CreateSampler(
         samplerDesc.maxAnisotropy = (NSUInteger)((createinfo->enable_anisotropy) ? createinfo->max_anisotropy : 1);
         samplerDesc.compareFunction = (createinfo->enable_compare) ? SDLToMetal_CompareOp[createinfo->compare_op] : MTLCompareFunctionAlways;
 
-        if (renderer->debugMode && SDL_HasProperty(createinfo->props, SDL_PROP_GPU_SAMPLER_CREATE_NAME_STRING)) {
-            const char *name = SDL_GetStringProperty(createinfo->props, SDL_PROP_GPU_SAMPLER_CREATE_NAME_STRING, NULL);
+        if (renderer->debugMode && SDL_HasProperty(createinfo->props, GPU_PROP_SAMPLER_CREATE_NAME_STRING)) {
+            const char *name = SDL_GetStringProperty(createinfo->props, GPU_PROP_SAMPLER_CREATE_NAME_STRING, NULL);
             samplerDesc.label = @(name);
         }
 
@@ -1378,13 +1374,13 @@ static SDL_GPUSampler *METAL_CreateSampler(
 
         metalSampler = (MetalSampler *)SDL_calloc(1, sizeof(MetalSampler));
         metalSampler->handle = sampler;
-        return (SDL_GPUSampler *)metalSampler;
+        return (GPU_Sampler *)metalSampler;
     }
 }
 
-static SDL_GPUShader *METAL_CreateShader(
-    SDL_GPURenderer *driverData,
-    const SDL_GPUShaderCreateInfo *createinfo)
+static GPU_Shader *METAL_CreateShader(
+    GPU_Renderer *driverData,
+    const GPU_ShaderCreateInfo *createinfo)
 {
     @autoreleasepool {
         MetalLibraryFunction libraryFunction;
@@ -1409,56 +1405,56 @@ static SDL_GPUShader *METAL_CreateShader(
         result->numStorageBuffers = createinfo->num_storage_buffers;
         result->numStorageTextures = createinfo->num_storage_textures;
         result->numUniformBuffers = createinfo->num_uniform_buffers;
-        return (SDL_GPUShader *)result;
+        return (GPU_Shader *)result;
     }
 }
 
 // This function assumes that it's called from within an autorelease pool
 static MetalTexture *METAL_INTERNAL_CreateTexture(
     MetalRenderer *renderer,
-    const SDL_GPUTextureCreateInfo *createinfo)
+    const GPU_TextureCreateInfo *createinfo)
 {
     MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor new];
     id<MTLTexture> texture;
     MetalTexture *metalTexture;
 
-    textureDescriptor.textureType = SDLToMetal_TextureType(createinfo->type, createinfo->sample_count > SDL_GPU_SAMPLECOUNT_1);
+    textureDescriptor.textureType = SDLToMetal_TextureType(createinfo->type, createinfo->sample_count > GPU_SAMPLECOUNT_1);
     textureDescriptor.pixelFormat = SDLToMetal_TextureFormat(createinfo->format);
     // This format isn't natively supported so let's swizzle!
-    if (createinfo->format == SDL_GPU_TEXTUREFORMAT_B4G4R4A4_UNORM) {
+    if (createinfo->format == GPU_TEXTUREFORMAT_B4G4R4A4_UNORM) {
         if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, *)) {
             textureDescriptor.swizzle = MTLTextureSwizzleChannelsMake(MTLTextureSwizzleBlue,
                                                                       MTLTextureSwizzleGreen,
                                                                       MTLTextureSwizzleRed,
                                                                       MTLTextureSwizzleAlpha);
         } else {
-            SET_STRING_ERROR_AND_RETURN("SDL_GPU_TEXTUREFORMAT_B4G4R4A4_UNORM is not supported", NULL);
+            SET_STRING_ERROR_AND_RETURN("GPU_TEXTUREFORMAT_B4G4R4A4_UNORM is not supported", NULL);
         }
     }
 
     textureDescriptor.width = createinfo->width;
     textureDescriptor.height = createinfo->height;
-    textureDescriptor.depth = (createinfo->type == SDL_GPU_TEXTURETYPE_3D) ? createinfo->layer_count_or_depth : 1;
+    textureDescriptor.depth = (createinfo->type == GPU_TEXTURETYPE_3D) ? createinfo->layer_count_or_depth : 1;
     textureDescriptor.mipmapLevelCount = createinfo->num_levels;
     textureDescriptor.sampleCount = SDLToMetal_SampleCount[createinfo->sample_count];
     textureDescriptor.arrayLength =
-        (createinfo->type == SDL_GPU_TEXTURETYPE_2D_ARRAY || createinfo->type == SDL_GPU_TEXTURETYPE_CUBE_ARRAY)
+        (createinfo->type == GPU_TEXTURETYPE_2D_ARRAY || createinfo->type == GPU_TEXTURETYPE_CUBE_ARRAY)
             ? createinfo->layer_count_or_depth
             : 1;
     textureDescriptor.storageMode = MTLStorageModePrivate;
 
     textureDescriptor.usage = 0;
-    if (createinfo->usage & (SDL_GPU_TEXTUREUSAGE_COLOR_TARGET |
-                             SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
+    if (createinfo->usage & (GPU_TEXTUREUSAGE_COLOR_TARGET |
+                             GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
         textureDescriptor.usage |= MTLTextureUsageRenderTarget;
     }
-    if (createinfo->usage & (SDL_GPU_TEXTUREUSAGE_SAMPLER |
-                             SDL_GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ |
-                             SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ)) {
+    if (createinfo->usage & (GPU_TEXTUREUSAGE_SAMPLER |
+                             GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ |
+                             GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ)) {
         textureDescriptor.usage |= MTLTextureUsageShaderRead;
     }
-    if (createinfo->usage & (SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE |
-                             SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE)) {
+    if (createinfo->usage & (GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE |
+                             GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE)) {
         textureDescriptor.usage |= MTLTextureUsageShaderWrite;
     }
 
@@ -1472,17 +1468,17 @@ static MetalTexture *METAL_INTERNAL_CreateTexture(
     metalTexture->handle = texture;
     SDL_SetAtomicInt(&metalTexture->referenceCount, 0);
 
-    if (renderer->debugMode && SDL_HasProperty(createinfo->props, SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING)) {
-        metalTexture->handle.label = @(SDL_GetStringProperty(createinfo->props, SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING, NULL));
+    if (renderer->debugMode && SDL_HasProperty(createinfo->props, GPU_PROP_TEXTURE_CREATE_NAME_STRING)) {
+        metalTexture->handle.label = @(SDL_GetStringProperty(createinfo->props, GPU_PROP_TEXTURE_CREATE_NAME_STRING, NULL));
     }
 
     return metalTexture;
 }
 
 static bool METAL_SupportsSampleCount(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTextureFormat format,
-    SDL_GPUSampleCount sampleCount)
+    GPU_Renderer *driverData,
+    GPU_TextureFormat format,
+    GPU_SampleCount sampleCount)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
@@ -1491,9 +1487,9 @@ static bool METAL_SupportsSampleCount(
     }
 }
 
-static SDL_GPUTexture *METAL_CreateTexture(
-    SDL_GPURenderer *driverData,
-    const SDL_GPUTextureCreateInfo *createinfo)
+static GPU_Texture *METAL_CreateTexture(
+    GPU_Renderer *driverData,
+    const GPU_TextureCreateInfo *createinfo)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
@@ -1526,11 +1522,11 @@ static SDL_GPUTexture *METAL_CreateTexture(
         container->textures[0] = texture;
         container->debugName = NULL;
 
-        if (SDL_HasProperty(createinfo->props, SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING)) {
-            container->debugName = SDL_strdup(SDL_GetStringProperty(createinfo->props, SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING, NULL));
+        if (SDL_HasProperty(createinfo->props, GPU_PROP_TEXTURE_CREATE_NAME_STRING)) {
+            container->debugName = SDL_strdup(SDL_GetStringProperty(createinfo->props, GPU_PROP_TEXTURE_CREATE_NAME_STRING, NULL));
         }
 
-        return (SDL_GPUTexture *)container;
+        return (GPU_Texture *)container;
     }
 }
 
@@ -1643,14 +1639,14 @@ static MetalBufferContainer *METAL_INTERNAL_CreateBufferContainer(
     return container;
 }
 
-static SDL_GPUBuffer *METAL_CreateBuffer(
-    SDL_GPURenderer *driverData,
-    SDL_GPUBufferUsageFlags usage,
+static GPU_Buffer *METAL_CreateBuffer(
+    GPU_Renderer *driverData,
+    GPU_BufferUsageFlags usage,
     Uint32 size,
     const char *debugName)
 {
     @autoreleasepool {
-        return (SDL_GPUBuffer *)METAL_INTERNAL_CreateBufferContainer(
+        return (GPU_Buffer *)METAL_INTERNAL_CreateBufferContainer(
             (MetalRenderer *)driverData,
             size,
             true,
@@ -1659,18 +1655,18 @@ static SDL_GPUBuffer *METAL_CreateBuffer(
     }
 }
 
-static SDL_GPUTransferBuffer *METAL_CreateTransferBuffer(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTransferBufferUsage usage,
+static GPU_TransferBuffer *METAL_CreateTransferBuffer(
+    GPU_Renderer *driverData,
+    GPU_TransferBufferUsage usage,
     Uint32 size,
     const char *debugName)
 {
     @autoreleasepool {
-        return (SDL_GPUTransferBuffer *)METAL_INTERNAL_CreateBufferContainer(
+        return (GPU_TransferBuffer *)METAL_INTERNAL_CreateBufferContainer(
             (MetalRenderer *)driverData,
             size,
             false,
-            usage == SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+            usage == GPU_TRANSFERBUFFERUSAGE_UPLOAD,
             debugName);
     }
 }
@@ -1748,8 +1744,8 @@ static MetalBuffer *METAL_INTERNAL_PrepareBufferForWrite(
 // TransferBuffer Data
 
 static void *METAL_MapTransferBuffer(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTransferBuffer *transferBuffer,
+    GPU_Renderer *driverData,
+    GPU_TransferBuffer *transferBuffer,
     bool cycle)
 {
     @autoreleasepool {
@@ -1761,8 +1757,8 @@ static void *METAL_MapTransferBuffer(
 }
 
 static void METAL_UnmapTransferBuffer(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTransferBuffer *transferBuffer)
+    GPU_Renderer *driverData,
+    GPU_TransferBuffer *transferBuffer)
 {
 #ifdef SDL_PLATFORM_MACOS
     @autoreleasepool {
@@ -1779,7 +1775,7 @@ static void METAL_UnmapTransferBuffer(
 // Copy Pass
 
 static void METAL_BeginCopyPass(
-    SDL_GPUCommandBuffer *commandBuffer)
+    GPU_CommandBuffer *commandBuffer)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -1788,9 +1784,9 @@ static void METAL_BeginCopyPass(
 }
 
 static void METAL_UploadToTexture(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUTextureTransferInfo *source,
-    const SDL_GPUTextureRegion *destination,
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_TextureTransferInfo *source,
+    const GPU_TextureRegion *destination,
     bool cycle)
 {
     @autoreleasepool {
@@ -1805,7 +1801,7 @@ static void METAL_UploadToTexture(
                  copyFromBuffer:bufferContainer->activeBuffer->handle
                    sourceOffset:source->offset
               sourceBytesPerRow:BytesPerRow(destination->w, textureContainer->header.info.format)
-            sourceBytesPerImage:SDL_CalculateGPUTextureFormatSize(textureContainer->header.info.format, destination->w, destination->h, destination->d)
+            sourceBytesPerImage:GPU_CalculateTextureFormatSize(textureContainer->header.info.format, destination->w, destination->h, destination->d)
                      sourceSize:MTLSizeMake(destination->w, destination->h, destination->d)
                       toTexture:metalTexture->handle
                destinationSlice:destination->layer
@@ -1818,9 +1814,9 @@ static void METAL_UploadToTexture(
 }
 
 static void METAL_UploadToBuffer(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUTransferBufferLocation *source,
-    const SDL_GPUBufferRegion *destination,
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_TransferBufferLocation *source,
+    const GPU_BufferRegion *destination,
     bool cycle)
 {
     @autoreleasepool {
@@ -1847,9 +1843,9 @@ static void METAL_UploadToBuffer(
 }
 
 static void METAL_CopyTextureToTexture(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUTextureLocation *source,
-    const SDL_GPUTextureLocation *destination,
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_TextureLocation *source,
+    const GPU_TextureLocation *destination,
     Uint32 w,
     Uint32 h,
     Uint32 d,
@@ -1884,9 +1880,9 @@ static void METAL_CopyTextureToTexture(
 }
 
 static void METAL_CopyBufferToBuffer(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUBufferLocation *source,
-    const SDL_GPUBufferLocation *destination,
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_BufferLocation *source,
+    const GPU_BufferLocation *destination,
     Uint32 size,
     bool cycle)
 {
@@ -1915,9 +1911,9 @@ static void METAL_CopyBufferToBuffer(
 }
 
 static void METAL_DownloadFromTexture(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUTextureRegion *source,
-    const SDL_GPUTextureTransferInfo *destination)
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_TextureRegion *source,
+    const GPU_TextureTransferInfo *destination)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -1969,24 +1965,24 @@ static void METAL_DownloadFromTexture(
 }
 
 static void METAL_DownloadFromBuffer(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUBufferRegion *source,
-    const SDL_GPUTransferBufferLocation *destination)
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_BufferRegion *source,
+    const GPU_TransferBufferLocation *destination)
 {
-    SDL_GPUBufferLocation sourceLocation;
+    GPU_BufferLocation sourceLocation;
     sourceLocation.buffer = source->buffer;
     sourceLocation.offset = source->offset;
 
     METAL_CopyBufferToBuffer(
         commandBuffer,
         &sourceLocation,
-        (SDL_GPUBufferLocation *)destination,
+        (GPU_BufferLocation *)destination,
         source->size,
         false);
 }
 
 static void METAL_EndCopyPass(
-    SDL_GPUCommandBuffer *commandBuffer)
+    GPU_CommandBuffer *commandBuffer)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -1996,8 +1992,8 @@ static void METAL_EndCopyPass(
 }
 
 static void METAL_GenerateMipmaps(
-    SDL_GPUCommandBuffer *commandBuffer,
-    SDL_GPUTexture *texture)
+    GPU_CommandBuffer *commandBuffer,
+    GPU_Texture *texture)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2126,8 +2122,8 @@ static bool METAL_INTERNAL_AcquireFence(
     return true;
 }
 
-static SDL_GPUCommandBuffer *METAL_AcquireCommandBuffer(
-    SDL_GPURenderer *driverData)
+static GPU_CommandBuffer *METAL_AcquireCommandBuffer(
+    GPU_Renderer *driverData)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
@@ -2150,7 +2146,7 @@ static SDL_GPUCommandBuffer *METAL_AcquireCommandBuffer(
 
         SDL_UnlockMutex(renderer->acquireCommandBufferLock);
 
-        return (SDL_GPUCommandBuffer *)commandBuffer;
+        return (GPU_CommandBuffer *)commandBuffer;
     }
 }
 
@@ -2198,8 +2194,8 @@ static void METAL_INTERNAL_ReturnUniformBufferToPool(
 }
 
 static void METAL_SetViewport(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUViewport *viewport)
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_Viewport *viewport)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2217,7 +2213,7 @@ static void METAL_SetViewport(
 }
 
 static void METAL_SetScissor(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     const SDL_Rect *scissor)
 {
     @autoreleasepool {
@@ -2234,7 +2230,7 @@ static void METAL_SetScissor(
 }
 
 static void METAL_SetBlendConstants(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     SDL_FColor blendConstants)
 {
     @autoreleasepool {
@@ -2247,7 +2243,7 @@ static void METAL_SetBlendConstants(
 }
 
 static void METAL_SetStencilReference(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint8 reference)
 {
     @autoreleasepool {
@@ -2257,10 +2253,10 @@ static void METAL_SetStencilReference(
 }
 
 static void METAL_BeginRenderPass(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUColorTargetInfo *colorTargetInfos,
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_ColorTargetInfo *colorTargetInfos,
     Uint32 numColorTargets,
-    const SDL_GPUDepthStencilTargetInfo *depthStencilTargetInfo)
+    const GPU_DepthStencilTargetInfo *depthStencilTargetInfo)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2268,7 +2264,7 @@ static void METAL_BeginRenderPass(
         MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
         Uint32 vpWidth = UINT_MAX;
         Uint32 vpHeight = UINT_MAX;
-        SDL_GPUViewport viewport;
+        GPU_Viewport viewport;
         SDL_Rect scissorRect;
         SDL_FColor blendConstants;
 
@@ -2281,7 +2277,7 @@ static void METAL_BeginRenderPass(
 
             passDescriptor.colorAttachments[i].texture = texture->handle;
             passDescriptor.colorAttachments[i].level = colorTargetInfos[i].mip_level;
-            if (container->header.info.type == SDL_GPU_TEXTURETYPE_3D) {
+            if (container->header.info.type == GPU_TEXTURETYPE_3D) {
                 passDescriptor.colorAttachments[i].depthPlane = colorTargetInfos[i].layer_or_depth_plane;
             } else {
                 passDescriptor.colorAttachments[i].slice = colorTargetInfos[i].layer_or_depth_plane;
@@ -2296,7 +2292,7 @@ static void METAL_BeginRenderPass(
 
             METAL_INTERNAL_TrackTexture(metalCommandBuffer, texture);
 
-            if (colorTargetInfos[i].store_op == SDL_GPU_STOREOP_RESOLVE || colorTargetInfos[i].store_op == SDL_GPU_STOREOP_RESOLVE_AND_STORE) {
+            if (colorTargetInfos[i].store_op == GPU_STOREOP_RESOLVE || colorTargetInfos[i].store_op == GPU_STOREOP_RESOLVE_AND_STORE) {
                 MetalTextureContainer *resolveContainer = (MetalTextureContainer *)colorTargetInfos[i].resolve_texture;
                 MetalTexture *resolveTexture = METAL_INTERNAL_PrepareTextureForWrite(
                     renderer,
@@ -2394,13 +2390,13 @@ static void METAL_BeginRenderPass(
 }
 
 static void METAL_BindGraphicsPipeline(
-    SDL_GPUCommandBuffer *commandBuffer,
-    SDL_GPUGraphicsPipeline *graphicsPipeline)
+    GPU_CommandBuffer *commandBuffer,
+    GPU_GraphicsPipeline *graphicsPipeline)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
         MetalGraphicsPipeline *pipeline = (MetalGraphicsPipeline *)graphicsPipeline;
-        SDL_GPURasterizerState *rast = &pipeline->rasterizerState;
+        GPU_RasterizerState *rast = &pipeline->rasterizerState;
         Uint32 i;
 
         metalCommandBuffer->graphics_pipeline = pipeline;
@@ -2445,9 +2441,9 @@ static void METAL_BindGraphicsPipeline(
 }
 
 static void METAL_BindVertexBuffers(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    const SDL_GPUBufferBinding *bindings,
+    const GPU_BufferBinding *bindings,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2467,9 +2463,9 @@ static void METAL_BindVertexBuffers(
 }
 
 static void METAL_BindIndexBuffer(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUBufferBinding *binding,
-    SDL_GPUIndexElementSize indexElementSize)
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_BufferBinding *binding,
+    GPU_IndexElementSize indexElementSize)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
     metalCommandBuffer->indexBuffer = ((MetalBufferContainer *)binding->buffer)->activeBuffer;
@@ -2480,9 +2476,9 @@ static void METAL_BindIndexBuffer(
 }
 
 static void METAL_BindVertexSamplers(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    const SDL_GPUTextureSamplerBinding *textureSamplerBindings,
+    const GPU_TextureSamplerBinding *textureSamplerBindings,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2512,9 +2508,9 @@ static void METAL_BindVertexSamplers(
 }
 
 static void METAL_BindVertexStorageTextures(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    SDL_GPUTexture *const *storageTextures,
+    GPU_Texture *const *storageTextures,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2537,9 +2533,9 @@ static void METAL_BindVertexStorageTextures(
 }
 
 static void METAL_BindVertexStorageBuffers(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    SDL_GPUBuffer *const *storageBuffers,
+    GPU_Buffer *const *storageBuffers,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2562,9 +2558,9 @@ static void METAL_BindVertexStorageBuffers(
 }
 
 static void METAL_BindFragmentSamplers(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    const SDL_GPUTextureSamplerBinding *textureSamplerBindings,
+    const GPU_TextureSamplerBinding *textureSamplerBindings,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2594,9 +2590,9 @@ static void METAL_BindFragmentSamplers(
 }
 
 static void METAL_BindFragmentStorageTextures(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    SDL_GPUTexture *const *storageTextures,
+    GPU_Texture *const *storageTextures,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2619,9 +2615,9 @@ static void METAL_BindFragmentStorageTextures(
 }
 
 static void METAL_BindFragmentStorageBuffers(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    SDL_GPUBuffer *const *storageBuffers,
+    GPU_Buffer *const *storageBuffers,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2813,7 +2809,7 @@ static void METAL_INTERNAL_BindComputeResources(
 }
 
 static void METAL_DrawIndexedPrimitives(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 numIndices,
     Uint32 numInstances,
     Uint32 firstIndex,
@@ -2822,7 +2818,7 @@ static void METAL_DrawIndexedPrimitives(
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
-        SDL_GPUPrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
+        GPU_PrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
         Uint32 indexSize = IndexSize(metalCommandBuffer->index_element_size);
 
         METAL_INTERNAL_BindGraphicsResources(metalCommandBuffer);
@@ -2840,7 +2836,7 @@ static void METAL_DrawIndexedPrimitives(
 }
 
 static void METAL_DrawPrimitives(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 numVertices,
     Uint32 numInstances,
     Uint32 firstVertex,
@@ -2848,7 +2844,7 @@ static void METAL_DrawPrimitives(
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
-        SDL_GPUPrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
+        GPU_PrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
 
         METAL_INTERNAL_BindGraphicsResources(metalCommandBuffer);
 
@@ -2862,15 +2858,15 @@ static void METAL_DrawPrimitives(
 }
 
 static void METAL_DrawPrimitivesIndirect(
-    SDL_GPUCommandBuffer *commandBuffer,
-    SDL_GPUBuffer *buffer,
+    GPU_CommandBuffer *commandBuffer,
+    GPU_Buffer *buffer,
     Uint32 offset,
     Uint32 drawCount)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
         MetalBuffer *metalBuffer = ((MetalBufferContainer *)buffer)->activeBuffer;
-        SDL_GPUPrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
+        GPU_PrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
 
         METAL_INTERNAL_BindGraphicsResources(metalCommandBuffer);
 
@@ -2881,7 +2877,7 @@ static void METAL_DrawPrimitivesIndirect(
             [metalCommandBuffer->renderEncoder
                       drawPrimitives:SDLToMetal_PrimitiveType[primitiveType]
                       indirectBuffer:metalBuffer->handle
-                indirectBufferOffset:offset + (sizeof(SDL_GPUIndirectDrawCommand) * i)];
+                indirectBufferOffset:offset + (sizeof(GPU_IndirectDrawCommand) * i)];
         }
 
         METAL_INTERNAL_TrackBuffer(metalCommandBuffer, metalBuffer);
@@ -2889,15 +2885,15 @@ static void METAL_DrawPrimitivesIndirect(
 }
 
 static void METAL_DrawIndexedPrimitivesIndirect(
-    SDL_GPUCommandBuffer *commandBuffer,
-    SDL_GPUBuffer *buffer,
+    GPU_CommandBuffer *commandBuffer,
+    GPU_Buffer *buffer,
     Uint32 offset,
     Uint32 drawCount)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
         MetalBuffer *metalBuffer = ((MetalBufferContainer *)buffer)->activeBuffer;
-        SDL_GPUPrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
+        GPU_PrimitiveType primitiveType = metalCommandBuffer->graphics_pipeline->primitiveType;
 
         METAL_INTERNAL_BindGraphicsResources(metalCommandBuffer);
 
@@ -2908,7 +2904,7 @@ static void METAL_DrawIndexedPrimitivesIndirect(
                           indexBuffer:metalCommandBuffer->indexBuffer->handle
                     indexBufferOffset:metalCommandBuffer->indexBufferOffset
                        indirectBuffer:metalBuffer->handle
-                 indirectBufferOffset:offset + (sizeof(SDL_GPUIndexedIndirectDrawCommand) * i)];
+                 indirectBufferOffset:offset + (sizeof(GPU_IndexedIndirectDrawCommand) * i)];
         }
 
         METAL_INTERNAL_TrackBuffer(metalCommandBuffer, metalBuffer);
@@ -2916,7 +2912,7 @@ static void METAL_DrawIndexedPrimitivesIndirect(
 }
 
 static void METAL_EndRenderPass(
-    SDL_GPUCommandBuffer *commandBuffer)
+    GPU_CommandBuffer *commandBuffer)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -2948,7 +2944,7 @@ static void METAL_EndRenderPass(
 // This function assumes that it's called from within an autorelease pool
 static void METAL_INTERNAL_PushUniformData(
     MetalCommandBuffer *metalCommandBuffer,
-    SDL_GPUShaderStage shaderStage,
+    GPU_ShaderStage shaderStage,
     Uint32 slotIndex,
     const void *data,
     Uint32 length)
@@ -2956,19 +2952,19 @@ static void METAL_INTERNAL_PushUniformData(
     MetalUniformBuffer *metalUniformBuffer;
     Uint32 alignedDataLength;
 
-    if (shaderStage == SDL_GPU_SHADERSTAGE_VERTEX) {
+    if (shaderStage == GPU_SHADERSTAGE_VERTEX) {
         if (metalCommandBuffer->vertexUniformBuffers[slotIndex] == NULL) {
             metalCommandBuffer->vertexUniformBuffers[slotIndex] = METAL_INTERNAL_AcquireUniformBufferFromPool(
                 metalCommandBuffer);
         }
         metalUniformBuffer = metalCommandBuffer->vertexUniformBuffers[slotIndex];
-    } else if (shaderStage == SDL_GPU_SHADERSTAGE_FRAGMENT) {
+    } else if (shaderStage == GPU_SHADERSTAGE_FRAGMENT) {
         if (metalCommandBuffer->fragmentUniformBuffers[slotIndex] == NULL) {
             metalCommandBuffer->fragmentUniformBuffers[slotIndex] = METAL_INTERNAL_AcquireUniformBufferFromPool(
                 metalCommandBuffer);
         }
         metalUniformBuffer = metalCommandBuffer->fragmentUniformBuffers[slotIndex];
-    } else if (shaderStage == SDL_GPU_SHADERSTAGE_COMPUTE) {
+    } else if (shaderStage == GPU_SHADERSTAGE_COMPUTE) {
         if (metalCommandBuffer->computeUniformBuffers[slotIndex] == NULL) {
             metalCommandBuffer->computeUniformBuffers[slotIndex] = METAL_INTERNAL_AcquireUniformBufferFromPool(
                 metalCommandBuffer);
@@ -2990,11 +2986,11 @@ static void METAL_INTERNAL_PushUniformData(
         metalUniformBuffer->writeOffset = 0;
         metalUniformBuffer->drawOffset = 0;
 
-        if (shaderStage == SDL_GPU_SHADERSTAGE_VERTEX) {
+        if (shaderStage == GPU_SHADERSTAGE_VERTEX) {
             metalCommandBuffer->vertexUniformBuffers[slotIndex] = metalUniformBuffer;
-        } else if (shaderStage == SDL_GPU_SHADERSTAGE_FRAGMENT) {
+        } else if (shaderStage == GPU_SHADERSTAGE_FRAGMENT) {
             metalCommandBuffer->fragmentUniformBuffers[slotIndex] = metalUniformBuffer;
-        } else if (shaderStage == SDL_GPU_SHADERSTAGE_COMPUTE) {
+        } else if (shaderStage == GPU_SHADERSTAGE_COMPUTE) {
             metalCommandBuffer->computeUniformBuffers[slotIndex] = metalUniformBuffer;
         } else {
             SDL_LogError(SDL_LOG_CATEGORY_GPU, "Unrecognized shader stage!");
@@ -3011,11 +3007,11 @@ static void METAL_INTERNAL_PushUniformData(
 
     metalUniformBuffer->writeOffset += alignedDataLength;
 
-    if (shaderStage == SDL_GPU_SHADERSTAGE_VERTEX) {
+    if (shaderStage == GPU_SHADERSTAGE_VERTEX) {
         metalCommandBuffer->needVertexUniformBufferBind[slotIndex] = true;
-    } else if (shaderStage == SDL_GPU_SHADERSTAGE_FRAGMENT) {
+    } else if (shaderStage == GPU_SHADERSTAGE_FRAGMENT) {
         metalCommandBuffer->needFragmentUniformBufferBind[slotIndex] = true;
-    } else if (shaderStage == SDL_GPU_SHADERSTAGE_COMPUTE) {
+    } else if (shaderStage == GPU_SHADERSTAGE_COMPUTE) {
         metalCommandBuffer->needComputeUniformBufferBind[slotIndex] = true;
     } else {
         SDL_LogError(SDL_LOG_CATEGORY_GPU, "Unrecognized shader stage!");
@@ -3023,7 +3019,7 @@ static void METAL_INTERNAL_PushUniformData(
 }
 
 static void METAL_PushVertexUniformData(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 slotIndex,
     const void *data,
     Uint32 length)
@@ -3031,7 +3027,7 @@ static void METAL_PushVertexUniformData(
     @autoreleasepool {
         METAL_INTERNAL_PushUniformData(
             (MetalCommandBuffer *)commandBuffer,
-            SDL_GPU_SHADERSTAGE_VERTEX,
+            GPU_SHADERSTAGE_VERTEX,
             slotIndex,
             data,
             length);
@@ -3039,7 +3035,7 @@ static void METAL_PushVertexUniformData(
 }
 
 static void METAL_PushFragmentUniformData(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 slotIndex,
     const void *data,
     Uint32 length)
@@ -3047,7 +3043,7 @@ static void METAL_PushFragmentUniformData(
     @autoreleasepool {
         METAL_INTERNAL_PushUniformData(
             (MetalCommandBuffer *)commandBuffer,
-            SDL_GPU_SHADERSTAGE_FRAGMENT,
+            GPU_SHADERSTAGE_FRAGMENT,
             slotIndex,
             data,
             length);
@@ -3057,13 +3053,13 @@ static void METAL_PushFragmentUniformData(
 // Blit
 
 static void METAL_Blit(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUBlitInfo *info)
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_BlitInfo *info)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
     MetalRenderer *renderer = (MetalRenderer *)metalCommandBuffer->renderer;
 
-    SDL_GPU_BlitCommon(
+    GPU_BlitCommon(
         commandBuffer,
         info,
         renderer->blitLinearSampler,
@@ -3082,10 +3078,10 @@ static void METAL_Blit(
 // Compute State
 
 static void METAL_BeginComputePass(
-    SDL_GPUCommandBuffer *commandBuffer,
-    const SDL_GPUStorageTextureReadWriteBinding *storageTextureBindings,
+    GPU_CommandBuffer *commandBuffer,
+    const GPU_StorageTextureReadWriteBinding *storageTextureBindings,
     Uint32 numStorageTextureBindings,
-    const SDL_GPUStorageBufferReadWriteBinding *storageBufferBindings,
+    const GPU_StorageBufferReadWriteBinding *storageBufferBindings,
     Uint32 numStorageBufferBindings)
 {
     @autoreleasepool {
@@ -3134,8 +3130,8 @@ static void METAL_BeginComputePass(
 }
 
 static void METAL_BindComputePipeline(
-    SDL_GPUCommandBuffer *commandBuffer,
-    SDL_GPUComputePipeline *computePipeline)
+    GPU_CommandBuffer *commandBuffer,
+    GPU_ComputePipeline *computePipeline)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -3178,9 +3174,9 @@ static void METAL_BindComputePipeline(
 }
 
 static void METAL_BindComputeSamplers(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    const SDL_GPUTextureSamplerBinding *textureSamplerBindings,
+    const GPU_TextureSamplerBinding *textureSamplerBindings,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -3210,9 +3206,9 @@ static void METAL_BindComputeSamplers(
 }
 
 static void METAL_BindComputeStorageTextures(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    SDL_GPUTexture *const *storageTextures,
+    GPU_Texture *const *storageTextures,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -3235,9 +3231,9 @@ static void METAL_BindComputeStorageTextures(
 }
 
 static void METAL_BindComputeStorageBuffers(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 firstSlot,
-    SDL_GPUBuffer *const *storageBuffers,
+    GPU_Buffer *const *storageBuffers,
     Uint32 numBindings)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -3260,7 +3256,7 @@ static void METAL_BindComputeStorageBuffers(
 }
 
 static void METAL_PushComputeUniformData(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 slotIndex,
     const void *data,
     Uint32 length)
@@ -3268,7 +3264,7 @@ static void METAL_PushComputeUniformData(
     @autoreleasepool {
         METAL_INTERNAL_PushUniformData(
             (MetalCommandBuffer *)commandBuffer,
-            SDL_GPU_SHADERSTAGE_COMPUTE,
+            GPU_SHADERSTAGE_COMPUTE,
             slotIndex,
             data,
             length);
@@ -3276,7 +3272,7 @@ static void METAL_PushComputeUniformData(
 }
 
 static void METAL_DispatchCompute(
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     Uint32 groupcountX,
     Uint32 groupcountY,
     Uint32 groupcountZ)
@@ -3298,8 +3294,8 @@ static void METAL_DispatchCompute(
 }
 
 static void METAL_DispatchComputeIndirect(
-    SDL_GPUCommandBuffer *commandBuffer,
-    SDL_GPUBuffer *buffer,
+    GPU_CommandBuffer *commandBuffer,
+    GPU_Buffer *buffer,
     Uint32 offset)
 {
     @autoreleasepool {
@@ -3322,7 +3318,7 @@ static void METAL_DispatchComputeIndirect(
 }
 
 static void METAL_EndComputePass(
-    SDL_GPUCommandBuffer *commandBuffer)
+    GPU_CommandBuffer *commandBuffer)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -3370,8 +3366,8 @@ static void METAL_INTERNAL_ReleaseFenceToPool(
 }
 
 static void METAL_ReleaseFence(
-    SDL_GPURenderer *driverData,
-    SDL_GPUFence *fence)
+    GPU_Renderer *driverData,
+    GPU_Fence *fence)
 {
     MetalFence *metalFence = (MetalFence *)fence;
     if (SDL_AtomicDecRef(&metalFence->referenceCount)) {
@@ -3483,8 +3479,8 @@ static void METAL_INTERNAL_CleanCommandBuffer(
     // The fence is now available (unless SubmitAndAcquireFence was called)
     if (commandBuffer->autoReleaseFence) {
         METAL_ReleaseFence(
-            (SDL_GPURenderer *)renderer,
-            (SDL_GPUFence *)commandBuffer->fence);
+            (GPU_Renderer *)renderer,
+            (GPU_Fence *)commandBuffer->fence);
     }
 
     // Return command buffer to pool
@@ -3553,9 +3549,9 @@ static void METAL_INTERNAL_PerformPendingDestroys(
 // Fences
 
 static bool METAL_WaitForFences(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     bool waitAll,
-    SDL_GPUFence *const *fences,
+    GPU_Fence *const *fences,
     Uint32 numFences)
 {
     @autoreleasepool {
@@ -3587,8 +3583,8 @@ static bool METAL_WaitForFences(
 }
 
 static bool METAL_QueryFence(
-    SDL_GPURenderer *driverData,
-    SDL_GPUFence *fence)
+    GPU_Renderer *driverData,
+    GPU_Fence *fence)
 {
     MetalFence *metalFence = (MetalFence *)fence;
     return SDL_GetAtomicInt(&metalFence->complete) == 1;
@@ -3603,12 +3599,12 @@ static MetalWindowData *METAL_INTERNAL_FetchWindowData(SDL_Window *window)
 }
 
 static bool METAL_SupportsSwapchainComposition(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     SDL_Window *window,
-    SDL_GPUSwapchainComposition swapchainComposition)
+    GPU_SwapchainComposition swapchainComposition)
 {
 #ifndef SDL_PLATFORM_MACOS
-    if (swapchainComposition == SDL_GPU_SWAPCHAINCOMPOSITION_HDR10_ST2084) {
+    if (swapchainComposition == GPU_SWAPCHAINCOMPOSITION_HDR10_ST2084) {
         return false;
     }
 #endif
@@ -3616,7 +3612,7 @@ static bool METAL_SupportsSwapchainComposition(
     if (@available(macOS 11.0, *)) {
         return true;
     } else {
-        return swapchainComposition != SDL_GPU_SWAPCHAINCOMPOSITION_HDR10_ST2084;
+        return swapchainComposition != GPU_SWAPCHAINCOMPOSITION_HDR10_ST2084;
     }
 }
 
@@ -3624,15 +3620,15 @@ static bool METAL_SupportsSwapchainComposition(
 static Uint8 METAL_INTERNAL_CreateSwapchain(
     MetalRenderer *renderer,
     MetalWindowData *windowData,
-    SDL_GPUSwapchainComposition swapchainComposition,
-    SDL_GPUPresentMode presentMode)
+    GPU_SwapchainComposition swapchainComposition,
+    GPU_PresentMode presentMode)
 {
     CGColorSpaceRef colorspace;
     CGSize drawableSize;
 
     windowData->view = SDL_Metal_CreateView(windowData->window);
     windowData->drawable = nil;
-    windowData->presentMode = SDL_GPU_PRESENTMODE_VSYNC;
+    windowData->presentMode = GPU_PRESENTMODE_VSYNC;
     windowData->frameCounter = 0;
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i += 1) {
@@ -3643,14 +3639,14 @@ static Uint8 METAL_INTERNAL_CreateSwapchain(
     windowData->layer.device = renderer->device;
 #ifdef SDL_PLATFORM_MACOS
     if (@available(macOS 10.13, *)) {
-        windowData->layer.displaySyncEnabled = (presentMode != SDL_GPU_PRESENTMODE_IMMEDIATE);
+        windowData->layer.displaySyncEnabled = (presentMode != GPU_PRESENTMODE_IMMEDIATE);
         windowData->presentMode = presentMode;
     }
 #endif
     windowData->layer.pixelFormat = SDLToMetal_TextureFormat(SwapchainCompositionToFormat[swapchainComposition]);
 #ifndef SDL_PLATFORM_TVOS
     if (@available(iOS 16.0, *)) {
-        windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != SDL_GPU_SWAPCHAINCOMPOSITION_SDR);
+        windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != GPU_SWAPCHAINCOMPOSITION_SDR);
     }
 #endif
 
@@ -3662,9 +3658,9 @@ static Uint8 METAL_INTERNAL_CreateSwapchain(
 
     // Precache blit pipelines for the swapchain format
     for (Uint32 i = 0; i < 4; i += 1) {
-        SDL_GPU_FetchBlitPipeline(
+        GPU_FetchBlitPipeline(
             renderer->sdlGPUDevice,
-            (SDL_GPUTextureType)i,
+            (GPU_TextureType)i,
             SwapchainCompositionToFormat[swapchainComposition],
             renderer->blitVertexShader,
             renderer->blitFrom2DShader,
@@ -3686,8 +3682,8 @@ static Uint8 METAL_INTERNAL_CreateSwapchain(
     windowData->textureContainer.header.info.format = SwapchainCompositionToFormat[swapchainComposition];
     windowData->textureContainer.header.info.num_levels = 1;
     windowData->textureContainer.header.info.layer_count_or_depth = 1;
-    windowData->textureContainer.header.info.type = SDL_GPU_TEXTURETYPE_2D;
-    windowData->textureContainer.header.info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+    windowData->textureContainer.header.info.type = GPU_TEXTURETYPE_2D;
+    windowData->textureContainer.header.info.usage = GPU_TEXTUREUSAGE_COLOR_TARGET;
 
     drawableSize = windowData->layer.drawableSize;
     windowData->textureContainer.header.info.width = (Uint32)drawableSize.width;
@@ -3697,15 +3693,15 @@ static Uint8 METAL_INTERNAL_CreateSwapchain(
 }
 
 static bool METAL_SupportsPresentMode(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     SDL_Window *window,
-    SDL_GPUPresentMode presentMode)
+    GPU_PresentMode presentMode)
 {
     switch (presentMode) {
 #ifdef SDL_PLATFORM_MACOS
-    case SDL_GPU_PRESENTMODE_IMMEDIATE:
+    case GPU_PRESENTMODE_IMMEDIATE:
 #endif
-    case SDL_GPU_PRESENTMODE_VSYNC:
+    case GPU_PRESENTMODE_VSYNC:
         return true;
     default:
         return false;
@@ -3713,7 +3709,7 @@ static bool METAL_SupportsPresentMode(
 }
 
 static bool METAL_ClaimWindow(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     SDL_Window *window)
 {
     @autoreleasepool {
@@ -3724,7 +3720,7 @@ static bool METAL_ClaimWindow(
             windowData = (MetalWindowData *)SDL_calloc(1, sizeof(MetalWindowData));
             windowData->window = window;
 
-            if (METAL_INTERNAL_CreateSwapchain(renderer, windowData, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC)) {
+            if (METAL_INTERNAL_CreateSwapchain(renderer, windowData, GPU_SWAPCHAINCOMPOSITION_SDR, GPU_PRESENTMODE_VSYNC)) {
                 SDL_SetPointerProperty(SDL_GetWindowProperties(window), WINDOW_PROPERTY_DATA, windowData);
 
                 SDL_LockMutex(renderer->windowLock);
@@ -3752,7 +3748,7 @@ static bool METAL_ClaimWindow(
 }
 
 static void METAL_ReleaseWindow(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     SDL_Window *window)
 {
     @autoreleasepool {
@@ -3760,7 +3756,7 @@ static void METAL_ReleaseWindow(
         MetalWindowData *windowData = METAL_INTERNAL_FetchWindowData(window);
 
         if (windowData == NULL) {
-            SET_STRING_ERROR_AND_RETURN("Window is not claimed by this SDL_GPUDevice", );
+            SET_STRING_ERROR_AND_RETURN("Window is not claimed by this GPU_Device", );
         }
 
         METAL_Wait(driverData);
@@ -3768,7 +3764,7 @@ static void METAL_ReleaseWindow(
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i += 1) {
             if (windowData->inFlightFences[i] != NULL) {
                 METAL_ReleaseFence(
-                    (SDL_GPURenderer *)renderer,
+                    (GPU_Renderer *)renderer,
                     windowData->inFlightFences[i]);
             }
         }
@@ -3790,7 +3786,7 @@ static void METAL_ReleaseWindow(
 }
 
 static bool METAL_WaitForSwapchain(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     SDL_Window *window)
 {
     @autoreleasepool {
@@ -3817,9 +3813,9 @@ static bool METAL_WaitForSwapchain(
 
 static bool METAL_INTERNAL_AcquireSwapchainTexture(
     bool block,
-    SDL_GPUCommandBuffer *commandBuffer,
+    GPU_CommandBuffer *commandBuffer,
     SDL_Window *window,
-    SDL_GPUTexture **texture,
+    GPU_Texture **texture,
     Uint32 *swapchainTextureWidth,
     Uint32 *swapchainTextureHeight)
 {
@@ -3839,7 +3835,7 @@ static bool METAL_INTERNAL_AcquireSwapchainTexture(
 
         windowData = METAL_INTERNAL_FetchWindowData(window);
         if (windowData == NULL) {
-            SET_STRING_ERROR_AND_RETURN("Window is not claimed by this SDL_GPUDevice", false);
+            SET_STRING_ERROR_AND_RETURN("Window is not claimed by this GPU_Device", false);
         }
 
         // Update the window size
@@ -3857,7 +3853,7 @@ static bool METAL_INTERNAL_AcquireSwapchainTexture(
             if (block) {
                 // If we are blocking, just wait for the fence!
                 if (!METAL_WaitForFences(
-                    (SDL_GPURenderer *)renderer,
+                    (GPU_Renderer *)renderer,
                     true,
                     &windowData->inFlightFences[windowData->frameCounter],
                     1)) {
@@ -3867,14 +3863,14 @@ static bool METAL_INTERNAL_AcquireSwapchainTexture(
                 // If we are not blocking and the least recent fence is not signaled,
                 // return true to indicate that there is no error but rendering should be skipped.
                 if (!METAL_QueryFence(
-                        (SDL_GPURenderer *)metalCommandBuffer->renderer,
+                        (GPU_Renderer *)metalCommandBuffer->renderer,
                         windowData->inFlightFences[windowData->frameCounter])) {
                     return true;
                 }
             }
 
             METAL_ReleaseFence(
-                (SDL_GPURenderer *)metalCommandBuffer->renderer,
+                (GPU_Renderer *)metalCommandBuffer->renderer,
                 windowData->inFlightFences[windowData->frameCounter]);
 
             windowData->inFlightFences[windowData->frameCounter] = NULL;
@@ -3895,15 +3891,15 @@ static bool METAL_INTERNAL_AcquireSwapchainTexture(
         metalCommandBuffer->windowDataCount += 1;
 
         // Return the swapchain texture
-        *texture = (SDL_GPUTexture *)&windowData->textureContainer;
+        *texture = (GPU_Texture *)&windowData->textureContainer;
         return true;
     }
 }
 
 static bool METAL_AcquireSwapchainTexture(
-    SDL_GPUCommandBuffer *command_buffer,
+    GPU_CommandBuffer *command_buffer,
     SDL_Window *window,
-    SDL_GPUTexture **swapchain_texture,
+    GPU_Texture **swapchain_texture,
     Uint32 *swapchain_texture_width,
     Uint32 *swapchain_texture_height
 ) {
@@ -3917,9 +3913,9 @@ static bool METAL_AcquireSwapchainTexture(
 }
 
 static bool METAL_WaitAndAcquireSwapchainTexture(
-    SDL_GPUCommandBuffer *command_buffer,
+    GPU_CommandBuffer *command_buffer,
     SDL_Window *window,
-    SDL_GPUTexture **swapchain_texture,
+    GPU_Texture **swapchain_texture,
     Uint32 *swapchain_texture_width,
     Uint32 *swapchain_texture_height
 ) {
@@ -3932,25 +3928,25 @@ static bool METAL_WaitAndAcquireSwapchainTexture(
         swapchain_texture_height);
 }
 
-static SDL_GPUTextureFormat METAL_GetSwapchainTextureFormat(
-    SDL_GPURenderer *driverData,
+static GPU_TextureFormat METAL_GetSwapchainTextureFormat(
+    GPU_Renderer *driverData,
     SDL_Window *window)
 {
     MetalRenderer *renderer = (MetalRenderer *)driverData;
     MetalWindowData *windowData = METAL_INTERNAL_FetchWindowData(window);
 
     if (windowData == NULL) {
-        SET_STRING_ERROR_AND_RETURN("Cannot get swapchain format, window has not been claimed", SDL_GPU_TEXTUREFORMAT_INVALID);
+        SET_STRING_ERROR_AND_RETURN("Cannot get swapchain format, window has not been claimed", GPU_TEXTUREFORMAT_INVALID);
     }
 
     return windowData->textureContainer.header.info.format;
 }
 
 static bool METAL_SetSwapchainParameters(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     SDL_Window *window,
-    SDL_GPUSwapchainComposition swapchainComposition,
-    SDL_GPUPresentMode presentMode)
+    GPU_SwapchainComposition swapchainComposition,
+    GPU_PresentMode presentMode)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
@@ -3971,18 +3967,18 @@ static bool METAL_SetSwapchainParameters(
 
         METAL_Wait(driverData);
 
-        windowData->presentMode = SDL_GPU_PRESENTMODE_VSYNC;
+        windowData->presentMode = GPU_PRESENTMODE_VSYNC;
 
 #ifdef SDL_PLATFORM_MACOS
         if (@available(macOS 10.13, *)) {
-            windowData->layer.displaySyncEnabled = (presentMode != SDL_GPU_PRESENTMODE_IMMEDIATE);
+            windowData->layer.displaySyncEnabled = (presentMode != GPU_PRESENTMODE_IMMEDIATE);
             windowData->presentMode = presentMode;
         }
 #endif
         windowData->layer.pixelFormat = SDLToMetal_TextureFormat(SwapchainCompositionToFormat[swapchainComposition]);
 #ifndef SDL_PLATFORM_TVOS
         if (@available(iOS 16.0, *)) {
-            windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != SDL_GPU_SWAPCHAINCOMPOSITION_SDR);
+            windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != GPU_SWAPCHAINCOMPOSITION_SDR);
         }
 #endif
 
@@ -3997,7 +3993,7 @@ static bool METAL_SetSwapchainParameters(
 }
 
 static bool METAL_SetAllowedFramesInFlight(
-    SDL_GPURenderer *driverData,
+    GPU_Renderer *driverData,
     Uint32 allowedFramesInFlight)
 {
     @autoreleasepool {
@@ -4015,7 +4011,7 @@ static bool METAL_SetAllowedFramesInFlight(
 // Submission
 
 static bool METAL_Submit(
-    SDL_GPUCommandBuffer *commandBuffer)
+    GPU_CommandBuffer *commandBuffer)
 {
     @autoreleasepool {
         MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
@@ -4034,7 +4030,7 @@ static bool METAL_Submit(
             [metalCommandBuffer->handle presentDrawable:windowData->drawable];
             windowData->drawable = nil;
 
-            windowData->inFlightFences[windowData->frameCounter] = (SDL_GPUFence *)metalCommandBuffer->fence;
+            windowData->inFlightFences[windowData->frameCounter] = (GPU_Fence *)metalCommandBuffer->fence;
 
             (void)SDL_AtomicIncRef(&metalCommandBuffer->fence->referenceCount);
 
@@ -4079,19 +4075,19 @@ static bool METAL_Submit(
     }
 }
 
-static SDL_GPUFence *METAL_SubmitAndAcquireFence(
-    SDL_GPUCommandBuffer *commandBuffer)
+static GPU_Fence *METAL_SubmitAndAcquireFence(
+    GPU_CommandBuffer *commandBuffer)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
     metalCommandBuffer->autoReleaseFence = false;
     if (!METAL_Submit(commandBuffer)) {
         return NULL;
     }
-    return (SDL_GPUFence *)metalCommandBuffer->fence;
+    return (GPU_Fence *)metalCommandBuffer->fence;
 }
 
 static bool METAL_Cancel(
-    SDL_GPUCommandBuffer *commandBuffer)
+    GPU_CommandBuffer *commandBuffer)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
     MetalRenderer *renderer = metalCommandBuffer->renderer;
@@ -4105,7 +4101,7 @@ static bool METAL_Cancel(
 }
 
 static bool METAL_Wait(
-    SDL_GPURenderer *driverData)
+    GPU_Renderer *driverData)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
@@ -4140,23 +4136,23 @@ static bool METAL_Wait(
 
 // FIXME: Check simultaneous read-write support
 static bool METAL_SupportsTextureFormat(
-    SDL_GPURenderer *driverData,
-    SDL_GPUTextureFormat format,
-    SDL_GPUTextureType type,
-    SDL_GPUTextureUsageFlags usage)
+    GPU_Renderer *driverData,
+    GPU_TextureFormat format,
+    GPU_TextureType type,
+    GPU_TextureUsageFlags usage)
 {
     @autoreleasepool {
         MetalRenderer *renderer = (MetalRenderer *)driverData;
 
         // Only depth textures can be used as... depth textures
-        if ((usage & SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
+        if ((usage & GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
             if (!IsDepthFormat(format)) {
                 return false;
             }
         }
 
         // Cube arrays are not supported on older iOS devices
-        if (type == SDL_GPU_TEXTURETYPE_CUBE_ARRAY) {
+        if (type == GPU_TEXTURETYPE_CUBE_ARRAY) {
 #ifdef SDL_PLATFORM_MACOS
             return true;
 #else
@@ -4173,9 +4169,9 @@ static bool METAL_SupportsTextureFormat(
 
         switch (format) {
         // Apple GPU exclusive
-        case SDL_GPU_TEXTUREFORMAT_B5G6R5_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_B5G5R5A1_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_B4G4R4A4_UNORM:
+        case GPU_TEXTUREFORMAT_B5G6R5_UNORM:
+        case GPU_TEXTUREFORMAT_B5G5R5A1_UNORM:
+        case GPU_TEXTUREFORMAT_B4G4R4A4_UNORM:
             if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, *)) {
                 return [renderer->device supportsFamily:MTLGPUFamilyApple1];
             } else {
@@ -4183,20 +4179,20 @@ static bool METAL_SupportsTextureFormat(
             }
 
         // Requires BC compression support
-        case SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_BC2_RGBA_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_BC4_R_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_BC5_RG_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_BC6H_RGB_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_BC6H_RGB_UFLOAT:
-        case SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_BC2_RGBA_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_BC1_RGBA_UNORM:
+        case GPU_TEXTUREFORMAT_BC2_RGBA_UNORM:
+        case GPU_TEXTUREFORMAT_BC3_RGBA_UNORM:
+        case GPU_TEXTUREFORMAT_BC4_R_UNORM:
+        case GPU_TEXTUREFORMAT_BC5_RG_UNORM:
+        case GPU_TEXTUREFORMAT_BC7_RGBA_UNORM:
+        case GPU_TEXTUREFORMAT_BC6H_RGB_FLOAT:
+        case GPU_TEXTUREFORMAT_BC6H_RGB_UFLOAT:
+        case GPU_TEXTUREFORMAT_BC1_RGBA_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_BC2_RGBA_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_BC3_RGBA_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB:
             if (@available(iOS 16.4, tvOS 16.4, *)) {
-                if (usage & SDL_GPU_TEXTUREUSAGE_COLOR_TARGET) {
+                if (usage & GPU_TEXTUREUSAGE_COLOR_TARGET) {
                     return false;
                 }
                 if (@available(macOS 11.0, *)) {
@@ -4209,49 +4205,49 @@ static bool METAL_SupportsTextureFormat(
             }
 
         // Requires D24S8 support
-        case SDL_GPU_TEXTUREFORMAT_D24_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT:
+        case GPU_TEXTUREFORMAT_D24_UNORM:
+        case GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT:
 #ifdef SDL_PLATFORM_MACOS
             return [renderer->device isDepth24Stencil8PixelFormatSupported];
 #else
             return false;
 #endif
 
-        case SDL_GPU_TEXTUREFORMAT_D16_UNORM:
+        case GPU_TEXTUREFORMAT_D16_UNORM:
             if (@available(macOS 10.12, iOS 13.0, tvOS 13.0, *)) {
                 return true;
             } else {
                 return false;
             }
 
-        case SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x4_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x5_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x5_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x6_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x5_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x6_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x8_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x5_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x6_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x8_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x10_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x10_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x12_UNORM:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x4_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x5_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x5_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x6_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x5_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x6_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x8_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x5_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x6_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x8_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x10_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x10_UNORM_SRGB:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x12_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_4x4_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_5x4_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_5x5_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_6x5_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_6x6_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_8x5_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_8x6_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_8x8_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_10x5_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_10x6_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_10x8_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_10x10_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_12x10_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_12x12_UNORM:
+        case GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_5x4_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_5x5_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_6x5_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_6x6_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_8x5_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_8x6_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_8x8_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_10x5_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_10x6_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_10x8_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_10x10_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_12x10_UNORM_SRGB:
+        case GPU_TEXTUREFORMAT_ASTC_12x12_UNORM_SRGB:
 #ifdef SDL_PLATFORM_MACOS
             if (@available(macOS 11.0, *)) {
                 return [renderer->device supportsFamily:MTLGPUFamilyApple7];
@@ -4261,20 +4257,20 @@ static bool METAL_SupportsTextureFormat(
 #else
             return true;
 #endif
-        case SDL_GPU_TEXTUREFORMAT_ASTC_4x4_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x4_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_5x5_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x5_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_6x6_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x5_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x6_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_8x8_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x5_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x6_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x8_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_10x10_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x10_FLOAT:
-        case SDL_GPU_TEXTUREFORMAT_ASTC_12x12_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_4x4_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_5x4_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_5x5_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_6x5_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_6x6_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_8x5_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_8x6_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_8x8_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_10x5_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_10x6_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_10x8_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_10x10_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_12x10_FLOAT:
+        case GPU_TEXTUREFORMAT_ASTC_12x12_FLOAT:
 #ifdef SDL_PLATFORM_MACOS
             if (@available(macOS 11.0, *)) {
                 return [renderer->device supportsFamily:MTLGPUFamilyApple7];
@@ -4298,8 +4294,8 @@ static bool METAL_SupportsTextureFormat(
 
 static bool METAL_PrepareDriver(SDL_VideoDevice *this, SDL_PropertiesID props)
 {
-    if (!SDL_GetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, false) &&
-        !SDL_GetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN, false)) {
+    if (!SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, false) &&
+        !SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN, false)) {
         return false;
     }
 
@@ -4312,8 +4308,8 @@ static bool METAL_PrepareDriver(SDL_VideoDevice *this, SDL_PropertiesID props)
 static void METAL_INTERNAL_InitBlitResources(
     MetalRenderer *renderer)
 {
-    SDL_GPUShaderCreateInfo shaderModuleCreateInfo;
-    SDL_GPUSamplerCreateInfo createinfo;
+    GPU_ShaderCreateInfo shaderModuleCreateInfo;
+    GPU_SamplerCreateInfo createinfo;
 
     // Allocate the dynamic blit pipeline list
     renderer->blitPipelineCapacity = 2;
@@ -4325,12 +4321,12 @@ static void METAL_INTERNAL_InitBlitResources(
     SDL_zero(shaderModuleCreateInfo);
     shaderModuleCreateInfo.code = FullscreenVert_metallib;
     shaderModuleCreateInfo.code_size = FullscreenVert_metallib_len;
-    shaderModuleCreateInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;
-    shaderModuleCreateInfo.format = SDL_GPU_SHADERFORMAT_METALLIB;
+    shaderModuleCreateInfo.stage = GPU_SHADERSTAGE_VERTEX;
+    shaderModuleCreateInfo.format = GPU_SHADERFORMAT_METALLIB;
     shaderModuleCreateInfo.entrypoint = "FullscreenVert";
 
     renderer->blitVertexShader = METAL_CreateShader(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &shaderModuleCreateInfo);
 
     if (renderer->blitVertexShader == NULL) {
@@ -4340,13 +4336,13 @@ static void METAL_INTERNAL_InitBlitResources(
     // BlitFrom2D fragment shader
     shaderModuleCreateInfo.code = BlitFrom2D_metallib;
     shaderModuleCreateInfo.code_size = BlitFrom2D_metallib_len;
-    shaderModuleCreateInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+    shaderModuleCreateInfo.stage = GPU_SHADERSTAGE_FRAGMENT;
     shaderModuleCreateInfo.entrypoint = "BlitFrom2D";
     shaderModuleCreateInfo.num_samplers = 1;
     shaderModuleCreateInfo.num_uniform_buffers = 1;
 
     renderer->blitFrom2DShader = METAL_CreateShader(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &shaderModuleCreateInfo);
 
     if (renderer->blitFrom2DShader == NULL) {
@@ -4359,7 +4355,7 @@ static void METAL_INTERNAL_InitBlitResources(
     shaderModuleCreateInfo.entrypoint = "BlitFrom2DArray";
 
     renderer->blitFrom2DArrayShader = METAL_CreateShader(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &shaderModuleCreateInfo);
 
     if (renderer->blitFrom2DArrayShader == NULL) {
@@ -4372,7 +4368,7 @@ static void METAL_INTERNAL_InitBlitResources(
     shaderModuleCreateInfo.entrypoint = "BlitFrom3D";
 
     renderer->blitFrom3DShader = METAL_CreateShader(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &shaderModuleCreateInfo);
 
     if (renderer->blitFrom3DShader == NULL) {
@@ -4385,7 +4381,7 @@ static void METAL_INTERNAL_InitBlitResources(
     shaderModuleCreateInfo.entrypoint = "BlitFromCube";
 
     renderer->blitFromCubeShader = METAL_CreateShader(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &shaderModuleCreateInfo);
 
     if (renderer->blitFromCubeShader == NULL) {
@@ -4398,7 +4394,7 @@ static void METAL_INTERNAL_InitBlitResources(
     shaderModuleCreateInfo.entrypoint = "BlitFromCubeArray";
 
     renderer->blitFromCubeArrayShader = METAL_CreateShader(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &shaderModuleCreateInfo);
 
     if (renderer->blitFromCubeArrayShader == NULL) {
@@ -4406,34 +4402,34 @@ static void METAL_INTERNAL_InitBlitResources(
     }
 
     // Create samplers
-    createinfo.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
-    createinfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
-    createinfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    createinfo.address_mode_u = GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    createinfo.address_mode_v = GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    createinfo.address_mode_w = GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     createinfo.enable_anisotropy = 0;
     createinfo.enable_compare = 0;
-    createinfo.mag_filter = SDL_GPU_FILTER_NEAREST;
-    createinfo.min_filter = SDL_GPU_FILTER_NEAREST;
-    createinfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+    createinfo.mag_filter = GPU_FILTER_NEAREST;
+    createinfo.min_filter = GPU_FILTER_NEAREST;
+    createinfo.mipmap_mode = GPU_SAMPLERMIPMAPMODE_NEAREST;
     createinfo.mip_lod_bias = 0.0f;
     createinfo.min_lod = 0;
     createinfo.max_lod = 1000;
     createinfo.max_anisotropy = 1.0f;
-    createinfo.compare_op = SDL_GPU_COMPAREOP_ALWAYS;
+    createinfo.compare_op = GPU_COMPAREOP_ALWAYS;
 
     renderer->blitNearestSampler = METAL_CreateSampler(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &createinfo);
 
     if (renderer->blitNearestSampler == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_GPU, "Failed to create blit nearest sampler!");
     }
 
-    createinfo.mag_filter = SDL_GPU_FILTER_LINEAR;
-    createinfo.min_filter = SDL_GPU_FILTER_LINEAR;
-    createinfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
+    createinfo.mag_filter = GPU_FILTER_LINEAR;
+    createinfo.min_filter = GPU_FILTER_LINEAR;
+    createinfo.mipmap_mode = GPU_SAMPLERMIPMAPMODE_LINEAR;
 
     renderer->blitLinearSampler = METAL_CreateSampler(
-        (SDL_GPURenderer *)renderer,
+        (GPU_Renderer *)renderer,
         &createinfo);
 
     if (renderer->blitLinearSampler == NULL) {
@@ -4442,7 +4438,7 @@ static void METAL_INTERNAL_InitBlitResources(
 }
 
 static void METAL_INTERNAL_DestroyBlitResources(
-    SDL_GPURenderer *driverData)
+    GPU_Renderer *driverData)
 {
     MetalRenderer *renderer = (MetalRenderer *)driverData;
     METAL_ReleaseSampler(driverData, renderer->blitLinearSampler);
@@ -4460,7 +4456,7 @@ static void METAL_INTERNAL_DestroyBlitResources(
     SDL_free(renderer->blitPipelines);
 }
 
-static SDL_GPUDevice *METAL_CreateDevice(bool debugMode, bool preferLowPower, SDL_PropertiesID props)
+static GPU_Device *METAL_CreateDevice(bool debugMode, bool preferLowPower, SDL_PropertiesID props)
 {
     @autoreleasepool {
         MetalRenderer *renderer;
@@ -4469,7 +4465,7 @@ static SDL_GPUDevice *METAL_CreateDevice(bool debugMode, bool preferLowPower, SD
 
         bool verboseLogs = SDL_GetBooleanProperty(
             props,
-            SDL_PROP_GPU_DEVICE_CREATE_VERBOSE_BOOLEAN,
+            GPU_PROP_DEVICE_CREATE_VERBOSE_BOOLEAN,
             true);
 
         if (debugMode) {
@@ -4534,7 +4530,7 @@ static SDL_GPUDevice *METAL_CreateDevice(bool debugMode, bool preferLowPower, SD
         const char *deviceName = [device.name UTF8String];
         SDL_SetStringProperty(
             renderer->props,
-            SDL_PROP_GPU_DEVICE_NAME_STRING,
+            GPU_PROP_DEVICE_NAME_STRING,
             deviceName);
         if (verboseLogs) {
             SDL_LogInfo(SDL_LOG_CATEGORY_GPU, "Metal Device: %s", deviceName);
@@ -4601,20 +4597,18 @@ static SDL_GPUDevice *METAL_CreateDevice(bool debugMode, bool preferLowPower, SD
         // Initialize blit resources
         METAL_INTERNAL_InitBlitResources(renderer);
 
-        SDL_GPUDevice *result = SDL_calloc(1, sizeof(SDL_GPUDevice));
+        GPU_Device *result = SDL_calloc(1, sizeof(GPU_Device));
         ASSIGN_DRIVER(METAL)
-        result->driverData = (SDL_GPURenderer *)renderer;
-        result->shader_formats = SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_METALLIB;
+        result->driverData = (GPU_Renderer *)renderer;
+        result->shader_formats = GPU_SHADERFORMAT_MSL | GPU_SHADERFORMAT_METALLIB;
         renderer->sdlGPUDevice = result;
 
         return result;
     }
 }
 
-SDL_GPUBootstrap MetalDriver = {
+GPU_Bootstrap MetalDriver = {
     "metal",
     METAL_PrepareDriver,
     METAL_CreateDevice
 };
-
-#endif // SDL_GPU_METAL
