@@ -1,0 +1,12 @@
+.{
+    .name = .gloobie,
+    .version = "0.15.0-dev.1283+1fcaf90dd",
+    .dependencies = .{
+        .sdl3 = .{
+            .url = "git+https://github.com/Gota7/zig-sdl3?ref=zig-master#120a24ff97e77cf1235f97c790481dc4357765eb",
+            .hash = "sdl3-0.0.1-NmT1Q82XIAA_dCjt_VC-iLJkH1wDuyx_4-3mAQHlr2w4",
+        },
+    },
+    .paths = .{"client/"},
+    .fingerprint = 0x16d83f8a6eaa0a07,
+}
