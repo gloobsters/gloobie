@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+const gpu = @import("gpu");
 const sdl3 = @import("sdl3");
 
 pub fn main() !void {

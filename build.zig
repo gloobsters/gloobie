@@ -24,6 +24,13 @@ pub fn build(b: *std.Build) void {
     const sdl3_mod = sdl3_dep.module("sdl3");
 
     const gpu_root = b.path("gpu/");
+
+    const gpu_translate_c = b.addTranslateC(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = gpu_root.path(b, "gpu.h"),
+    });
+
     const gpu_mod = b.addModule("gpu", .{
         .target = target,
         .optimize = optimize,
@@ -32,6 +39,7 @@ pub fn build(b: *std.Build) void {
 
         .imports = &.{
             .{ .name = "sdl3", .module = sdl3_mod },
+            .{ .name = "c", .module = gpu_translate_c.createModule() },
         },
     });
     gpu_mod.addIncludePath(upstream_sdl3.path("include/"));
