@@ -7,6 +7,11 @@
             .hash = "sdl3-0.0.1-NmT1Q82XIAA_dCjt_VC-iLJkH1wDuyx_4-3mAQHlr2w4",
         },
     },
-    .paths = .{"client/"},
+    .paths = .{
+        "client/",
+        "gpu/",
+        "build.zig",
+        "build.zig.zon",
+    },
     .fingerprint = 0x16d83f8a6eaa0a07,
 }
