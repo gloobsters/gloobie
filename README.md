@@ -22,10 +22,14 @@ A cross-platform experimental renderer for Resonite.
 ## Sub-projects
 
 - `client/`: The main client.
-- `gpu/`: The SDL_gpu based GPU abstraction.
+- `gpu/`: The low level GPU abstraction. Forked off SDL_gpu.
+  - `gpu/vulkan/`: The Vulkan GPU backend. Primary target.
+  - `gpu/d3d12/`: The D3D12 GPU backend, secondary target.
+  - `gpu/metal/`: The Metal GPU backend, tertiary target.
+  - `gpu/hashtable/`: A simple hash table implementation in C, used by the GPU backends.
 - `xr/`: The VR abstraction layer.
-  - `xr/openxr/`: The OpenXR implementation of the abstraction layer.
-  - `xr/openvr/`: The OpenVR implementation of the abstraction layer.
+  - `xr/openxr/`: The OpenXR backend. Primary target.
+  - `xr/openvr/`: The OpenVR backend. Secondary target.
 - `openxr/`: The OpenXR wrapper.
 - `renderite/generator/`: Generates type definitions from the Renderite DLL file.
 - `renderite/shared/`: Auto-generated types from the Renderite DLL file. Should stay in sync with engine updates.
