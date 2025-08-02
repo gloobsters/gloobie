@@ -7,6 +7,8 @@ const impl = switch (build_options.xr_backend) {
     .openvr => @compileError("todo"),
 };
 
+pub const name = impl.name;
+
 pub const Backend = opaque {
     pub fn deinit(backend: *Backend, gpa: std.mem.Allocator) void {
         return impl.deinit(gpa, @ptrCast(@alignCast(backend)));
