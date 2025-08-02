@@ -1,3 +1,9 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using CommandLine;
+using RenderiteGenerator;
 
-Console.WriteLine("Hello, World!");
+Parser.Default.ParseArguments<GeneratorOptions>(args)
+    .WithParsed(o =>
+    {
+        using Generator generator = new(o);
+        generator.Run();
+    });
