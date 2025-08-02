@@ -1,5 +1,8 @@
-﻿using CommandLine;
+﻿using System.Runtime;
+using CommandLine;
 using RenderiteGenerator;
+
+GCSettings.LatencyMode = GCLatencyMode.Batch;
 
 Parser.Default.ParseArguments<GeneratorOptions>(args)
     .WithParsed(o =>
