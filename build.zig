@@ -238,6 +238,11 @@ pub fn build(b: *std.Build) void {
         break :create_renderite_mod renderite_mod;
     };
 
+    const zinterprocess_mod = b.dependency("zinterprocess", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("zinterprocess");
+
     const gloobie_mod = b.addModule("gloobie", .{
         .root_source_file = b.path("client/main.zig"),
 
@@ -249,6 +254,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "gpu", .module = gpu_mod },
             .{ .name = "xr", .module = xr_mod },
             .{ .name = "renderite", .module = renderite_mod },
+            .{ .name = "zinterprocess", .module = zinterprocess_mod },
             .{ .name = "options", .module = options_module },
         },
     });

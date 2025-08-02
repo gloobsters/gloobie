@@ -5,6 +5,8 @@ const gpu = @import("gpu");
 const build_options = @import("options").build_options;
 const sdl3 = @import("sdl3");
 const xr = @import("xr");
+const zinterprocess = @import("zinterprocess");
+const renderite = @import("renderite");
 
 pub fn main() !void {
     var debug_alloc_impl: std.heap.DebugAllocator(.{}) = .init;
@@ -26,4 +28,9 @@ pub fn main() !void {
 
     const xr_backend = try xr.init(gpa);
     defer xr_backend.deinit(gpa);
+}
+
+test {
+    _ = renderite.ColorProfile;
+    _ = zinterprocess.Queue;
 }
