@@ -14,6 +14,8 @@ const Options = struct {
     },
 
     xr_backend: XrBackend,
+
+    safety: bool,
 };
 
 fn addPlatformDefines(module: anytype, options: Options, target: std.Build.ResolvedTarget) void {
@@ -56,6 +58,8 @@ pub fn build(b: *std.Build) void {
         .render_backends = .{
             .vulkan = b.option(bool, "vulkan", "Enable Vulkan render backend") orelse true,
         },
+
+        .safety = optimize == .ReleaseSafe or optimize == .Debug,
     };
 
     const options_module = create_options_module: {
@@ -70,7 +74,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
 
-        .c_sdl_preferred_linkage = .dynamic,
+        .c_sdl_preferred_linkage = .static,
     });
 
     const upstream_sdl3_dep = sdl3_dep.builder.dependency("sdl", .{
