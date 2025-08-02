@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 
 const gpu = @import("gpu");
 const sdl3 = @import("sdl3");
+const xr = @import("xr");
 
 pub fn main() !void {
     var debug_alloc_impl: std.heap.DebugAllocator(.{}) = .init;
@@ -16,32 +17,6 @@ pub fn main() !void {
     });
     defer sdl3.shutdown();
 
-    const properties_result = try sdl3.video.Window.initWithProperties(.{
-        .resizable = true,
-        .mouse_grabbed = true,
-        .width = 1600,
-        .height = 900,
-        .title = "gloobie",
-
-        .external_graphics_context = true,
-        .vulkan = true, // TODO: support other graphics backends
-    });
-    const window = properties_result.window;
-    properties_result.properties.deinit();
-
-    defer window.deinit();
-
-    var run: bool = true;
-    while (run) {
-        if (sdl3.events.poll()) |event| {
-            switch (event) {
-                .quit => {
-                    run = false;
-                },
-                else => {},
-            }
-        }
-
-        // TODO: create GPU context and submit frames
-    }
+    const xr_backend = try xr.init(gpa);
+    defer xr_backend.deinit(gpa);
 }

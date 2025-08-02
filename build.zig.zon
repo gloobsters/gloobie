@@ -10,6 +10,14 @@
             .url = "git+https://github.com/KhronosGroup/Vulkan-Headers#37057b4756df4009ad85803bd2e06ec8a3bb1bca",
             .hash = "N-V-__8AADTU9QEuvn73_9sdM5FE8x5ZZmTosIT2jbeB5Vb_",
         },
+        .@"openxr-headers" = .{
+            .url = "git+https://github.com/KhronosGroup/OpenXR-SDK#57572a0e91890fe7183de25a62153aec955d64ba",
+            .hash = "N-V-__8AAJ5cQwDuoOcGRlc4PfRBBviooF7aLvAGwhxhDZnd",
+        },
+        .@"vulkan-zig" = .{
+            .url = "git+https://github.com/Snektron/vulkan-zig#ed429842b8ad60966bc3b8b214606d8a5714f99e",
+            .hash = "vulkan-0.0.0-r7Ytx5w-AwC04xBpfzcuIjGyYv2z6xb1i49ZUeNUgT5H",
+        },
     },
     .paths = .{
         "client/",
