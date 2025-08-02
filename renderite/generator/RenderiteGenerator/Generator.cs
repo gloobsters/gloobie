@@ -176,9 +176,13 @@ public class Generator : IDisposable
             return "bool";
 
         if (typeof(IEnumerable).IsAssignableFrom(type))
-        {
             return $"[]{MapToZigType(type.GenericTypeArguments.First())}";
-        }
+        
+        if(type.Name == "Nullable`1")
+            return $"?{MapToZigType(type.GenericTypeArguments.First())}";
+
+        if (type.IsGenericType)
+            return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(MapToZigType))})";
         
         if(type.Assembly != this._assembly)
             Console.WriteLine($"Mapping unknown type {type.FullName} as-is");
