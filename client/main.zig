@@ -15,9 +15,6 @@ pub fn main() !void {
     // TODO: figure out why this crashes Windows + X11
     // try sdl3.setMemoryFunctionsByAllocator(gpa);
 
-    _ = renderite.ColorProfile;
-    _ = zinterprocess.Queue;
-
     try sdl3.init(.{
         .video = true,
     });
@@ -25,4 +22,9 @@ pub fn main() !void {
 
     const xr_backend = try xr.init(gpa);
     defer xr_backend.deinit(gpa);
+}
+
+test {
+    _ = renderite.ColorProfile;
+    _ = zinterprocess.Queue;
 }
