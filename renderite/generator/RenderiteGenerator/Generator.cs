@@ -67,28 +67,31 @@ public class Generator : IDisposable
         
         Type[] types = this._assembly.GetTypes();
 
+        Console.WriteLine("Generating enums...");
         this._writer.WriteLine("// Generated Enums");
         foreach (Type type in types.Where(t => t.IsEnum))
         {
             this.WriteEnum(type);
+        }
+
+        Type structBase = types.First(t => t.Name == "IMemoryPackable");
+        Console.WriteLine("Generating structs...");
+        this._writer.WriteLine("// Generated Structs");
+        foreach (Type type in types.Where(t => t != structBase && !t.IsAbstract && t.IsAssignableTo(structBase)))
+        {
+            this.WriteStruct(type);
         }
     }
 
     private void WriteEnum(Type t)
     {
         if(this._verbose)
-            Console.WriteLine($"Writing enum {t.FullName}");
+            Console.WriteLine($"\tWriting enum {t.FullName}");
 
         Array values = Enum.GetValues(t);
 
         FieldInfo valueField = t.GetField("value__")!;
         Type underlyingType = valueField.FieldType;
-
-        int typeBits = Marshal.SizeOf(underlyingType) * 8;
-        char typeSign = char.ToLower(underlyingType.Name[0]);
-
-        if (underlyingType == typeof(byte)) typeSign = 'u';
-        else if (underlyingType == typeof(sbyte)) typeSign = 'i';
 
         string enumName = t.Name;
 
@@ -97,7 +100,7 @@ public class Generator : IDisposable
             enumName = t.DeclaringType.Name + '_' + enumName;
         }
         
-        this._writer.WriteLine($"pub const {enumName} = enum({typeSign}{typeBits}) {{");
+        this._writer.WriteLine($"pub const {enumName} = enum({MapToZigType(underlyingType)}) {{");
 
         List<string> names = [];
         foreach (object enumVal in values)
@@ -116,6 +119,53 @@ public class Generator : IDisposable
         }
         
         this._writer.WriteLine("};\n");
+    }
+    
+    private void WriteStruct(Type type)
+    {
+        if(this._verbose)
+            Console.WriteLine($"\tWriting struct {type.FullName}");
+        
+        string structName = type.Name;
+        
+        this._writer.WriteLine($"pub const {structName} = struct {{");
+        this._writer.WriteLine("};\n");
+    }
+
+    private string MapToZigType(Type type)
+    {
+        if (type == typeof(string))
+            return "[]const u8";
+        
+        if (type == typeof(byte))
+            return "u8";
+        if (type == typeof(sbyte))
+            return "i8";
+        
+        if (type == typeof(short))
+            return "i16";
+        if (type == typeof(ushort))
+            return "u16";
+        
+        if (type == typeof(int))
+            return "i32";
+        if (type == typeof(uint))
+            return "u32";
+        
+        if (type == typeof(long))
+            return "i64";
+        if (type == typeof(ulong))
+            return "u64";
+        
+        if (type == typeof(Int128))
+            return "i128";
+        if (type == typeof(UInt128))
+            return "u128";
+        
+        if(type.Assembly != this._assembly)
+            Console.WriteLine($"Mapping unknown type {type.FullName} as-is");
+
+        return type.Name;
     }
 
     public void Dispose()
