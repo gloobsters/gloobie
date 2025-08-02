@@ -1877,7 +1877,8 @@ pub const Device = packed struct {
     ) !void {
         return errors.wrapCallBool(c.GPU_ClaimWindowForDevice(
             self.value,
-            window.value,
+            // SAFETY: these are compatible types
+            @ptrCast(window.value),
         ));
     }
 

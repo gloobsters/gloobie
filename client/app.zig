@@ -25,39 +25,70 @@ const GraphicsData = struct {
     }
 };
 
+const WindowData = struct {
+    window: sdl3.video.Window,
+
+    pub fn deinit(self: WindowData) void {
+        self.window.deinit();
+    }
+};
+
 gpa: std.mem.Allocator,
 xr: ?XrData,
 graphics: GraphicsData,
+window: WindowData,
 
 pub fn init(gpa: std.mem.Allocator) !*App {
     const app = try gpa.create(App);
     errdefer gpa.destroy(app);
 
-    const xr_backend: ?*xr_t.Backend = xr_t.init(gpa) catch |err| backend_create_fail: {
-        log.err("Got error {s} when trying to initialize XR backend.", .{@errorName(err)});
+    const xr_data: ?XrData = create_xr_data: {
+        const xr_backend: ?*xr_t.Backend = xr_t.init(gpa) catch |err| backend_create_fail: {
+            log.err("Got error {s} when trying to initialize XR backend.", .{@errorName(err)});
 
-        break :backend_create_fail null;
+            break :backend_create_fail null;
+        };
+        errdefer if (xr_backend) |backend| backend.deinit(gpa);
+
+        if (xr_backend) |_| {
+            log.info("Initialized XR backend {s}", .{xr_t.name});
+        } else {
+            log.warn("Failed to initialize XR backend {s}, will be starting in desktop-only mode. Restart will be required to begin a VR session.", .{xr_t.name});
+        }
+
+        break :create_xr_data if (xr_backend) |backend| .{ .backend = backend } else null;
     };
-    errdefer if (xr_backend) |backend| backend.deinit(gpa);
+    errdefer if (xr_data) |xr| xr.deinit(gpa);
 
-    if (xr_backend) |_| {
-        log.info("Initialized XR backend {s}", .{xr_t.name});
-    } else {
-        log.warn("Failed to initialize XR backend {s}, will be starting in desktop-only mode. Restart will be required to begin a VR session.", .{xr_t.name});
-    }
+    const window_data: WindowData = create_window_data: {
+        const window_ret = try sdl3.video.Window.initWithProperties(.{
+            .width = 1600,
+            .height = 900,
+            // TODO: only enable this when using the vulkan backend
+            .vulkan = true,
+            .title = "gloobie",
+        });
+        const window, const properties = .{ window_ret.window, window_ret.properties };
+        properties.deinit();
+        errdefer window.deinit();
+
+        break :create_window_data .{
+            .window = window,
+        };
+    };
+    errdefer window_data.deinit();
 
     const graphics_data: GraphicsData = create_graphics_data: {
-        if (xr_backend) |backend| {
-            _ = backend; // autofix
+        if (xr_data) |xr| {
+            _ = xr; // autofix
 
             @panic("TODO: XR based graphics init");
         } else {
-            const device_props: gpu.Device.Properties = .{
+            const gpu_device = try gpu.Device.initWithProperties(.{
                 .debug_mode = build_options.safety,
                 // TODO: Once we get the ability to transpile to other shader types, specify them here!
                 .shaders_spirv = true,
-            };
-            const gpu_device = try gpu.Device.initWithProperties(device_props);
+            });
             errdefer gpu_device.deinit();
 
             // SAFETY: this call never fails if we pass a valid GPU device handle, which we should always have
@@ -68,11 +99,15 @@ pub fn init(gpa: std.mem.Allocator) !*App {
             };
         }
     };
+    errdefer graphics_data.deinit();
+
+    try graphics_data.device.claimWindow(window_data.window);
 
     app.* = .{
         .gpa = gpa,
-        .xr = if (xr_backend) |backend| .{ .backend = backend } else null,
+        .xr = xr_data,
         .graphics = graphics_data,
+        .window = window_data,
     };
 
     return app;
@@ -80,6 +115,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
 pub fn deinit(self: *App) void {
     self.graphics.deinit();
+    self.window.deinit();
     if (self.xr) |xr| xr.deinit(self.gpa);
 
     const gpa = self.gpa;
