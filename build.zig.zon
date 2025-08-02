@@ -18,6 +18,10 @@
             .url = "git+https://github.com/Snektron/vulkan-zig#ed429842b8ad60966bc3b8b214606d8a5714f99e",
             .hash = "vulkan-0.0.0-r7Ytx5w-AwC04xBpfzcuIjGyYv2z6xb1i49ZUeNUgT5H",
         },
+        .zinterprocess = .{
+            .url = "git+https://github.com/jvyden/zinterprocess#7f8fd447e9a64284faeae600be4ff81f1d6af0b5",
+            .hash = "zinterprocess-0.0.0-phn7uu1pAAA3kjZzwnM1DG1BRek8fQtzjbLFh_jINDBz",
+        },
     },
     .paths = .{
         "client/",

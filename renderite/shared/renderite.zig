@@ -11,17 +11,17 @@ pub const BlendshapeDataFlags = enum(i32) {
 	Positions = 1,
 	Normals = 2,
 	Tangets = 4,
-}
+};
 
 pub const IndexBufferFormat = enum(i32) {
 	UInt16 = 0,
 	UInt32 = 1,
-}
+};
 
 pub const SubmeshTopology = enum(i32) {
 	Points = 0,
 	Triangles = 1,
-}
+};
 
 pub const VertexAttributeFormat = enum(i16) {
 	Float32 = 0,
@@ -34,7 +34,7 @@ pub const VertexAttributeFormat = enum(i16) {
 	UInt8 = 7,
 	UInt16 = 8,
 	UInt32 = 9,
-}
+};
 
 pub const VertexAttributeType = enum(i16) {
 	Position = 0,
@@ -51,7 +51,7 @@ pub const VertexAttributeType = enum(i16) {
 	UV7 = 11,
 	BoneWeights = 12,
 	BoneIndicies = 13,
-}
+};
 
 pub const TextureAssetType = enum(i32) {
 	Texture2D = 0,
@@ -60,14 +60,14 @@ pub const TextureAssetType = enum(i32) {
 	RenderTexture = 3,
 	VideoTexture = 4,
 	Desktop = 5,
-}
+};
 
 pub const TextureFilterMode = enum(i32) {
 	Point = 0,
 	Bilinear = 1,
 	Trilinear = 2,
 	Anisotropic = 3,
-}
+};
 
 pub const TextureFormat = enum(i32) {
 	Unknown = 0,
@@ -103,20 +103,20 @@ pub const TextureFormat = enum(i32) {
 	ASTC_8x8 = 131,
 	ASTC_10x10 = 132,
 	ASTC_12x12 = 133,
-}
+};
 
 pub const TextureType = enum(i32) {
 	Texture2D = 0,
 	Cubemap = 1,
 	Texture3D = 2,
-}
+};
 
 pub const TextureWrapMode = enum(i32) {
 	Repeat = 0,
 	Clamp = 1,
 	Mirror = 2,
 	MirrorOnce = 3,
-}
+};
 
 pub const Key = enum(i32) {
 	None = 0,
@@ -247,8 +247,6 @@ pub const Key = enum(i32) {
 	RightAlt = 307,
 	LeftAlt = 308,
 	RightApple = 309,
-	RightApple = 309,
-	LeftApple = 310,
 	LeftApple = 310,
 	LeftWindows = 311,
 	RightWindows = 312,
@@ -262,14 +260,14 @@ pub const Key = enum(i32) {
 	Control = 513,
 	Alt = 514,
 	Windows = 515,
-}
+};
 
 pub const RectOrientation = enum(i32) {
 	Default = 0,
 	Clockwise90 = 1,
 	UpsideDown180 = 2,
 	CounterClockwise90 = 3,
-}
+};
 
 pub const MaterialPropertyUpdateType = enum(u8) {
 	SelectTarget = 0,
@@ -284,19 +282,19 @@ pub const MaterialPropertyUpdateType = enum(u8) {
 	SetFloat4Array = 9,
 	SetTexture = 10,
 	UpdateBatchEnd = 11,
-}
+};
 
 pub const MaterialRenderType = enum(i32) {
 	Opaque = 0,
 	TransparentCutout = 1,
 	Transparent = 2,
-}
+};
 
 pub const TextureUpdateResultType = enum(i32) {
 	FormatSet = 0,
 	PropertiesSet = 1,
 	DataUpload = 2,
-}
+};
 
 pub const AntiAliasingMethod = enum(i32) {
 	Off = 0,
@@ -304,27 +302,27 @@ pub const AntiAliasingMethod = enum(i32) {
 	CTAA = 2,
 	SMAA = 3,
 	TAA = 4,
-}
+};
 
 pub const ShadowCascadeMode = enum(i32) {
 	None = 0,
 	TwoCascades = 1,
 	FourCascades = 2,
-}
+};
 
 pub const ShadowResolutionMode = enum(i32) {
 	Low = 0,
 	Medium = 1,
 	High = 2,
 	Ultra = 3,
-}
+};
 
 pub const SkinWeightMode = enum(i32) {
 	OneBone = 0,
 	TwoBones = 1,
 	FourBones = 2,
 	Unlimited = 3,
-}
+};
 
 pub const HeadOutputDevice = enum(i32) {
 	Autodetect = 0,
@@ -338,90 +336,90 @@ pub const HeadOutputDevice = enum(i32) {
 	Oculus = 8,
 	OculusQuest = 9,
 	UNKNOWN = 10,
-}
+};
 
 pub const TouchControllerModel = enum(i8) {
 	CV1 = 0,
 	QuestAndRiftS = 1,
-}
+};
 
 pub const HeadsetConnection = enum(i32) {
 	Wired = 0,
 	WirelessGeneral = 1,
 	WirelessSteamLink = 2,
-}
+};
 
 pub const CameraClearMode = enum(u8) {
 	Skybox = 0,
 	Color = 1,
 	Depth = 2,
 	Nothing = 3,
-}
+};
 
 pub const CameraProjection = enum(u8) {
 	Perspective = 0,
 	Orthographic = 1,
 	Panoramic = 2,
-}
+};
 
 pub const ComputeResult = enum(i32) {
 	Scheduled = 0,
 	Computed = 1,
 	Postpone = 2,
 	Failed = 3,
-}
+};
 
 pub const LayerType = enum(u8) {
 	Hidden = 0,
 	Overlay = 1,
-}
+};
 
 pub const LightType = enum(u8) {
 	Point = 0,
 	Directional = 1,
 	Spot = 2,
-}
+};
 
 pub const ShadowType = enum(u8) {
 	None = 0,
 	Hard = 1,
 	Soft = 2,
-}
+};
 
 pub const ShadowCastMode = enum(u8) {
 	Off = 0,
 	On = 1,
 	ShadowOnly = 2,
 	DoubleSided = 3,
-}
+};
 
 pub const MotionVectorMode = enum(u8) {
 	Camera = 0,
 	Object = 1,
 	NoMotion = 2,
-}
+};
 
 pub const MeshRendererType = enum(u8) {
 	MeshRenderer = 0,
 	SkinnedMeshRenderer = 1,
-}
+};
 
 pub const ReflectionProbeClear = enum(u8) {
 	Skybox = 0,
 	Color = 1,
-}
+};
 
 pub const ReflectionProbeType = enum(u8) {
 	Baked = 0,
 	OnChanges = 1,
 	Realtime = 2,
-}
+};
 
 pub const ReflectionProbeTimeSlicingMode = enum(u8) {
 	AllFacesAtOnce = 0,
 	IndividualFaces = 1,
 	NoTimeSlicing = 2,
-}
+};
 
 pub const BillboardAlignment = enum(u8) {
 	View = 0,
@@ -429,21 +427,21 @@ pub const BillboardAlignment = enum(u8) {
 	Local = 2,
 	Global = 3,
 	Direction = 4,
-}
+};
 
 pub const MeshAlignment = enum(u8) {
 	View = 0,
 	Facing = 1,
 	Local = 2,
 	Global = 3,
-}
+};
 
 pub const TrailTextureMode = enum(u8) {
 	Stretch = 0,
 	Tile = 1,
 	DistributePerSegment = 2,
 	RepeatPerSegment = 3,
-}
+};
 
 pub const RenderingContext = enum(u8) {
 	UserView = 0,
@@ -452,12 +450,12 @@ pub const RenderingContext = enum(u8) {
 	Mirror = 3,
 	Portal = 4,
 	RenderToAsset = 5,
-}
+};
 
 pub const Chirality = enum(i8) {
 	Left = 0,
 	Right = 1,
-}
+};
 
 pub const BodyNode = enum(i32) {
 	NONE = 0,
@@ -479,7 +477,6 @@ pub const BodyNode = enum(i32) {
 	LeftLowerArm = 16,
 	LeftHand = 17,
 	LeftPalm = 18,
-	LeftThumb_Metacarpal = 19,
 	LeftThumb_Metacarpal = 19,
 	LeftThumb_Proximal = 20,
 	LeftThumb_Distal = 21,
@@ -504,13 +501,11 @@ pub const BodyNode = enum(i32) {
 	LeftPinky_Intermediate = 40,
 	LeftPinky_Distal = 41,
 	LeftPinky_Tip = 42,
-	LeftPinky_Tip = 42,
 	RightShoulder = 43,
 	RightUpperArm = 44,
 	RightLowerArm = 45,
 	RightHand = 46,
 	RightPalm = 47,
-	RightThumb_Metacarpal = 48,
 	RightThumb_Metacarpal = 48,
 	RightThumb_Proximal = 49,
 	RightThumb_Distal = 50,
@@ -535,7 +530,6 @@ pub const BodyNode = enum(i32) {
 	RightPinky_Intermediate = 69,
 	RightPinky_Distal = 70,
 	RIGHT_FINGER_END = 71,
-	RIGHT_FINGER_END = 71,
 	LeftUpperLeg = 72,
 	LeftLowerLeg = 73,
 	LeftFoot = 74,
@@ -545,7 +539,7 @@ pub const BodyNode = enum(i32) {
 	RightFoot = 78,
 	RightToes = 79,
 	END = 80,
-}
+};
 
 pub const FingerSegmentType = enum(i32) {
 	Metacarpal = 0,
@@ -553,7 +547,7 @@ pub const FingerSegmentType = enum(i32) {
 	Intermediate = 2,
 	Distal = 3,
 	Tip = 4,
-}
+};
 
 pub const FingerType = enum(i32) {
 	Thumb = 0,
@@ -561,7 +555,7 @@ pub const FingerType = enum(i32) {
 	Middle = 2,
 	Ring = 3,
 	Pinky = 4,
-}
+};
 
 pub const MeshUploadHint_Flag = enum(i32) {
 	VertexLayout = 1,
@@ -585,5 +579,5 @@ pub const MeshUploadHint_Flag = enum(i32) {
 	Dynamic = 262144,
 	Readable = 524288,
 	Debug = 1048576,
-}
+};
 

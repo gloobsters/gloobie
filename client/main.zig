@@ -4,6 +4,8 @@ const builtin = @import("builtin");
 const gpu = @import("gpu");
 const sdl3 = @import("sdl3");
 const xr = @import("xr");
+const zinterprocess = @import("zinterprocess");
+const renderite = @import("renderite");
 
 pub fn main() !void {
     var debug_alloc_impl: std.heap.DebugAllocator(.{}) = .init;
@@ -12,6 +14,9 @@ pub fn main() !void {
 
     // TODO: figure out why this crashes Windows + X11
     // try sdl3.setMemoryFunctionsByAllocator(gpa);
+
+    _ = renderite.ColorProfile;
+    _ = zinterprocess.Queue;
 
     try sdl3.init(.{
         .video = true,

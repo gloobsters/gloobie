@@ -12,6 +12,9 @@ public class Generator : IDisposable
 
     public Generator(GeneratorOptions options)
     {
+        if(File.Exists(options.OutputZigFile))
+            File.Delete(options.OutputZigFile);
+        
         this._assembly = Assembly.LoadFrom(options.AssemblyPath);
         this._fileStream = File.OpenWrite(options.OutputZigFile);
         this._writer = new StreamWriter(this._fileStream);
@@ -45,20 +48,29 @@ public class Generator : IDisposable
         if (underlyingType == typeof(byte)) typeSign = 'u';
         else if (underlyingType == typeof(sbyte)) typeSign = 'i';
 
-        string name = t.Name;
+        string enumName = t.Name;
 
         if (t.DeclaringType != null)
         {
-            name = t.DeclaringType.Name + '_' + name;
+            enumName = t.DeclaringType.Name + '_' + enumName;
         }
         
-        this._writer.WriteLine($"pub const {name} = enum({typeSign}{typeBits}) {{");
-        
+        this._writer.WriteLine($"pub const {enumName} = enum({typeSign}{typeBits}) {{");
+
+        List<string> names = [];
         foreach (object enumVal in values)
         {
+            string name = enumVal.ToString()!;
+            
+            if(names.Contains(name))
+                continue;
+            
+            names.Add(name);
+            
             // workaround for enums that aren't int. this effectively casts to the underlying enum type
             object num = valueField.GetValue(enumVal)!;
-            this._writer.WriteLine($"\t{enumVal} = {num},");
+            
+            this._writer.WriteLine($"\t{name} = {num},");
         }
         
         this._writer.WriteLine("};\n");
