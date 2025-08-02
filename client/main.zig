@@ -10,7 +10,8 @@ pub fn main() !void {
 
     const gpa = if (std.debug.runtime_safety) debug_alloc_impl.allocator() else std.heap.smp_allocator;
 
-    try sdl3.setMemoryFunctionsByAllocator(gpa);
+    // TODO: figure out why this crashes Windows + X11
+    // try sdl3.setMemoryFunctionsByAllocator(gpa);
 
     try sdl3.init(.{
         .video = true,
