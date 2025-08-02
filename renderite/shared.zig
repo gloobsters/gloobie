@@ -658,7 +658,7 @@ pub const UnloadGaussianSplat = struct {
 
 pub const MaterialPropertyIdRequest = struct {
 	requestId: i32,
-	propertyNames: [][]const u8,
+	propertyNames: [][]const u16,
 };
 
 pub const MaterialPropertyIdResult = struct {
@@ -751,7 +751,7 @@ pub const ShaderUnload = struct {
 };
 
 pub const ShaderUpload = struct {
-	file: []const u8,
+	file: []const u16,
 	assetId: i32,
 };
 
@@ -917,8 +917,8 @@ pub const VideoAudioTrack = struct {
 	index: i32,
 	channelCount: i32,
 	sampleRate: i32,
-	name: []const u8,
-	languageCode: []const u8,
+	name: []const u16,
+	languageCode: []const u16,
 };
 
 pub const VideoTextureChanged = struct {
@@ -926,9 +926,9 @@ pub const VideoTextureChanged = struct {
 };
 
 pub const VideoTextureLoad = struct {
-	source: []const u8,
-	overrideEngine: []const u8,
-	mimeType: []const u8,
+	source: []const u16,
+	overrideEngine: []const u16,
+	mimeType: []const u16,
 	isStream: bool,
 	audioSystemSampleRate: i32,
 	assetId: i32,
@@ -946,7 +946,7 @@ pub const VideoTextureReady = struct {
 	length: f64,
 	size: @Vector(2, i32),
 	hasAlpha: bool,
-	playbackEngine: []const u8,
+	playbackEngine: []const u16,
 	instanceChanged: bool,
 	audioTracks: []VideoAudioTrack,
 	assetId: i32,
@@ -955,7 +955,7 @@ pub const VideoTextureReady = struct {
 pub const VideoTextureStartAudioTrack = struct {
 	audioTrackIndex: i32,
 	queueCapacity: i32,
-	queueName: []const u8,
+	queueName: []const u16,
 	assetId: i32,
 };
 
@@ -1124,12 +1124,12 @@ pub const DisplayState = struct {
 };
 
 pub const DragAndDropEvent = struct {
-	paths: [][]const u8,
+	paths: [][]const u16,
 	dropPoint: @Vector(2, i32),
 };
 
 pub const GamepadState = struct {
-	displayName: []const u8,
+	displayName: []const u16,
 	leftThumbstick: @Vector(2, f32),
 	rightThumbstick: @Vector(2, f32),
 	dPad: @Vector(2, f32),
@@ -1156,7 +1156,7 @@ pub const GamepadState = struct {
 };
 
 pub const HandState = struct {
-	uniqueId: []const u8,
+	uniqueId: []const u16,
 	priority: i32,
 	chirality: Chirality,
 	isDeviceActive: bool,
@@ -1180,7 +1180,7 @@ pub const InputState = struct {
 };
 
 pub const KeyboardState = struct {
-	typeDelta: []const u8,
+	typeDelta: []const u16,
 	heldKeys: []Key,
 };
 
@@ -1216,8 +1216,8 @@ pub const CosmosControllerState = struct {
 	buttonAX: bool,
 	buttonBY: bool,
 	bumper: bool,
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1240,8 +1240,8 @@ pub const GenericControllerState = struct {
 	menu: bool,
 	grab: bool,
 	secondary: bool,
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1267,8 +1267,8 @@ pub const HP_ReverbControllerState = struct {
 	triggerHair: bool,
 	triggerClick: bool,
 	trigger: f32,
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1300,8 +1300,8 @@ pub const IndexControllerState = struct {
 	touchpadTouch: bool,
 	touchpadPress: bool,
 	touchpadForce: f32,
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1326,8 +1326,8 @@ pub const PicoNeo2ControllerState = struct {
 	joystick: @Vector(2, f32),
 	triggerClick: bool,
 	trigger: f32,
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1357,8 +1357,8 @@ pub const TouchControllerState = struct {
 	trigger: f32,
 	triggerTouch: bool,
 	triggerClick: bool,
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1381,8 +1381,8 @@ pub const ViveControllerState = struct {
 	touchpadTouch: bool,
 	touchpadClick: bool,
 	touchpad: @Vector(2, f32),
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1407,8 +1407,8 @@ pub const WindowsMR_ControllerState = struct {
 	touchpad: @Vector(2, f32),
 	joystickClick: bool,
 	joystickRaw: @Vector(2, f32),
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
@@ -1429,12 +1429,12 @@ pub const HeadsetState = struct {
 	batteryLevel: f32,
 	batteryCharging: bool,
 	connectionType: HeadsetConnection,
-	headsetManufacturer: []const u8,
-	headsetModel: []const u8,
+	headsetManufacturer: []const u16,
+	headsetModel: []const u16,
 };
 
 pub const TrackerState = struct {
-	uniqueId: []const u8,
+	uniqueId: []const u16,
 	isTracking: bool,
 	position: @Vector(3, f32),
 	rotation: @Vector(4, f32),
@@ -1443,7 +1443,7 @@ pub const TrackerState = struct {
 };
 
 pub const TrackingReferenceState = struct {
-	uniqueId: []const u8,
+	uniqueId: []const u16,
 	isTracking: bool,
 	position: @Vector(3, f32),
 	rotation: @Vector(4, f32),
@@ -1619,11 +1619,11 @@ pub const TransformsUpdate = struct {
 };
 
 pub const RendererInitData = struct {
-	sharedMemoryPrefix: []const u8,
+	sharedMemoryPrefix: []const u16,
 	mainProcessId: i32,
 	debugFramePacing: bool,
 	outputDevice: HeadOutputDevice,
-	windowTitle: []const u8,
+	windowTitle: []const u16,
 };
 
 pub const RendererInitFinalizeData = struct {
@@ -1631,14 +1631,14 @@ pub const RendererInitFinalizeData = struct {
 
 pub const RendererInitProgressUpdate = struct {
 	phaseIndex: i32,
-	phase: []const u8,
-	subPhase: []const u8,
+	phase: []const u16,
+	subPhase: []const u16,
 	forceShow: bool,
 };
 
 pub const RendererInitResult = struct {
 	actualOutputDevice: HeadOutputDevice,
-	stereoRenderingMode: []const u8,
+	stereoRenderingMode: []const u16,
 	maxTextureSize: i32,
 	isGPUTexturePOTByteAligned: bool,
 	supportedTextureFormats: []TextureFormat,
@@ -1736,8 +1736,8 @@ pub const RenderSH2 = struct {
 };
 
 pub const VR_ControllerState = struct {
-	deviceID: []const u8,
-	deviceModel: []const u8,
+	deviceID: []const u16,
+	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,

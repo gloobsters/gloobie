@@ -159,7 +159,7 @@ public class Generator : IDisposable
     private string MapToZigType(Type type)
     {
         if (type == typeof(string))
-            return "[]const u8";
+            return "[]const u16";
         
         if (type == typeof(byte))
             return "u8";
