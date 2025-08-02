@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenderiteGenerator", "RenderiteGenerator.csproj", "{EB5990B2-1EA6-433B-BBD9-B1C4ECD01ECF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB5990B2-1EA6-433B-BBD9-B1C4ECD01ECF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB5990B2-1EA6-433B-BBD9-B1C4ECD01ECF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB5990B2-1EA6-433B-BBD9-B1C4ECD01ECF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB5990B2-1EA6-433B-BBD9-B1C4ECD01ECF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
