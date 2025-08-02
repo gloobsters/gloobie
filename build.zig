@@ -173,10 +173,10 @@ pub fn build(b: *std.Build) void {
 
         const renderite_mod = b.createModule(.{
             .root_source_file = renderite_root.path(b, "renderite.zig"),
-        })
+        });
 
         break :create_renderite_mod renderite_mod;
-    }
+    };
 
     const gloobie_mod = b.addModule("gloobie", .{
         .root_source_file = b.path("client/main.zig"),
