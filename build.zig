@@ -229,7 +229,7 @@ pub fn build(b: *std.Build) void {
     };
 
     const renderite_mod = create_renderite_mod: {
-        const renderite_root = b.path("renderite/shared/");
+        const renderite_root = b.path("renderite/");
 
         const renderite_mod = b.createModule(.{
             .root_source_file = renderite_root.path(b, "renderite.zig"),

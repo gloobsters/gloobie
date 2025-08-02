@@ -10,6 +10,6 @@ public class GeneratorOptions
     [Option('i', "assembly-path", Required = true, HelpText = "The absolute path to the Renderite.Shared.dll file.")]
     public string AssemblyPath { get; set; } = null!;
 
-    [Option('o', "output-zig-file", Required = false, Default = "renderite.zig", HelpText = "The destination .zig file to generate.")]
-    public string OutputZigFile { get; set; } = "renderite.zig";
+    [Option('o', "output-zig-file", Required = false, Default = null, HelpText = "The destination .zig file to generate.")]
+    public string? OutputZigFile { get; set; } = null;
 }
