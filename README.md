@@ -32,4 +32,5 @@ A cross-platform experimental renderer for Resonite.
   - `xr/openvr/`: The OpenVR backend. Secondary target.
 - `openxr/`: The OpenXR wrapper.
 - `renderite/generator/`: Generates type definitions from the Renderite DLL file.
-- `renderite/shared/`: Auto-generated types from the Renderite DLL file. Should stay in sync with engine updates.
+- `renderite/`: Types from the Renderite DLL file. Should stay in sync with engine updates. Some parts auto-generated, some manually written.
+- `imgui/`: An implementation of an ImGui renderer for our GPU abstraction.

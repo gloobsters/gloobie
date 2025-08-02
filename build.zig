@@ -83,10 +83,15 @@ pub fn build(b: *std.Build) void {
     });
     const upstream_sdl3_inc = upstream_sdl3_dep.path("include/");
 
+    const imgui_dep = b.dependency("imgui", .{});
+    const imgui_inc = imgui_dep.path(".");
+    const cimgui_dep = b.dependency("cimgui", .{});
+    const cimgui_inc = cimgui_dep.path(".");
+
     const vulkan_headers_dep = b.dependency("vulkan-headers", .{});
-    const vulkan_headers = vulkan_headers_dep.path("include/");
+    const vulkan_headers_inc = vulkan_headers_dep.path("include/");
     const openxr_headers_dep = b.dependency("openxr-headers", .{});
-    const openxr_headers = openxr_headers_dep.path("include/");
+    const openxr_headers_inc = openxr_headers_dep.path("include/");
 
     const vulkan_mod = b.dependency("vulkan-zig", .{
         .registry = b.dependency("vulkan-headers", .{}).path("registry/vk.xml"),
@@ -105,10 +110,10 @@ pub fn build(b: *std.Build) void {
             .root_source_file = openxr_root.path(b, "c.h"),
         });
         addPlatformDefines(translate_c, build_options, target);
-        translate_c.addIncludePath(openxr_headers);
+        translate_c.addIncludePath(openxr_headers_inc);
 
         if (build_options.render_backends.vulkan) {
-            translate_c.addIncludePath(vulkan_headers);
+            translate_c.addIncludePath(vulkan_headers_inc);
         }
 
         const translate_c_mod = translate_c.createModule();
@@ -129,7 +134,7 @@ pub fn build(b: *std.Build) void {
         break :create_openxr_mod openxr_mod;
     };
 
-    const gpu_mod = create_gpu_mod: {
+    const gpu_mod, const gpu_inc = create_gpu_mod: {
         const gpu_root = b.path("gpu/");
 
         const translate_c = b.addTranslateC(.{
@@ -141,7 +146,7 @@ pub fn build(b: *std.Build) void {
         translate_c.addIncludePath(upstream_sdl3_inc);
 
         if (build_options.render_backends.vulkan) {
-            translate_c.addIncludePath(vulkan_headers);
+            translate_c.addIncludePath(vulkan_headers_inc);
         }
 
         const translate_c_mod = translate_c.createModule();
@@ -157,6 +162,8 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "c", .module = translate_c_mod },
                 .{ .name = "options", .module = options_module },
             },
+
+            .link_libc = true,
         });
         gpu_mod.addIncludePath(upstream_sdl3_inc);
 
@@ -176,14 +183,14 @@ pub fn build(b: *std.Build) void {
             .openxr => {
                 gpu_mod.addImport("openxr", openxr_mod);
 
-                translate_c.addIncludePath(openxr_headers);
-                gpu_mod.addIncludePath(openxr_headers);
+                translate_c.addIncludePath(openxr_headers_inc);
+                gpu_mod.addIncludePath(openxr_headers_inc);
             },
             else => |xr_backend| std.debug.panic("TODO: implement backend {s}", .{@tagName(xr_backend)}),
         }
 
         if (build_options.render_backends.vulkan) {
-            gpu_mod.addIncludePath(vulkan_headers);
+            gpu_mod.addIncludePath(vulkan_headers_inc);
 
             gpu_mod.addCSourceFiles(.{
                 .root = gpu_root,
@@ -194,7 +201,80 @@ pub fn build(b: *std.Build) void {
 
         addPlatformDefines(gpu_mod, build_options, target);
 
-        break :create_gpu_mod gpu_mod;
+        break :create_gpu_mod .{ gpu_mod, gpu_root };
+    };
+
+    const imgui_mod = create_imgui_mod: {
+        const imgui_root = b.path("imgui/");
+
+        const translate_c = b.addTranslateC(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = imgui_root.path(b, "c.h"),
+        });
+        addPlatformDefines(translate_c, build_options, target);
+        translate_c.addIncludePath(cimgui_inc);
+        translate_c.addIncludePath(upstream_sdl3_inc);
+        translate_c.addIncludePath(gpu_inc);
+
+        const translate_c_mod = translate_c.createModule();
+
+        const imgui_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = imgui_root.path(b, "imgui.zig"),
+
+            .imports = &.{
+                .{ .name = "c", .module = translate_c_mod },
+                .{ .name = "gpu", .module = gpu_mod },
+                .{ .name = "sdl3", .module = sdl3_mod },
+            },
+
+            .link_libc = true,
+            .link_libcpp = true,
+        });
+        addPlatformDefines(imgui_mod, build_options, target);
+
+        if (build_options.render_backends.vulkan) {
+            imgui_mod.addIncludePath(vulkan_headers_inc);
+            translate_c.addIncludePath(vulkan_headers_inc);
+        }
+
+        switch (build_options.xr_backend) {
+            .openxr => {
+                imgui_mod.addIncludePath(openxr_headers_inc);
+                translate_c.addIncludePath(openxr_headers_inc);
+            },
+            else => |xr_backend| std.debug.panic("TODO: xr backend {s}", .{@tagName(xr_backend)}),
+        }
+
+        imgui_mod.addIncludePath(imgui_inc);
+        imgui_mod.addIncludePath(gpu_inc);
+        imgui_mod.addIncludePath(upstream_sdl3_inc);
+        imgui_mod.addCSourceFiles(.{
+            .root = imgui_inc,
+            .files = &.{
+                "imgui.cpp",
+                "imgui_draw.cpp",
+                "imgui_tables.cpp",
+                "imgui_demo.cpp",
+                "imgui_widgets.cpp",
+            },
+            .language = .cpp,
+        });
+
+        // custom implementation
+        imgui_mod.addCSourceFiles(.{
+            .root = imgui_root,
+            .files = &.{
+                "imgui_impl_gpu.cpp",
+            },
+            .language = .cpp,
+        });
+
+        break :create_imgui_mod imgui_mod;
     };
 
     const xr_mod = create_xr_mod: {
@@ -218,7 +298,7 @@ pub fn build(b: *std.Build) void {
         }
 
         if (build_options.render_backends.vulkan) {
-            gpu_mod.addIncludePath(vulkan_headers);
+            gpu_mod.addIncludePath(vulkan_headers_inc);
 
             gpu_mod.addImport("vulkan", vulkan_mod);
         }
@@ -256,6 +336,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "renderite", .module = renderite_mod },
             .{ .name = "zinterprocess", .module = zinterprocess_mod },
             .{ .name = "options", .module = options_module },
+            .{ .name = "imgui", .module = imgui_mod },
         },
     });
 
