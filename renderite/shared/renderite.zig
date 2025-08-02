@@ -4,7 +4,7 @@ pub const ColorProfile = enum(i32) {
 	Linear = 0,
 	sRGB = 1,
 	sRGBAlpha = 2,
-}
+};
 
 pub const BlendshapeDataFlags = enum(i32) {
 	NONE = 0,

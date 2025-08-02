@@ -61,7 +61,7 @@ public class Generator : IDisposable
             this._writer.WriteLine($"\t{enumVal} = {num},");
         }
         
-        this._writer.WriteLine("}\n");
+        this._writer.WriteLine("};\n");
     }
 
     public void Dispose()
