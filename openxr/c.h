@@ -1,5 +1,7 @@
 #ifdef GPU_VULKAN
 #define XR_USE_GRAPHICS_API_VULKAN
+
+#include <vulkan/vulkan.h>
 #endif
 
 #ifdef PLATFORM_LINUX
@@ -11,6 +13,7 @@
 #ifdef PLATFORM_WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <unknwn.h>
 
 #define XR_USE_PLATFORM_WIN32
 #endif

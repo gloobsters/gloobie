@@ -16,17 +16,28 @@ const Options = struct {
     xr_backend: XrBackend,
 };
 
-fn addPlatformDefines(module: *std.Build.Module, options: Options, target: std.Build.ResolvedTarget) void {
+fn addPlatformDefines(module: anytype, options: Options, target: std.Build.ResolvedTarget) void {
+    const addMacro = switch (@TypeOf(module)) {
+        *std.Build.Module => std.Build.Module.addCMacro,
+        *std.Build.Step.TranslateC => std.Build.Step.TranslateC.defineCMacro,
+        else => |unknown_type| @compileError("unhandled type: " ++ @typeName(unknown_type)),
+    };
+
     if (options.render_backends.vulkan) {
-        module.addCMacro("GPU_VULKAN", "1");
+        addMacro(module, "GPU_VULKAN", "1");
+    }
+
+    switch (options.xr_backend) {
+        .openxr => addMacro(module, "XR_OPENXR", "1"),
+        .openvr => addMacro(module, "XR_OPENVR", "1"),
     }
 
     switch (target.result.os.tag) {
         .windows => {
-            module.addCMacro("PLATFORM_WIN32", "1");
+            addMacro(module, "PLATFORM_WIN32", "1");
         },
         .linux => {
-            module.addCMacro("PLATFORM_LINUX", "1");
+            addMacro(module, "PLATFORM_LINUX", "1");
         },
         else => |os_tag| std.debug.panic("TODO: add platform define for platform {s}", .{@tagName(os_tag)}),
     }
@@ -66,6 +77,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const upstream_sdl3_inc = upstream_sdl3_dep.path("include/");
 
     const vulkan_headers_dep = b.dependency("vulkan-headers", .{});
     const vulkan_headers = vulkan_headers_dep.path("include/");
@@ -78,13 +90,57 @@ pub fn build(b: *std.Build) void {
 
     const sdl3_mod = sdl3_dep.module("sdl3");
 
+    // openxr wrapper
+    const openxr_mod = create_openxr_mod: {
+        const openxr_root = b.path("openxr/");
+
+        const translate_c = b.addTranslateC(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = openxr_root.path(b, "c.h"),
+        });
+        addPlatformDefines(translate_c, build_options, target);
+        translate_c.addIncludePath(openxr_headers);
+
+        if (build_options.render_backends.vulkan) {
+            translate_c.addIncludePath(vulkan_headers);
+        }
+
+        const translate_c_mod = translate_c.createModule();
+
+        const openxr_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = openxr_root.path(b, "openxr.zig"),
+
+            .imports = &.{
+                .{ .name = "c", .module = translate_c_mod },
+            },
+        });
+
+        addPlatformDefines(openxr_mod, build_options, target);
+
+        break :create_openxr_mod openxr_mod;
+    };
+
     const gpu_mod = create_gpu_mod: {
         const gpu_root = b.path("gpu/");
-        const gpu_translate_c = b.addTranslateC(.{
+
+        const translate_c = b.addTranslateC(.{
             .target = target,
             .optimize = optimize,
             .root_source_file = gpu_root.path(b, "gpu.h"),
         });
+        addPlatformDefines(translate_c, build_options, target);
+        translate_c.addIncludePath(upstream_sdl3_inc);
+
+        if (build_options.render_backends.vulkan) {
+            translate_c.addIncludePath(vulkan_headers);
+        }
+
+        const translate_c_mod = translate_c.createModule();
 
         const gpu_mod = b.createModule(.{
             .target = target,
@@ -94,11 +150,11 @@ pub fn build(b: *std.Build) void {
 
             .imports = &.{
                 .{ .name = "sdl3", .module = sdl3_mod },
-                .{ .name = "c", .module = gpu_translate_c.createModule() },
+                .{ .name = "c", .module = translate_c_mod },
                 .{ .name = "options", .module = options_module },
             },
         });
-        gpu_mod.addIncludePath(upstream_sdl3_dep.path("include/"));
+        gpu_mod.addIncludePath(upstream_sdl3_inc);
 
         gpu_mod.addCSourceFiles(.{
             .root = gpu_root,
@@ -111,6 +167,16 @@ pub fn build(b: *std.Build) void {
             .files = &.{"gpu.c"},
             .language = .c,
         });
+
+        switch (build_options.xr_backend) {
+            .openxr => {
+                gpu_mod.addImport("openxr", openxr_mod);
+
+                translate_c.addIncludePath(openxr_headers);
+                gpu_mod.addIncludePath(openxr_headers);
+            },
+            else => |xr_backend| std.debug.panic("TODO: implement backend {s}", .{@tagName(xr_backend)}),
+        }
 
         if (build_options.render_backends.vulkan) {
             gpu_mod.addIncludePath(vulkan_headers);
@@ -143,17 +209,7 @@ pub fn build(b: *std.Build) void {
         });
 
         switch (build_options.xr_backend) {
-            .openxr => {
-                const translate_c = b.addTranslateC(.{
-                    .target = target,
-                    .optimize = optimize,
-
-                    .root_source_file = xr_root.path(b, "openxr/c.h"),
-                });
-
-                xr_mod.addIncludePath(openxr_headers);
-                xr_mod.addImport("c", translate_c.createModule());
-            },
+            .openxr => xr_mod.addImport("openxr", openxr_mod),
             else => |xr_backend| std.debug.panic("TODO: implement backend {s}", .{@tagName(xr_backend)}),
         }
 

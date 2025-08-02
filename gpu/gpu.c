@@ -3744,3 +3744,36 @@ Uint32 GPU_CalculateTextureFormatSize(
     Uint32 blocksPerColumn = (height + blockHeight - 1) / blockHeight;
     return depth_or_layer_count * blocksPerRow * blocksPerColumn * GPU_TextureFormatTexelBlockSize(format);
 }
+
+// !GLOOBIE! Add OpenXR api functions
+#ifdef XR_OPENXR
+XrResult GPU_CreateXRSession(
+    GPU_Device *device,
+    const XrSessionCreateInfo *createinfo,
+    XrSession *session)
+{
+    CHECK_DEVICE_MAGIC(device, XR_NULL_HANDLE);
+
+    return device->CreateXRSession(device->driverData, createinfo, session);
+}
+
+XrResult GPU_CreateXRSwapchain(
+    GPU_Device *device,
+    XrSession session,
+    const XrSwapchainCreateInfo *createinfo,
+    GPU_TextureFormat *textureFormat,
+    XrSwapchain *swapchain,
+    GPU_Texture ***textures)
+{
+    CHECK_DEVICE_MAGIC(device, XR_NULL_HANDLE);
+
+    return device->CreateXRSwapchain(device->driverData, session, createinfo, textureFormat, swapchain, textures);
+}
+
+XrResult GPU_DestroyXRSwapchain(GPU_Device *device, XrSwapchain swapchain, GPU_Texture **swapchainImages)
+{
+    CHECK_DEVICE_MAGIC(device, XR_ERROR_HANDLE_INVALID);
+
+    return device->DestroyXRSwapchain(device->driverData, swapchain, swapchainImages);
+}
+#endif

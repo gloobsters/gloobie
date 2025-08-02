@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const c = @import("c");
+const openxr = @import("openxr");
 
 const Backend = struct {};
 

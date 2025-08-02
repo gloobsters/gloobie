@@ -23,6 +23,7 @@
 const std = @import("std");
 
 const c = @import("c");
+const openxr = @import("openxr");
 const sdl3 = @import("sdl3");
 const errors = sdl3.errors;
 const pixels = sdl3.pixels;
@@ -2879,6 +2880,42 @@ pub const Device = packed struct {
             window.value,
             @intFromEnum(swapchain_composition),
         );
+    }
+
+    pub fn createXrSession(self: Device, create_info: openxr.Session.CreateInfo) openxr.ResultError!openxr.Session {
+        var session: openxr.c.XrSession = undefined;
+        try openxr.convertResult(c.GPU_CreateXRSession(self.value, @ptrCast(&create_info.to()), &session));
+
+        return .from(session);
+    }
+
+    pub fn createXrSwapchain(self: Device, session: openxr.Session, create_info: openxr.Swapchain.CreateInfo) openxr.ResultError!struct {
+        texture_format: TextureFormat,
+        swapchain: openxr.Swapchain,
+        textures: [*]Texture,
+    } {
+        var texture_format: c.GPU_TextureFormat = undefined;
+        var swapchain: c.XrSwapchain = undefined;
+        var textures: ?[*]?*c.GPU_Texture = undefined;
+
+        try openxr.convertResult(c.GPU_CreateXRSwapchain(
+            self.value,
+            @ptrCast(session.value),
+            @ptrCast(&create_info.to()),
+            &texture_format,
+            &swapchain,
+            &textures,
+        ));
+
+        return .{
+            .texture_format = @enumFromInt(texture_format),
+            .swapchain = .from(@ptrCast(swapchain)),
+            .textures = @ptrCast(textures),
+        };
+    }
+
+    pub fn destroyXrSwapchain(self: Device, swapchain: openxr.Swapchain, swapchain_images: [*]Texture) openxr.ResultError!void {
+        try openxr.convertResult(c.GPU_DestroyXRSwapchain(self.value, @ptrCast(swapchain.value), @ptrCast(swapchain_images)));
     }
 };
 

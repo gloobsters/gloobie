@@ -380,6 +380,19 @@
 #include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_video.h>
 
+#ifdef XR_OPENXR
+
+#ifdef GPU_VULKAN
+#include <vulkan/vulkan.h>
+
+#define XR_USE_GRAPHICS_API_VULKAN
+#endif
+
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
+
+#endif
+
 #include <SDL3/SDL_begin_code.h>
 #ifdef __cplusplus
 extern "C"
@@ -2304,6 +2317,20 @@ extern "C"
 #define GPU_PROP_DEVICE_CREATE_VULKAN_DEPTHCLAMP_BOOLEAN "SDL.gpu.device.create.vulkan.depthclamp"
 #define GPU_PROP_DEVICE_CREATE_VULKAN_DRAWINDIRECTFIRST_BOOLEAN "SDL.gpu.device.create.vulkan.drawindirectfirstinstance"
 #define GPU_PROP_DEVICE_CREATE_VULKAN_SAMPLERANISOTROPY_BOOLEAN "SDL.gpu.device.create.vulkan.sampleranisotropy"
+
+#define GPU_PROP_DEVICE_CREATE_XR_ENABLE "SDL.gpu.device.create.xr.enable"
+#define GPU_PROP_DEVICE_CREATE_XR_INSTANCE_OUT "SDL.gpu.device.create.xr.instance_out"
+#define GPU_PROP_DEVICE_CREATE_XR_SYSTEM_ID_OUT "SDL.gpu.device.create.xr.system_id_out"
+#define GPU_PROP_DEVICE_CREATE_XR_VERSION "SDL.gpu.device.create.xr.version"
+#define GPU_PROP_DEVICE_CREATE_XR_FORM_FACTOR "SDL.gpu.device.create.xr.form_factor"
+#define GPU_PROP_DEVICE_CREATE_XR_EXTENSION_COUNT "SDL.gpu.device.create.xr.extensions.count"
+#define GPU_PROP_DEVICE_CREATE_XR_EXTENSION_NAMES "SDL.gpu.device.create.xr.extensions.names"
+#define GPU_PROP_DEVICE_CREATE_XR_LAYER_COUNT "SDL.gpu.device.create.xr.layers.count"
+#define GPU_PROP_DEVICE_CREATE_XR_LAYER_NAMES "SDL.gpu.device.create.xr.layers.names"
+#define GPU_PROP_DEVICE_CREATE_XR_APPLICATION_NAME "SDL.gpu.device.create.xr.application.name"
+#define GPU_PROP_DEVICE_CREATE_XR_APPLICATION_VERSION "SDL.gpu.device.create.xr.application.version"
+#define GPU_PROP_DEVICE_CREATE_XR_ENGINE_NAME "SDL.gpu.device.create.xr.engine.name"
+#define GPU_PROP_DEVICE_CREATE_XR_ENGINE_VERSION "SDL.gpu.device.create.xr.engine.version"
 
     /**
      * Destroys a GPU context previously returned by GPU_CreateDevice.
@@ -4446,6 +4473,63 @@ extern "C"
     extern SDL_DECLSPEC void SDLCALL GPU_GDKResume(GPU_Device *device);
 
 #endif /* SDL_PLATFORM_GDK */
+
+// !GLOOBIE! Add OpenXR API functions
+#ifdef XR_OPENXR
+    /**
+     * Creates an OpenXR session. The OpenXR system ID is pulled from the passed GPU context.
+     *
+     * \param device a GPU context.
+     * \param createinfo the create info for the OpenXR session, sans the system ID.
+     * \param session an OpenXR session created for the given **device**.
+     * \returns the result of the call.
+     *
+     * \sa SDL_CreateGPUDeviceWithProperties
+     */
+    extern SDL_DECLSPEC XrResult SDLCALL GPU_CreateXRSession(
+        GPU_Device *device,
+        const XrSessionCreateInfo *createinfo,
+        XrSession *session);
+
+    /**
+     * Creates an OpenXR swapchain.
+     *
+     * \param device a GPU context.
+     * \param session an OpenXR session created for the given **device**.
+     * \param createinfo the create info for the OpenXR swapchain, sans the format.
+     * \param textureFormat a pointer to store the format of the created swapchain.
+     * \param swapchain a pointer to store the created OpenXR swapchain.
+     * \param textures a pointer to store the list of created swapchain images.
+     * \returns the result of the call.
+     *
+     * \sa SDL_CreateGPUDeviceWithProperties
+     * \sa GPU_CreateXRSession
+     * \sa GPU_DestroyXRSwapchain
+     */
+
+    /* TODO: figure out then document what usageFlags are actually possible to be supported by SDL_gpu */
+    extern SDL_DECLSPEC XrResult SDLCALL GPU_CreateXRSwapchain(
+        GPU_Device *device,
+        XrSession session,
+        const XrSwapchainCreateInfo *createinfo,
+        GPU_TextureFormat *textureFormat,
+        XrSwapchain *swapchain,
+        GPU_Texture ***textures);
+
+    /**
+     * Destroys and OpenXR swapchain previously returned by GPU_CreateXRSwapchain.
+     *
+     * \param device a GPU context.
+     * \param swapchain a swapchain previously returned by GPU_CreateXRSwapchain.
+     * \param swapchainImages an array of swapchain images returned by the same call to GPU_CreateXRSwapchain.
+     * \returns the result of the call.
+     *
+     * \sa SDL_CreateGPUDeviceWithProperties
+     * \sa GPU_CreateXRSession
+     * \sa GPU_CreateXRSwapchain
+     */
+    extern SDL_DECLSPEC XrResult SDLCALL GPU_DestroyXRSwapchain(GPU_Device *device, XrSwapchain swapchain, GPU_Texture **swapchainImages);
+#endif
 
 #ifdef __cplusplus
 }

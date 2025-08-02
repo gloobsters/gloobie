@@ -11695,6 +11695,39 @@ static bool VULKAN_SupportsTextureFormat(
     return vulkanResult == VK_SUCCESS;
 }
 
+// !GLOOBIE! Add OpenXR support
+
+// OpenXR
+
+#ifdef XR_OPENXR
+static XrResult VULKAN_CreateXRSession(
+    GPU_Renderer *driverData,
+    const XrSessionCreateInfo *createinfo,
+    XrSession *session)
+{
+    return XR_ERROR_FUNCTION_UNSUPPORTED; // OpenXR support is not implemented yet
+}
+
+static XrResult VULKAN_CreateXRSwapchain(
+    GPU_Renderer *driverData,
+    XrSession session,
+    const XrSwapchainCreateInfo *oldCreateInfo,
+    GPU_TextureFormat *textureFormat,
+    XrSwapchain *swapchain,
+    GPU_Texture ***textures)
+{
+    return XR_ERROR_FUNCTION_UNSUPPORTED; // OpenXR support is not implemented yet
+}
+
+static XrResult VULKAN_DestroyXRSwapchain(
+    GPU_Renderer *driverData,
+    XrSwapchain swapchain,
+    GPU_Texture **swapchainImages)
+{
+    return XR_ERROR_FUNCTION_UNSUPPORTED; // OpenXR support is not implemented yet
+}
+#endif
+
 // Device instantiation
 
 static inline Uint8 CheckDeviceExtensions(
