@@ -280,4 +280,16 @@ pub fn build(b: *std.Build) void {
 
     const gloobie_exe_run = b.addRunArtifact(gloobie_exe);
     run_step.dependOn(&gloobie_exe_run.step);
+
+    const test_step = b.step("test", "Runs tests on the various gloobie subsystems");
+
+    const gloobie_test_exe = b.addTest(.{
+        .name = "gloobie",
+        .root_module = gloobie_mod,
+        .use_lld = build_options.use_lld,
+        .use_llvm = build_options.use_llvm,
+    });
+
+    const gloobie_test_exe_run = b.addRunArtifact(gloobie_test_exe);
+    test_step.dependOn(&gloobie_test_exe_run.step);
 }
