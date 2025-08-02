@@ -175,6 +175,22 @@ public class Generator : IDisposable
         if (type == typeof(bool))
             return "bool";
 
+        switch (type.Name)
+        {
+            case "RenderVector2":
+                return "@Vector(2, f32)";
+            case "RenderVector2i":
+                return "@Vector(2, i32)";
+            case "RenderVector3":
+                return "@Vector(3, f32)";
+            case "RenderVector3i":
+                return "@Vector(3, i32)";
+            case "RenderVector4" or "RenderQuaternion":
+                return "@Vector(4, f32)";
+            case "RenderVector4i":
+                return "@Vector(4, i32)";
+        }
+
         if (typeof(IEnumerable).IsAssignableFrom(type))
             return $"[]{MapToZigType(type.GenericTypeArguments.First())}";
         
