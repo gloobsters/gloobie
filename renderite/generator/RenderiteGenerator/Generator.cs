@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -129,6 +130,10 @@ public class Generator : IDisposable
         string structName = type.Name;
         
         this._writer.WriteLine($"pub const {structName} = struct {{");
+        foreach (FieldInfo field in type.GetFields())
+        {
+            this._writer.WriteLine($"\t{field.Name}: {MapToZigType(field.FieldType)},");
+        }
         this._writer.WriteLine("};\n");
     }
 
@@ -161,6 +166,19 @@ public class Generator : IDisposable
             return "i128";
         if (type == typeof(UInt128))
             return "u128";
+
+        if (type == typeof(float))
+            return "f32";
+        if (type == typeof(double))
+            return "f64";
+
+        if (type == typeof(bool))
+            return "bool";
+
+        if (typeof(IEnumerable).IsAssignableFrom(type))
+        {
+            return $"[]{MapToZigType(type.GenericTypeArguments.First())}";
+        }
         
         if(type.Assembly != this._assembly)
             Console.WriteLine($"Mapping unknown type {type.FullName} as-is");
