@@ -12917,7 +12917,7 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
     return result;
 }
 
-GPU_Bootstrap VulkanDriver = {
+GPU_Bootstrap GPU_VulkanDriver = {
     "vulkan",
     VULKAN_PrepareDriver,
     VULKAN_CreateDevice};

@@ -4607,7 +4607,7 @@ static GPU_Device *METAL_CreateDevice(bool debugMode, bool preferLowPower, SDL_P
     }
 }
 
-GPU_Bootstrap MetalDriver = {
+GPU_Bootstrap GPU_MetalDriver = {
     "metal",
     METAL_PrepareDriver,
     METAL_CreateDevice

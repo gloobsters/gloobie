@@ -1240,10 +1240,10 @@ extern "C"
 {
 #endif
 
-    extern GPU_Bootstrap VulkanDriver;
-    extern GPU_Bootstrap D3D12Driver;
-    extern GPU_Bootstrap MetalDriver;
-    extern GPU_Bootstrap PrivateGPUDriver;
+    extern GPU_Bootstrap GPU_VulkanDriver;
+    extern GPU_Bootstrap GPU_D3D12Driver;
+    extern GPU_Bootstrap GPU_MetalDriver;
+    extern GPU_Bootstrap GPU_PrivateDriver;
 
 #ifdef __cplusplus
 }

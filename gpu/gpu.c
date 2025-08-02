@@ -333,16 +333,16 @@ static bool TextureFormatIsComputeWritable[] = {
 #ifndef GPU_DISABLED
 static const GPU_Bootstrap *backends[] = {
 #ifdef GPU_PRIVATE
-    &PrivateGPUDriver,
+    &GPU_PrivateDriver,
 #endif
 #ifdef GPU_METAL
-    &MetalDriver,
+    &GPU_MetalDriver,
 #endif
 #ifdef GPU_VULKAN
-    &VulkanDriver,
+    &GPU_VulkanDriver,
 #endif
 #ifdef GPU_D3D12
-    &D3D12Driver,
+    &GPU_D3D12Driver,
 #endif
     NULL};
 #endif // !GPU_DISABLED

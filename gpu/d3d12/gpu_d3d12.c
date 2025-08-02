@@ -9947,7 +9947,7 @@ static GPU_Device *D3D12_CreateDevice(bool debugMode, bool preferLowPower, SDL_P
     return result;
 }
 
-GPU_Bootstrap D3D12Driver = {
+GPU_Bootstrap GPU_D3D12Driver = {
     "direct3d12",
     D3D12_PrepareDriver,
     D3D12_CreateDevice};
