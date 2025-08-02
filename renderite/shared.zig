@@ -6,6 +6,35 @@ pub const ColorProfile = enum(i32) {
 	sRGBAlpha = 2,
 };
 
+pub const GaussianVectorFormat = enum(i32) {
+	Float32 = 0,
+	Norm16 = 1,
+	Norm11 = 2,
+	Norm6 = 3,
+};
+
+pub const GaussianRotationFormat = enum(i32) {
+	PackedNorm10 = 0,
+};
+
+pub const GaussianColorFormat = enum(i32) {
+	Float32x4 = 0,
+	Float16x4 = 1,
+	Norm8x4 = 2,
+	BC7 = 3,
+};
+
+pub const GaussianSHFormat = enum(i32) {
+	Float16 = 0,
+	Norm11 = 1,
+	Norm6 = 2,
+	Cluster64k = 3,
+	Cluster32k = 4,
+	Cluster16k = 5,
+	Cluster8k = 6,
+	Cluster4k = 7,
+};
+
 pub const BlendshapeDataFlags = enum(i32) {
 	NONE = 0,
 	Positions = 1,

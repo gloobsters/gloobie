@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
-const renderite = @import("renderite");
+const renderite = @import("renderite").Shared;
 const sdl3 = @import("sdl3");
 const xr = @import("xr");
 const zinterprocess = @import("zinterprocess");

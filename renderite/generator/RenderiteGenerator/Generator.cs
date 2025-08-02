@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace RenderiteGenerator;
@@ -12,6 +13,8 @@ public class Generator : IDisposable
 
     public Generator(GeneratorOptions options)
     {
+        options.OutputZigFile ??= DetermineDefaultOutputPath();
+        
         if(File.Exists(options.OutputZigFile))
             File.Delete(options.OutputZigFile);
         
@@ -19,6 +22,26 @@ public class Generator : IDisposable
         this._fileStream = File.OpenWrite(options.OutputZigFile);
         this._writer = new StreamWriter(this._fileStream);
         this._verbose = options.Verbose;
+    }
+
+    private static string DetermineDefaultOutputPath()
+    {
+        Process process = Process.Start(new ProcessStartInfo()
+        {
+            FileName = "git",
+            Arguments = "rev-parse --show-toplevel",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+        })!;
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+            throw new Exception("Git exited with exit code " + process.ExitCode);
+
+        string? output = process.StandardOutput.ReadLine();
+        if (output == null)
+            throw new Exception("Git returned no output");
+        
+        return Path.Combine(output, "renderite", "shared.zig");
     }
 
     public void Run()
@@ -32,7 +55,7 @@ public class Generator : IDisposable
         }
     }
 
-    public void WriteEnum(Type t)
+    private void WriteEnum(Type t)
     {
         if(this._verbose)
             Console.WriteLine($"Writing enum {t.FullName}");
