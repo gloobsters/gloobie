@@ -3,7 +3,7 @@ const std = @import("std");
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const imgui_t = @import("imgui");
-const MessagingManager = @import("renderite").MessagingManager;
+const MessagingHost = @import("renderite").MessagingHost;
 const sdl3 = @import("sdl3");
 const xr_t = @import("xr");
 
@@ -37,10 +37,10 @@ const WindowData = struct {
 };
 
 const MessagingData = struct {
-    manager: MessagingManager,
+    host: MessagingHost,
 
     pub fn deinit(self: MessagingData) void {
-        self.manager.deinit();
+        self.host.deinit();
     }
 };
 
@@ -72,13 +72,13 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     errdefer gpa.destroy(app);
 
     const messaging_data: MessagingData = create_messaging_data: {
-        const manager = MessagingManager.initFromArgs(gpa) catch debug_queue: {
-            log.warn("Failed to initialize messaging manager from command line arguments, setting up dummy queue", .{});
-            break :debug_queue try MessagingManager.init("gloopie", false, 8388608, gpa);
+        const host = MessagingHost.initFromArgs(gpa) catch |err| debug_queue: {
+            log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
+            break :debug_queue try MessagingHost.init("gloopie", 8388608, gpa);
         };
-        errdefer manager.deinit();
+        errdefer host.deinit();
 
-        break :create_messaging_data .{ .manager = manager };
+        break :create_messaging_data .{ .host = host };
     };
 
     const xr_data: ?XrData = create_xr_data: {
