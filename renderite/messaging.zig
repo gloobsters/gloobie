@@ -63,6 +63,7 @@ pub const MessagingHost = struct {
 pub const QueueManager = struct {
     publisher: zinterprocess.Queue,
     subscriber: zinterprocess.Queue,
+    thread: std.Thread = undefined,
 
     pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !QueueManager {
         const name_a = try queueSuffix(queue_name, 'A', allocator);
@@ -88,10 +89,14 @@ pub const QueueManager = struct {
             .destroy_on_deinit = is_authority,
         });
 
-        return QueueManager{
+        var queue = QueueManager{
             .publisher = publisher,
             .subscriber = subscriber,
         };
+
+        queue.thread = try std.Thread.spawn(.{}, QueueManager.receiverLoop, .{queue});
+
+        return queue;
     }
 
     pub fn deinit(self: QueueManager) void {
@@ -106,5 +111,13 @@ pub const QueueManager = struct {
         name_authority[queue_name.len] = c;
 
         return name_authority;
+    }
+
+    fn receiverLoop(self: QueueManager) !void {
+        // log.debug("Starting receiver loop", .{});
+        while (true) {
+            const msg = try self.subscriber.dequeue();
+            log.debug("Received message: {s}", .{msg});
+        }
     }
 };
