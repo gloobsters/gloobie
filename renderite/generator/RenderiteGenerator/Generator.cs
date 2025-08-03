@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
 
 namespace RenderiteGenerator;
 
@@ -9,11 +12,16 @@ public class Generator : IDisposable
     private readonly Stream _fileStream;
     private readonly StreamWriter _writer;
     private readonly Assembly _assembly;
+    private readonly AssemblyDefinition _cecilAssembly;
     private readonly bool _verbose;
+    private readonly bool _ilVerbose;
     private readonly string _engineVersion;
 
     private readonly List<Type> _generatedTypes = [];
     private readonly Queue<Type> _typesToGenerate = [];
+
+    private readonly Type[] _types;
+    private readonly Type _iMemoryPackable;
     
     public Generator(GeneratorOptions options)
     {
@@ -23,9 +31,11 @@ public class Generator : IDisposable
             File.Delete(options.OutputZigFile);
         
         this._assembly = Assembly.LoadFrom(options.AssemblyPath);
+        this._cecilAssembly = AssemblyDefinition.ReadAssembly(options.AssemblyPath);
         this._fileStream = File.OpenWrite(options.OutputZigFile);
         this._writer = new StreamWriter(this._fileStream);
         this._verbose = options.Verbose;
+        this._ilVerbose = options.IlVerbose;
 
         this._engineVersion = "Unknown";
         try
@@ -39,6 +49,9 @@ public class Generator : IDisposable
         {
             Console.WriteLine($"Couldn't get FrooxEngine assembly to determine version: {e}");
         }
+
+        this._types = this._assembly.GetTypes();
+        this._iMemoryPackable = this._types.First(t => t.Name == "IMemoryPackable");
         
         Console.WriteLine($"Generating for {this._engineVersion}");
     }
@@ -71,24 +84,25 @@ public class Generator : IDisposable
         this._writer.WriteLine("const buffer = @import(\"buffer.zig\");");
         this._writer.WriteLine("const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;");
         this._writer.WriteLine();
-        
-        Type[] types = this._assembly.GetTypes();
+        this._writer.WriteLine("const serialization = @import(\"serialization.zig\");");
+        this._writer.WriteLine("const IpcDeserializer = serialization.IpcDeserializer;");
+        this._writer.WriteLine("const IpcSerializer = serialization.IpcSerializer;");
+        this._writer.WriteLine();
 
         Console.WriteLine("Generating enums...");
         this._writer.WriteLine("// Generated Enums");
-        foreach (Type type in types.Where(t => t.IsEnum))
+        foreach (Type type in this._types.Where(t => t.IsEnum))
         {
             this._generatedTypes.Add(type);
             this.WriteEnum(type);
         }
 
-        Type structBase = types.First(t => t.Name == "IMemoryPackable");
         Console.WriteLine("Generating structs...");
         this._writer.WriteLine("// Generated Structs");
-        foreach (Type type in types.Where(t => t != structBase && !t.IsAbstract && t.IsAssignableTo(structBase)))
+        foreach (Type type in this._types.Where(t => t != this._iMemoryPackable && !t.IsAbstract && t.IsAssignableTo(this._iMemoryPackable)))
         {
             this._generatedTypes.Add(type);
-            this.WriteStruct(type);
+            this.WriteStruct(type, true);
         }
         
         Console.WriteLine("Generating remaining structs...");
@@ -140,10 +154,14 @@ public class Generator : IDisposable
         this._writer.WriteLine("};\n");
     }
     
-    private void WriteStruct(Type type)
+    private void WriteStruct(Type type, bool isPackable = false)
     {
         if(this._verbose)
             Console.WriteLine($"\tWriting struct {type.FullName}");
+        
+        // if we were called from a place that didn't already check if we're a packable, check
+        if (!isPackable)
+            isPackable = type.IsAssignableTo(this._iMemoryPackable);
         
         string structName = type.Name;
         
@@ -152,7 +170,133 @@ public class Generator : IDisposable
         {
             this._writer.WriteLine($"\t{field.Name}: {MapToZigType(field.FieldType)},");
         }
+
+        if (isPackable)
+        {
+            this._writer.WriteLine();
+            this._writer.WriteLine($"\tpub fn write(self: {structName}, ipc: IpcSerializer) !void {{");
+            bool generated = WritePackFunction(type, type.GetMethod("Pack")!);
+            if(!generated) WritePackDiscard();
+            this._writer.WriteLine("\t}\n");
+            
+            this._writer.WriteLine($"\tpub fn read(self: {structName}, ipc: IpcDeserializer) !void {{");
+            generated = WritePackFunction(type, type.GetMethod("Unpack")!);
+            if(!generated) WritePackDiscard();
+            this._writer.WriteLine("\t}");
+        }
+        
         this._writer.WriteLine("};\n");
+    }
+
+    private bool WritePackFunction(Type type, MethodInfo method)
+    {
+        bool written = false;
+        
+        if(_ilVerbose)
+            this._writer.WriteLine($"\t\t// {method.Name} {type.Name}");
+
+        TypeDefinition typeDef = this._cecilAssembly.MainModule.GetType(type.Namespace + '.' + type.Name);
+        MethodDefinition? methodDef = typeDef.GetMethods().FirstOrDefault(m => m.Name == method.Name);
+        if (methodDef == null)
+        {
+            if (type.BaseType == null)
+            {
+                // this should never happen
+                this._writer.WriteLine($"\t\t// BUG: {type.Name} has no explicitly defined method named {method.Name}, and has no base type");
+                return written;
+            }
+            
+            if(this._ilVerbose)
+                this._writer.WriteLine($"\t\t// NOTE: {type.Name} has no explicitly defined method named {method.Name}, trying {type.BaseType?.Name}.{method.Name}");
+
+            written |= WritePackFunction(type.BaseType!, type.BaseType!.GetMethod(method.Name)!);
+            return written;
+        }
+
+        Queue<string> names = new();
+        foreach (Instruction instruction in methodDef.Body.Instructions)
+        {
+            // if (this._ilVerbose)
+            // {
+            //     this._writer.Write("\t\t// ");
+            //     this._writer.WriteLine(instruction.ToString());
+            // }
+
+            if (instruction.OpCode.Code is Code.Ldfld or Code.Ldflda)
+            {
+                string name = ((FieldReference)instruction.Operand).Name;
+                names.Enqueue(name);
+                if (this._ilVerbose)
+                    this._writer.WriteLine($"\t\t// {instruction.OpCode.Code} {name}");
+            }
+
+            if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodReference callRef)
+            {
+                string typeName = callRef.DeclaringType.FullName;
+
+                if (callRef.Name == "Write" && callRef.Parameters.Count == 1)
+                {
+                    string name = names.Dequeue();
+                    this._writer.WriteLine($"\t\tipc.write(@TypeOf(self.{name}), self.{name});");
+                    written = true;
+                }
+                else if (callRef.Name == "Write" &&
+                         callRef.Parameters.All(p => p.ParameterType.Name == "Boolean"))
+                {
+                    List<string> paramsList = names.Select(n => "self." + n).ToList();
+                    while (paramsList.Count < 8)
+                    {
+                        paramsList.Add("false");
+                    }
+                    this._writer.WriteLine($"\t\tipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
+                    names.Clear();
+                    written = true;
+                }
+                else if (callRef.Name == "Read" && callRef.Parameters.Count == 1)
+                {
+                    string name = names.Dequeue();
+                    this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
+                    written = true;
+                }
+                else if (callRef.Name == "Read" &&
+                         callRef.Parameters.All(p => p.ParameterType.Name == "Boolean&"))
+                {
+                    List<string> paramsList = names.Select(n => "self." + n).ToList();
+                    while (paramsList.Count < 8)
+                    {
+                        paramsList.Add("_");
+                    }
+                    this._writer.WriteLine($"\t\t{string.Join(", ", paramsList)} = try ipc.read{paramsList.Count}PackedBools();");
+                    names.Clear();
+                    written = true;
+                }
+                else if (callRef.Name is "Pack" or "Unpack")
+                {
+                    // Debug.Assert(typeName == type.BaseType!.FullName, $"{typeName} != {type.BaseType.Name}");
+                    MethodInfo? subMethod = type.BaseType?.GetMethod(method.Name);
+                    if (subMethod == null)
+                    {
+                        this._writer.WriteLine($"\t\t// FIXME: Could not find {method.Name} on {type.BaseType}");
+                        written = true;
+                        continue;
+                    }
+                    written |= WritePackFunction(type.BaseType!, subMethod);
+                }
+                else
+                    this._writer.WriteLine($"\t\t// FIXME: Unknown {callRef.GetType().Name} {callRef}");
+            }
+        }
+
+        if(_ilVerbose)
+            this._writer.WriteLine($"\t\t// {type.Name} {method.Name.ToLower()}ed");
+
+        return written;
+    }
+
+    private void WritePackDiscard()
+    {
+        this._writer.WriteLine("\t\t_ = self;");
+        this._writer.WriteLine("\t\t_ = ipc;");
     }
 
     private string MapToZigType(Type type)
