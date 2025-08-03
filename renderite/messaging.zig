@@ -82,6 +82,7 @@ pub const QueueManager = struct {
             .side = .Publisher,
             .destroy_on_deinit = is_authority,
         });
+        errdefer publisher.deinit();
 
         const subscriber = try zinterprocess.Queue.init(.{
             .allocator = allocator,
@@ -90,6 +91,7 @@ pub const QueueManager = struct {
             .side = .Subscriber,
             .destroy_on_deinit = is_authority,
         });
+        errdefer subscriber.deinit();
 
         var queue = QueueManager{
             .allocator = allocator,

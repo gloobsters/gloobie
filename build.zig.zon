@@ -19,8 +19,8 @@
             .hash = "vulkan-0.0.0-r7Ytx5w-AwC04xBpfzcuIjGyYv2z6xb1i49ZUeNUgT5H",
         },
         .zinterprocess = .{
-            .url = "git+https://github.com/jvyden/zinterprocess#1c110f7264002e5a89b270621898e124e5f58d8e",
-            .hash = "zinterprocess-0.0.0-phn7uvtoAABv3z42xDnFYQv5ss9JZILaBejaenwedq7B",
+            .url = "git+https://github.com/jvyden/zinterprocess#3d2768f2e744c116f9a555ad82dfb17a67c927e9",
+            .hash = "zinterprocess-0.0.0-phn7usRoAAAIKjnZj7MuejNdkvVr84oVexibkuyzBzEV",
         },
         .imgui = .{
             .url = "git+https://github.com/ocornut/imgui#44aa9a4b3a6f27d09a4eb5770d095cbd376dfc4b",
