@@ -45,7 +45,7 @@ pub const MessagingHost = struct {
         return try MessagingHost.init(queue_name, queue_length, allocator);
     }
 
-    fn queueSuffix(queue_name: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+    fn queueSuffix(queue_name: []const u8, comptime suffix: []const u8, allocator: std.mem.Allocator) ![]const u8 {
         const suffixed_name = try allocator.alloc(u8, queue_name.len + suffix.len);
 
         @memcpy(suffixed_name[0..queue_name.len], queue_name);
@@ -64,7 +64,7 @@ pub const MessagingManager = struct {
     publisher: zinterprocess.Queue,
     subscriber: zinterprocess.Queue,
 
-    pub fn init(queue_name: []const u8, is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !MessagingManager {
+    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !MessagingManager {
         const name_a = try queueSuffix(queue_name, 'A', allocator);
         const name_s = try queueSuffix(queue_name, 'S', allocator);
         defer allocator.free(name_a);
@@ -99,7 +99,7 @@ pub const MessagingManager = struct {
         self.subscriber.deinit();
     }
 
-    fn queueSuffix(queue_name: []const u8, c: u8, allocator: std.mem.Allocator) ![]const u8 {
+    fn queueSuffix(queue_name: []const u8, comptime c: u8, allocator: std.mem.Allocator) ![]const u8 {
         const name_authority = try allocator.alloc(u8, queue_name.len + 1);
 
         @memcpy(name_authority[0..queue_name.len], queue_name);
