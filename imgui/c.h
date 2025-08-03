@@ -1,5 +1,5 @@
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include <cimgui.h>
+#include "cimgui.h"
 
 #include <SDL3/SDL.h>
 
@@ -34,7 +34,7 @@ struct ImGui_ImplGPU_InitInfo
 };
 
 // Follow "Getting Started" link and check examples/ folder to learn about using backends!
-CIMGUI_API bool ImGui_ImplGPU_Init(struct ImGui_ImplGPU_InitInfo *info);
+CIMGUI_API bool ImGui_ImplGPU_Init(const struct ImGui_ImplGPU_InitInfo *info);
 CIMGUI_API void ImGui_ImplGPU_Shutdown();
 CIMGUI_API void ImGui_ImplGPU_NewFrame();
 CIMGUI_API void ImGui_ImplGPU_PrepareDrawData(ImDrawData *draw_data, GPU_CommandBuffer *command_buffer);

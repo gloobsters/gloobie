@@ -39,7 +39,7 @@ extern "C"
     };
 
     // Follow "Getting Started" link and check examples/ folder to learn about using backends!
-    IMGUI_IMPL_API bool ImGui_ImplGPU_Init(ImGui_ImplGPU_InitInfo *info);
+    IMGUI_IMPL_API bool ImGui_ImplGPU_Init(const ImGui_ImplGPU_InitInfo *info);
     IMGUI_IMPL_API void ImGui_ImplGPU_Shutdown();
     IMGUI_IMPL_API void ImGui_ImplGPU_NewFrame();
     IMGUI_IMPL_API void ImGui_ImplGPU_PrepareDrawData(ImDrawData *draw_data, GPU_CommandBuffer *command_buffer);

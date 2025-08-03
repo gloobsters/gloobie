@@ -85,8 +85,6 @@ pub fn build(b: *std.Build) void {
 
     const imgui_dep = b.dependency("imgui", .{});
     const imgui_inc = imgui_dep.path(".");
-    const cimgui_dep = b.dependency("cimgui", .{});
-    const cimgui_inc = cimgui_dep.path(".");
 
     const vulkan_headers_dep = b.dependency("vulkan-headers", .{});
     const vulkan_headers_inc = vulkan_headers_dep.path("include/");
@@ -214,7 +212,6 @@ pub fn build(b: *std.Build) void {
             .root_source_file = imgui_root.path(b, "c.h"),
         });
         addPlatformDefines(translate_c, build_options, target);
-        translate_c.addIncludePath(cimgui_inc);
         translate_c.addIncludePath(upstream_sdl3_inc);
         translate_c.addIncludePath(gpu_inc);
 
@@ -269,7 +266,9 @@ pub fn build(b: *std.Build) void {
         imgui_mod.addCSourceFiles(.{
             .root = imgui_root,
             .files = &.{
+                "cimgui.cpp",
                 "imgui_impl_gpu.cpp",
+                "imgui_impl_sdl3.cpp",
             },
             .language = .cpp,
         });

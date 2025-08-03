@@ -2294,7 +2294,7 @@ pub const Device = packed struct {
     ) TextureFormat {
         return @enumFromInt(c.GPU_GetSwapchainTextureFormat(
             self.value,
-            window.value,
+            @ptrCast(window.value),
         ));
     }
 
@@ -2669,7 +2669,7 @@ pub const Device = packed struct {
     ) !void {
         return errors.wrapCallBool(c.GPU_SetSwapchainParameters(
             self.value,
-            window.value,
+            @ptrCast(window.value),
             @intFromEnum(swapchain_composition),
             @intFromEnum(present_mode),
         ));
@@ -2851,7 +2851,7 @@ pub const Device = packed struct {
     ) bool {
         return c.GPU_WindowSupportsPresentMode(
             self.value,
-            window.value,
+            @ptrCast(window.value),
             @intFromEnum(present_mode),
         );
     }
@@ -2878,7 +2878,7 @@ pub const Device = packed struct {
     ) bool {
         return c.GPU_WindowSupportsSwapchainComposition(
             self.value,
-            window.value,
+            @ptrCast(window.value),
             @intFromEnum(swapchain_composition),
         );
     }

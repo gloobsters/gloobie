@@ -653,7 +653,7 @@ extern "C"
         }
     }
 
-    bool ImGui_ImplGPU_Init(ImGui_ImplGPU_InitInfo *info)
+    bool ImGui_ImplGPU_Init(const ImGui_ImplGPU_InitInfo *info)
     {
         ImGuiIO &io = ImGui::GetIO();
         IMGUI_CHECKVERSION();

@@ -2,9 +2,10 @@ const std = @import("std");
 
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
+const imgui_t = @import("imgui");
+const MessagingManager = @import("renderite").MessagingManager;
 const sdl3 = @import("sdl3");
 const xr_t = @import("xr");
-const MessagingManager = @import("renderite").MessagingManager;
 
 const log = std.log.scoped(.app);
 
@@ -28,6 +29,7 @@ const GraphicsData = struct {
 
 const WindowData = struct {
     window: sdl3.video.Window,
+    swapchain_format: gpu.TextureFormat,
 
     pub fn deinit(self: WindowData) void {
         self.window.deinit();
@@ -42,11 +44,21 @@ const MessagingData = struct {
     }
 };
 
+const ImGuiData = struct {
+    context: imgui_t.Context,
+
+    pub fn deinit(self: ImGuiData) void {
+        imgui_t.sdl3.shutdown();
+        self.context.destroy();
+    }
+};
+
 gpa: std.mem.Allocator,
 xr: ?XrData,
 graphics: GraphicsData,
 window: WindowData,
 messaging: MessagingData,
+imgui: ?ImGuiData,
 
 pub fn init(gpa: std.mem.Allocator) !*App {
     const app = try gpa.create(App);
@@ -80,7 +92,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     };
     errdefer if (xr_data) |xr| xr.deinit(gpa);
 
-    const window_data: WindowData = create_window_data: {
+    var window_data: WindowData = create_window_data: {
         const window_ret = try sdl3.video.Window.initWithProperties(.{
             .width = 1600,
             .height = 900,
@@ -94,6 +106,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
         break :create_window_data .{
             .window = window,
+            .swapchain_format = undefined,
         };
     };
     errdefer window_data.deinit();
@@ -123,18 +136,62 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
     try graphics_data.device.claimWindow(window_data.window);
 
+    // TODO: figure out if this is the correct composition mode
+    const composition_mode: gpu.SwapchainComposition = .sdr;
+    const present_mode_preference: []const gpu.PresentMode = &.{
+        .mailbox,
+        .immediate,
+        .vsync,
+    };
+
+    if (!graphics_data.device.windowSupportsSwapchainComposition(window_data.window, composition_mode)) {
+        log.err("Window does not support the composition mode ({s}) we want. Cannot continue.", .{@tagName(composition_mode)});
+        return error.UnsupportCompositionMode;
+    }
+
+    for (present_mode_preference) |present_mode| {
+        if (graphics_data.device.windowSupportsPresentMode(window_data.window, present_mode)) {
+            try graphics_data.device.setSwapchainParameters(window_data.window, composition_mode, present_mode);
+
+            break;
+        }
+    } else {
+        log.err("Window supports none of our wanted present modes. VR performance may be impacted strongly.", .{});
+    }
+
+    window_data.swapchain_format = graphics_data.device.getSwapchainTextureFormat(window_data.window);
+
+    log.debug("Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
+
+    // TODO: make ImGui an optional build dependency
+    const imgui_data: ?ImGuiData = create_imgui_data: {
+        const context = try imgui_t.Context.create(null);
+        errdefer context.destroy();
+
+        context.setCurrent();
+
+        try imgui_t.sdl3.initForOther(window_data.window);
+
+        break :create_imgui_data .{
+            .context = context,
+        };
+    };
+    errdefer if (imgui_data) |imgui| imgui.deinit();
+
     app.* = .{
         .gpa = gpa,
         .xr = xr_data,
         .graphics = graphics_data,
         .window = window_data,
         .messaging = messaging_data,
+        .imgui = imgui_data,
     };
 
     return app;
 }
 
 pub fn deinit(self: *App) void {
+    if (self.imgui) |imgui| imgui.deinit();
     self.graphics.deinit();
     self.window.deinit();
     if (self.xr) |xr| xr.deinit(self.gpa);
