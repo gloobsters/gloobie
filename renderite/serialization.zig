@@ -13,17 +13,17 @@ pub const IpcDeserializer = struct {
         return .{ .reader = reader };
     }
 
-    pub fn readStruct(self: IpcDeserializer, comptime T: type, out: *T) !void {
-        out.* = try self.reader.takeStruct(T, endian);
+    pub fn readStruct(self: IpcDeserializer, comptime T: type) !T {
+        return try self.reader.takeStruct(T, endian);
     }
 
-    pub fn readInt(self: IpcDeserializer, comptime T: type, out: *T) !void {
-        out.* = try self.reader.takeInt(T, endian);
+    pub fn readInt(self: IpcDeserializer, comptime T: type) !T {
+        return try self.reader.takeInt(T, endian);
     }
 
-    pub fn readString(self: IpcDeserializer, allocator: std.mem.Allocator, out: *[]const u16) !void {
+    pub fn readString(self: IpcDeserializer, allocator: std.mem.Allocator) ![]const u16 {
         const len = try self.reader.takeInt(i32, endian);
-        out.* = try self.reader.readSliceEndianAlloc(allocator, u16, @intCast(len), endian);
+        return try self.reader.readSliceEndianAlloc(allocator, u16, @intCast(len), endian);
     }
 };
 
@@ -54,9 +54,8 @@ test {
     var reader: Reader = std.io.Reader.fixed(&buf);
     var deserializer: IpcDeserializer = .init(&reader);
 
-    var value: u32 = undefined;
+    const value: u32 = try deserializer.readInt(u32);
 
-    try deserializer.readInt(u32, &value);
     try std.testing.expectEqual(42, value);
 }
 
@@ -67,9 +66,7 @@ test {
     var reader: Reader = std.io.Reader.fixed(&buf);
     var deserializer = IpcDeserializer.init(&reader);
 
-    var value: []const u16 = undefined;
-
-    try deserializer.readString(allocator, &value);
+    const value: []const u16 = try deserializer.readString(allocator);
     defer allocator.free(value);
 
     const test_str = try std.unicode.utf8ToUtf16LeAlloc(allocator, "test\n");
