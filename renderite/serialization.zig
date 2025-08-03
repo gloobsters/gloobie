@@ -10,7 +10,7 @@ pub const IpcDeserializer = struct {
     reader: *Reader,
 
     pub fn init(reader: *Reader) IpcDeserializer {
-        return IpcDeserializer{ .reader = reader };
+        return .{ .reader = reader };
     }
 
     pub fn readStruct(self: IpcDeserializer, comptime T: type, out: *T) !void {
@@ -31,7 +31,7 @@ pub const IpcSerializer = struct {
     writer: *Writer,
 
     pub fn init(writer: *Writer) IpcSerializer {
-        return IpcSerializer{ .writer = writer };
+        return .{ .writer = writer };
     }
 
     pub fn writeStruct(self: IpcSerializer, comptime T: type, value: T) !void {
@@ -52,7 +52,7 @@ test {
     const buf = [_]u8{ 42, 0, 0, 0 };
 
     var reader: Reader = std.io.Reader.fixed(&buf);
-    var deserializer = IpcDeserializer.init(&reader);
+    var deserializer: IpcDeserializer = .init(&reader);
 
     var value: u32 = undefined;
 
