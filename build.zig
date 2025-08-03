@@ -231,6 +231,9 @@ pub fn build(b: *std.Build) void {
 
             .link_libc = true,
             .link_libcpp = true,
+
+            // imgui has Problems
+            .sanitize_c = .off,
         });
         addPlatformDefines(imgui_mod, build_options, target);
 
