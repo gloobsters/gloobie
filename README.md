@@ -8,7 +8,7 @@ A cross-platform experimental renderer for Resonite.
 - [ ] Begin communicating with FE
 - [x] Desktop mode graphics initialization
 - [ ] Desktop mode frame loop
-- [ ] OpenXR graphics init
+- [x] OpenXR graphics init
 - [ ] OpenXR frame loop
 - [ ] OpenVR graphics init
 - [ ] OpenVR frame loop
