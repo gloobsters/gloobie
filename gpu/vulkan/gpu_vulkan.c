@@ -1128,6 +1128,8 @@ struct VulkanRenderer
     Uint8 outofBARMemoryWarning;
     Uint8 fillModeOnlyWarning;
 
+    // !GLOOBIE! OpenXR support
+    Uint32 minimumVkVersion;
 #ifdef XR_OPENXR
     XrInstance xrInstance; /* a non-null instance also states this vk device was created by OpenXR */
     XrSystemId xrSystemId;
@@ -3280,7 +3282,9 @@ static void VULKAN_INTERNAL_DestroyTexture(
             NULL);
     }
 
-    if (texture->image)
+    // !GLOOBIE! OpenXR support
+    // Don't free an externally managed VkImage, the rest of the things are managed by us
+    if (texture->image && !texture->externallyManaged)
     {
         renderer->vkDestroyImage(
             renderer->logicalDevice,
@@ -5274,6 +5278,15 @@ static void VULKAN_DestroyDevice(
     SDL_free(renderer->claimedWindows);
 
     VULKAN_Wait(device->driverData);
+
+    // !GLOOBIE! OpenXR support
+#ifdef XR_OPENXR
+    GPU_OpenXR_UnloadLibrary();
+    if (renderer->xr)
+    {
+        SDL_free(renderer->xr);
+    }
+#endif
 
     SDL_free(renderer->submittedCommandBuffers);
 
@@ -12218,7 +12231,21 @@ static Uint8 VULKAN_INTERNAL_CreateInstance(VulkanRenderer *renderer)
     appInfo.applicationVersion = 0;
     appInfo.pEngineName = "SDLGPU";
     appInfo.engineVersion = SDL_VERSION;
-    appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
+    // !GLOOBIE! OpenXR support: Set the API version to the minimum one we're going to use
+    appInfo.apiVersion = renderer->minimumVkVersion;
+
+    /* OpenXR runtimes can specify a minimum Vulkan version you must use, SDL GPU is written against Vulkan 1.0 with some extensions,
+so we can use all backward compatible versions from 1.0.0 onward, which includes everything from 1.0.0 (inclusive) to 2.0.0 (exclusive) */
+    if (VK_API_VERSION_MAJOR(renderer->minimumVkVersion) != 1)
+    {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_GPU,
+            "An incompatible Vulkan version (%d.%d.%d) was requested",
+            VK_API_VERSION_MAJOR(renderer->minimumVkVersion),
+            VK_API_VERSION_MINOR(renderer->minimumVkVersion),
+            VK_API_VERSION_PATCH(renderer->minimumVkVersion));
+        return 0;
+    }
 
     createFlags = 0;
 
@@ -12312,7 +12339,34 @@ static Uint8 VULKAN_INTERNAL_CreateInstance(VulkanRenderer *renderer)
         createInfo.enabledLayerCount = 0;
     }
 
-    vulkanResult = vkCreateInstance(&createInfo, NULL, &renderer->instance);
+    // !GLOOBIE! OpenXR support: If we have an OpenXR instance, use xrCreateVulkanInstanceKHR to create the Vulkan instance
+#ifdef XR_OPENXR
+    if (renderer->xrInstance)
+    {
+        XrResult xrResult;
+        PFN_xrCreateVulkanInstanceKHR xrCreateVulkanInstanceKHR;
+        if ((xrResult = xrGetInstanceProcAddr(renderer->xrInstance, "xrCreateVulkanInstanceKHR", (PFN_xrVoidFunction *)&xrCreateVulkanInstanceKHR)) != XR_SUCCESS)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to get xrCreateVulkanInstanceKHR");
+            return 0;
+        }
+
+        XrVulkanInstanceCreateInfoKHR xrCreateInfo = {XR_TYPE_VULKAN_INSTANCE_CREATE_INFO_KHR};
+        xrCreateInfo.vulkanCreateInfo = &createInfo;
+        xrCreateInfo.systemId = renderer->xrSystemId;
+        xrCreateInfo.pfnGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
+        SDL_assert(xrCreateInfo.pfnGetInstanceProcAddr);
+        if ((xrResult = xrCreateVulkanInstanceKHR(renderer->xrInstance, &xrCreateInfo, &renderer->instance, &vulkanResult)) != XR_SUCCESS)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to create vulkan instance, reason %d, %d", xrResult, vulkanResult);
+            return 0;
+        }
+    }
+    else
+#endif /* HAVE_GPU_OPENXR */
+    {
+        vulkanResult = vkCreateInstance(&createInfo, NULL, &renderer->instance);
+    }
     SDL_stack_free((char *)instanceExtensionNames);
 
     if (vulkanResult != VK_SUCCESS)
@@ -12346,22 +12400,28 @@ static Uint8 VULKAN_INTERNAL_IsDeviceSuitable(
     renderer->vkGetPhysicalDeviceProperties(
         physicalDevice,
         &deviceProperties);
-    if (*deviceRank < devicePriority[deviceProperties.deviceType])
+
+    // !GLOOBIE! OpenXR support
+    /* If no device rank is passed, assume the device isn't rankable and always let it through */
+    if (deviceRank)
     {
-        /* This device outranks the best device we've found so far!
-         * This includes a dedicated GPU that has less features than an
-         * integrated GPU, because this is a freak case that is almost
-         * never intentionally desired by the end user
-         */
-        *deviceRank = devicePriority[deviceProperties.deviceType];
-    }
-    else if (*deviceRank > devicePriority[deviceProperties.deviceType])
-    {
-        /* Device is outranked by a previous device, don't even try to
-         * run a query and reset the rank to avoid overwrites
-         */
-        *deviceRank = 0;
-        return 0;
+        if (*deviceRank < devicePriority[deviceProperties.deviceType])
+        {
+            /* This device outranks the best device we've found so far!
+             * This includes a dedicated GPU that has less features than an
+             * integrated GPU, because this is a freak case that is almost
+             * never intentionally desired by the end user
+             */
+            *deviceRank = devicePriority[deviceProperties.deviceType];
+        }
+        else if (*deviceRank > devicePriority[deviceProperties.deviceType])
+        {
+            /* Device is outranked by a previous device, don't even try to
+             * run a query and reset the rank to avoid overwrites
+             */
+            *deviceRank = 0;
+            return 0;
+        }
     }
 
     renderer->vkGetPhysicalDeviceFeatures(
@@ -12485,96 +12545,135 @@ static Uint8 VULKAN_INTERNAL_DeterminePhysicalDevice(VulkanRenderer *renderer)
     Uint32 queueFamilyIndex, suitableQueueFamilyIndex;
     Uint8 deviceRank, highestRank;
 
-    vulkanResult = renderer->vkEnumeratePhysicalDevices(
-        renderer->instance,
-        &physicalDeviceCount,
-        NULL);
-    CHECK_VULKAN_ERROR_AND_RETURN(vulkanResult, vkEnumeratePhysicalDevices, 0);
-
-    if (physicalDeviceCount == 0)
+#ifdef XR_OPENXR
+    XrResult xrResult;
+    if (renderer->xrInstance)
     {
-        SDL_LogInfo(SDL_LOG_CATEGORY_GPU, "Failed to find any GPUs with Vulkan support");
-        return 0;
-    }
+        VulkanExtensions physicalDeviceExtension;
+        PFN_xrGetVulkanGraphicsDevice2KHR xrGetVulkanGraphicsDevice2KHR;
+        if ((xrResult = xrGetInstanceProcAddr(renderer->xrInstance, "xrGetVulkanGraphicsDevice2KHR", (PFN_xrVoidFunction *)&xrGetVulkanGraphicsDevice2KHR)) != XR_SUCCESS)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to get xrGetVulkanGraphicsDevice2KHR");
+            return 0;
+        }
 
-    physicalDevices = SDL_stack_alloc(VkPhysicalDevice, physicalDeviceCount);
-    physicalDeviceExtensions = SDL_stack_alloc(VulkanExtensions, physicalDeviceCount);
+        XrVulkanGraphicsDeviceGetInfoKHR graphicsDeviceGetInfo = {XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR};
+        graphicsDeviceGetInfo.systemId = renderer->xrSystemId;
+        graphicsDeviceGetInfo.vulkanInstance = renderer->instance;
+        if ((xrResult = xrGetVulkanGraphicsDevice2KHR(renderer->xrInstance, &graphicsDeviceGetInfo, &renderer->physicalDevice)) != XR_SUCCESS)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_GPU, "Failed to find Vulkan graphics device for XR system, reason %d", xrResult);
+            return 0;
+        }
 
-    vulkanResult = renderer->vkEnumeratePhysicalDevices(
-        renderer->instance,
-        &physicalDeviceCount,
-        physicalDevices);
-
-    /* This should be impossible to hit, but from what I can tell this can
-     * be triggered not because the array is too small, but because there
-     * were drivers that turned out to be bogus, so this is the loader's way
-     * of telling us that the list is now smaller than expected :shrug:
-     */
-    if (vulkanResult == VK_INCOMPLETE)
-    {
-        SDL_LogWarn(SDL_LOG_CATEGORY_GPU, "vkEnumeratePhysicalDevices returned VK_INCOMPLETE, will keep trying anyway...");
-        vulkanResult = VK_SUCCESS;
-    }
-
-    if (vulkanResult != VK_SUCCESS)
-    {
-        SDL_LogWarn(
-            SDL_LOG_CATEGORY_GPU,
-            "vkEnumeratePhysicalDevices failed: %s",
-            VkErrorMessages(vulkanResult));
-        SDL_stack_free(physicalDevices);
-        SDL_stack_free(physicalDeviceExtensions);
-        return 0;
-    }
-
-    // Any suitable device will do, but we'd like the best
-    suitableIndex = -1;
-    suitableQueueFamilyIndex = 0;
-    highestRank = 0;
-    for (i = 0; i < physicalDeviceCount; i += 1)
-    {
-        deviceRank = highestRank;
-        if (VULKAN_INTERNAL_IsDeviceSuitable(
+        if (!VULKAN_INTERNAL_IsDeviceSuitable(
                 renderer,
-                physicalDevices[i],
-                &physicalDeviceExtensions[i],
+                renderer->physicalDevice,
+                &physicalDeviceExtension,
                 &queueFamilyIndex,
-                &deviceRank))
+                NULL))
         {
-            /* Use this for rendering.
-             * Note that this may override a previous device that
-             * supports rendering, but shares the same device rank.
-             */
-            suitableIndex = i;
-            suitableQueueFamilyIndex = queueFamilyIndex;
-            highestRank = deviceRank;
+            SDL_LogError(SDL_LOG_CATEGORY_GPU, "The graphics device chosen by the OpenXR runtime is not suitable for use.");
+            return 0;
         }
-        else if (deviceRank > highestRank)
-        {
-            /* In this case, we found a... "realer?" GPU,
-             * but it doesn't actually support our Vulkan.
-             * We should disqualify all devices below as a
-             * result, because if we don't we end up
-             * ignoring real hardware and risk using
-             * something like LLVMpipe instead!
-             * -flibit
-             */
-            suitableIndex = -1;
-            highestRank = deviceRank;
-        }
-    }
 
-    if (suitableIndex != -1)
-    {
-        renderer->supports = physicalDeviceExtensions[suitableIndex];
-        renderer->physicalDevice = physicalDevices[suitableIndex];
-        renderer->queueFamilyIndex = suitableQueueFamilyIndex;
+        renderer->supports = physicalDeviceExtension;
+        renderer->queueFamilyIndex = queueFamilyIndex;
     }
     else
+#endif
     {
-        SDL_stack_free(physicalDevices);
-        SDL_stack_free(physicalDeviceExtensions);
-        return 0;
+        vulkanResult = renderer->vkEnumeratePhysicalDevices(
+            renderer->instance,
+            &physicalDeviceCount,
+            NULL);
+        CHECK_VULKAN_ERROR_AND_RETURN(vulkanResult, vkEnumeratePhysicalDevices, 0);
+
+        if (physicalDeviceCount == 0)
+        {
+            SDL_LogInfo(SDL_LOG_CATEGORY_GPU, "Failed to find any GPUs with Vulkan support");
+            return 0;
+        }
+
+        physicalDevices = SDL_stack_alloc(VkPhysicalDevice, physicalDeviceCount);
+        physicalDeviceExtensions = SDL_stack_alloc(VulkanExtensions, physicalDeviceCount);
+
+        vulkanResult = renderer->vkEnumeratePhysicalDevices(
+            renderer->instance,
+            &physicalDeviceCount,
+            physicalDevices);
+
+        /* This should be impossible to hit, but from what I can tell this can
+         * be triggered not because the array is too small, but because there
+         * were drivers that turned out to be bogus, so this is the loader's way
+         * of telling us that the list is now smaller than expected :shrug:
+         */
+        if (vulkanResult == VK_INCOMPLETE)
+        {
+            SDL_LogWarn(SDL_LOG_CATEGORY_GPU, "vkEnumeratePhysicalDevices returned VK_INCOMPLETE, will keep trying anyway...");
+            vulkanResult = VK_SUCCESS;
+        }
+
+        if (vulkanResult != VK_SUCCESS)
+        {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_GPU,
+                "vkEnumeratePhysicalDevices failed: %s",
+                VkErrorMessages(vulkanResult));
+            SDL_stack_free(physicalDevices);
+            SDL_stack_free(physicalDeviceExtensions);
+            return 0;
+        }
+
+        // Any suitable device will do, but we'd like the best
+        suitableIndex = -1;
+        suitableQueueFamilyIndex = 0;
+        highestRank = 0;
+        for (i = 0; i < physicalDeviceCount; i += 1)
+        {
+            deviceRank = highestRank;
+            if (VULKAN_INTERNAL_IsDeviceSuitable(
+                    renderer,
+                    physicalDevices[i],
+                    &physicalDeviceExtensions[i],
+                    &queueFamilyIndex,
+                    &deviceRank))
+            {
+                /* Use this for rendering.
+                 * Note that this may override a previous device that
+                 * supports rendering, but shares the same device rank.
+                 */
+                suitableIndex = i;
+                suitableQueueFamilyIndex = queueFamilyIndex;
+                highestRank = deviceRank;
+            }
+            else if (deviceRank > highestRank)
+            {
+                /* In this case, we found a... "realer?" GPU,
+                 * but it doesn't actually support our Vulkan.
+                 * We should disqualify all devices below as a
+                 * result, because if we don't we end up
+                 * ignoring real hardware and risk using
+                 * something like LLVMpipe instead!
+                 * -flibit
+                 */
+                suitableIndex = -1;
+                highestRank = deviceRank;
+            }
+        }
+
+        if (suitableIndex != -1)
+        {
+            renderer->supports = physicalDeviceExtensions[suitableIndex];
+            renderer->physicalDevice = physicalDevices[suitableIndex];
+            renderer->queueFamilyIndex = suitableQueueFamilyIndex;
+        }
+        else
+        {
+            SDL_stack_free(physicalDevices);
+            SDL_stack_free(physicalDeviceExtensions);
+            return 0;
+        }
     }
 
     renderer->physicalDeviceProperties.sType =
@@ -12692,11 +12791,38 @@ static Uint8 VULKAN_INTERNAL_CreateLogicalDevice(
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions;
     deviceCreateInfo.pEnabledFeatures = &renderer->desiredDeviceFeatures;
 
-    vulkanResult = renderer->vkCreateDevice(
-        renderer->physicalDevice,
-        &deviceCreateInfo,
-        NULL,
-        &renderer->logicalDevice);
+#ifdef XR_OPENXR
+    if (renderer->xrInstance)
+    {
+        XrResult xrResult;
+        PFN_xrCreateVulkanDeviceKHR xrCreateVulkanDeviceKHR;
+        if ((xrResult = xrGetInstanceProcAddr(renderer->xrInstance, "xrCreateVulkanDeviceKHR", (PFN_xrVoidFunction *)&xrCreateVulkanDeviceKHR)) != XR_SUCCESS)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to get xrCreateVulkanDeviceKHR");
+            return 0;
+        }
+
+        XrVulkanDeviceCreateInfoKHR xrDeviceCreateInfo = {XR_TYPE_VULKAN_DEVICE_CREATE_INFO_KHR};
+        xrDeviceCreateInfo.vulkanCreateInfo = &deviceCreateInfo;
+        xrDeviceCreateInfo.systemId = renderer->xrSystemId;
+        xrDeviceCreateInfo.vulkanPhysicalDevice = renderer->physicalDevice;
+        xrDeviceCreateInfo.pfnGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
+        SDL_assert(xrDeviceCreateInfo.pfnGetInstanceProcAddr);
+        if ((xrResult = xrCreateVulkanDeviceKHR(renderer->xrInstance, &xrDeviceCreateInfo, &renderer->logicalDevice, &vulkanResult)) != XR_SUCCESS)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_GPU, "Failed to create OpenXR Vulkan logical device, result %d, %d", xrResult, vulkanResult);
+            return 0;
+        }
+    }
+    else
+#endif // XR_OPENXR
+    {
+        vulkanResult = renderer->vkCreateDevice(
+            renderer->physicalDevice,
+            &deviceCreateInfo,
+            NULL,
+            &renderer->logicalDevice);
+    }
     SDL_stack_free((void *)deviceExtensions);
     CHECK_VULKAN_ERROR_AND_RETURN(vulkanResult, vkCreateDevice, 0);
 
@@ -12780,11 +12906,77 @@ static bool VULKAN_INTERNAL_PrepareVulkan(
     return true;
 }
 
+// !GLOOBIE! OpenXR support
+#ifdef XR_OPENXR
+static bool VULKAN_INTERNAL_SearchForOpenXrGpuExtension(XrExtensionProperties *found_extension)
+{
+    XrResult result;
+    Uint32 extension_count;
+    Uint32 i;
+
+    result = xrEnumerateInstanceExtensionProperties(NULL, 0, &extension_count, NULL);
+    if (result != XR_SUCCESS)
+        return false;
+
+    XrExtensionProperties *extension_properties = (XrExtensionProperties *)SDL_calloc(extension_count, sizeof(XrExtensionProperties));
+    for (i = 0; i < extension_count; i++)
+        extension_properties[i] = (XrExtensionProperties){XR_TYPE_EXTENSION_PROPERTIES};
+
+    result = xrEnumerateInstanceExtensionProperties(NULL, extension_count, &extension_count, extension_properties);
+    if (result != XR_SUCCESS)
+        return false;
+
+    for (i = 0; i < extension_count; i++)
+    {
+        XrExtensionProperties extension = extension_properties[i];
+
+        // NOTE: as generally recommended, we support KHR_vulkan_enable2 *only*
+        //       see https://fredemmott.com/blog/2024/11/25/best-practices-for-openxr-api-layers.html
+        if (SDL_strcmp(extension.extensionName, XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) == 0)
+        {
+            SDL_LogInfo(SDL_LOG_CATEGORY_GPU, "Found " XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME " extension");
+
+            *found_extension = extension;
+
+            SDL_free(extension_properties);
+            return true;
+        }
+    }
+
+    SDL_free(extension_properties);
+    return false;
+}
+
+static XrResult VULKAN_INTERNAL_GetXrMinimumVulkanApiVersion(XrVersion *minimumVulkanApiVersion, XrInstance instance, XrSystemId systemId)
+{
+    XrResult xrResult;
+
+    PFN_xrGetVulkanGraphicsRequirements2KHR xrGetVulkanGraphicsRequirements2KHR;
+    if ((xrResult = xrGetInstanceProcAddr(instance, "xrGetVulkanGraphicsRequirements2KHR", (PFN_xrVoidFunction *)&xrGetVulkanGraphicsRequirements2KHR)) != XR_SUCCESS)
+    {
+        SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to get xrGetVulkanGraphicsRequirements2KHR");
+        return xrResult;
+    }
+
+    XrGraphicsRequirementsVulkanKHR graphicsRequirementsVulkan = {XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN2_KHR};
+    if ((xrResult = xrGetVulkanGraphicsRequirements2KHR(instance, systemId, &graphicsRequirementsVulkan)) != XR_SUCCESS)
+    {
+        SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to get vulkan graphics requirements, got OpenXR error %d", xrResult);
+        return xrResult;
+    }
+
+    *minimumVulkanApiVersion = graphicsRequirementsVulkan.minApiVersionSupported;
+    return XR_SUCCESS;
+}
+#endif // XR_OPENXR
+
 static bool VULKAN_PrepareDriver(SDL_PropertiesID props)
 {
     // Set up dummy VulkanRenderer
     VulkanRenderer *renderer;
     bool result = false;
+    // !GLOOBIE! OpenXR support
+    uint32_t minimumVkVersion = VK_API_VERSION_1_0;
 
     if (!SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, false))
     {
@@ -12796,22 +12988,110 @@ static bool VULKAN_PrepareDriver(SDL_PropertiesID props)
         return false;
     }
 
+    // !GLOOBIE! OpenXR support
+#ifdef XR_OPENXR
+    XrResult xrResult;
+    XrInstancePfns *instancePfns = NULL;
+    XrInstance xrInstance = XR_NULL_HANDLE;
+    XrSystemId xrSystemId = XR_NULL_HANDLE;
+    bool xr = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_XR_ENABLE, false);
+
+    if (xr)
+    {
+        if (!GPU_OpenXR_LoadLibrary())
+        {
+            SDL_SetError("Failed to load OpenXR loader or a required symbol");
+            SDL_Vulkan_UnloadLibrary();
+            return false;
+        }
+
+        XrExtensionProperties gpuExtension;
+        if (!VULKAN_INTERNAL_SearchForOpenXrGpuExtension(&gpuExtension))
+        {
+            SDL_SetError("Failed to find a suitable OpenXR GPU extension.");
+            SDL_Vulkan_UnloadLibrary();
+            GPU_OpenXR_UnloadLibrary();
+            return false;
+        }
+
+        const char *extensionName = gpuExtension.extensionName;
+        if ((xrResult = xrCreateInstance(&(XrInstanceCreateInfo){
+                                             .type = XR_TYPE_INSTANCE_CREATE_INFO,
+                                             .applicationInfo = {
+                                                 .apiVersion = SDL_GetNumberProperty(props, GPU_PROP_DEVICE_CREATE_XR_VERSION, XR_API_VERSION_1_0),
+                                                 .applicationName = "GPU OpenXR Prober",
+                                             },
+                                             .enabledExtensionCount = 1,
+                                             .enabledExtensionNames = &extensionName,
+                                         },
+                                         &xrInstance)) != XR_SUCCESS)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to create OpenXR instance");
+            SDL_Vulkan_UnloadLibrary();
+            GPU_OpenXR_UnloadLibrary();
+            return false;
+        }
+
+        instancePfns = GPU_OPENXR_LoadInstanceSymbols(xrInstance);
+        if (!instancePfns)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to load needed OpenXR instance symbols");
+            SDL_Vulkan_UnloadLibrary();
+            GPU_OpenXR_UnloadLibrary();
+            /* NOTE: we can't actually destroy the created OpenXR instance here,
+                    as we only get that function pointer by loading the instance symbols...
+                    let's just hope that doesn't happen. */
+            return false;
+        }
+
+        if ((xrResult = instancePfns->xrGetSystem(xrInstance, &(XrSystemGetInfo){
+                                                                  .type = XR_TYPE_SYSTEM_GET_INFO,
+                                                                  .formFactor = (XrFormFactor)SDL_GetNumberProperty(props, GPU_PROP_DEVICE_CREATE_XR_FORM_FACTOR, XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY),
+                                                              },
+                                                  &xrSystemId)) != XR_SUCCESS)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to get OpenXR system");
+            instancePfns->xrDestroyInstance(xrInstance);
+            SDL_Vulkan_UnloadLibrary();
+            GPU_OpenXR_UnloadLibrary();
+            SDL_free(instancePfns);
+            return false;
+        }
+
+        XrVersion minimumVkVersionXr;
+        xrResult = VULKAN_INTERNAL_GetXrMinimumVulkanApiVersion(&minimumVkVersionXr, xrInstance, xrSystemId);
+        if (xrResult != XR_SUCCESS)
+        {
+            SDL_SetError("Failed to get the minimum supported Vulkan API version.");
+            instancePfns->xrDestroyInstance(xrInstance);
+            SDL_Vulkan_UnloadLibrary();
+            GPU_OpenXR_UnloadLibrary();
+            SDL_free(instancePfns);
+            return false;
+        }
+        minimumVkVersion = VK_MAKE_API_VERSION(
+            0,
+            XR_VERSION_MAJOR(minimumVkVersionXr),
+            XR_VERSION_MINOR(minimumVkVersionXr),
+            XR_VERSION_PATCH(minimumVkVersionXr));
+    }
+#endif
+
     renderer = (VulkanRenderer *)SDL_calloc(1, sizeof(*renderer));
     if (renderer)
     {
-        /*
+        renderer->minimumVkVersion = minimumVkVersion;
+// !GLOOBIE! OpenXR support
+#ifdef XR_OPENXR
+        renderer->xrInstance = xrInstance;
+        renderer->xrSystemId = xrSystemId;
+#endif // XR_OPENXR
+
         // Opt out device features (higher compatibility in exchange for reduced functionality)
         renderer->desiredDeviceFeatures.samplerAnisotropy = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_SAMPLERANISOTROPY_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
         renderer->desiredDeviceFeatures.depthClamp = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_DEPTHCLAMP_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
         renderer->desiredDeviceFeatures.shaderClipDistance = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_SHADERCLIPDISTANCE_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
         renderer->desiredDeviceFeatures.drawIndirectFirstInstance = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_DRAWINDIRECTFIRST_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
-        */
-
-        // !GLOOBIE! Patch out opt-out stuff for now, until sdl3-zig updates
-        renderer->desiredDeviceFeatures.samplerAnisotropy = VK_TRUE;
-        renderer->desiredDeviceFeatures.depthClamp = VK_TRUE;
-        renderer->desiredDeviceFeatures.shaderClipDistance = VK_TRUE;
-        renderer->desiredDeviceFeatures.drawIndirectFirstInstance = VK_TRUE;
 
         // These features have near universal support so they are always enabled
         renderer->desiredDeviceFeatures.independentBlend = VK_TRUE;
@@ -12826,6 +13106,16 @@ static bool VULKAN_PrepareDriver(SDL_PropertiesID props)
         SDL_free(renderer);
     }
     SDL_Vulkan_UnloadLibrary();
+
+    // !GLOOBIE! OpenXR support
+#ifdef XR_OPENXR
+    if (instancePfns)
+    {
+        instancePfns->xrDestroyInstance(xrInstance);
+        SDL_free(instancePfns);
+        GPU_OpenXR_UnloadLibrary();
+    }
+#endif // XR_OPENXR
 
     return result;
 }
@@ -12859,21 +13149,91 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
     renderer->debugMode = debugMode;
     renderer->preferLowPower = preferLowPower;
     renderer->allowedFramesInFlight = 2;
+    renderer->minimumVkVersion = VK_API_VERSION_1_0;
 
-    // !GLOOBIE! Wont compile without sdl3-zig updates, disable for now
     // Opt out device features (higher compatibility in exchange for reduced functionality)
-    renderer->desiredDeviceFeatures.samplerAnisotropy = VK_TRUE;         /* SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_SAMPLERANISOTROPY_BOOLEAN, true) ? VK_TRUE : VK_FALSE; */
-    renderer->desiredDeviceFeatures.depthClamp = VK_TRUE;                /* SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_DEPTHCLAMP_BOOLEAN, true) ? VK_TRUE : VK_FALSE; */
-    renderer->desiredDeviceFeatures.shaderClipDistance = VK_TRUE;        /* SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_SHADERCLIPDISTANCE_BOOLEAN, true) ? VK_TRUE : VK_FALSE; */
-    renderer->desiredDeviceFeatures.drawIndirectFirstInstance = VK_TRUE; /* SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_DRAWINDIRECTFIRST_BOOLEAN, true) ? VK_TRUE : VK_FALSE; */
+    renderer->desiredDeviceFeatures.samplerAnisotropy = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_SAMPLERANISOTROPY_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
+    renderer->desiredDeviceFeatures.depthClamp = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_DEPTHCLAMP_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
+    renderer->desiredDeviceFeatures.shaderClipDistance = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_SHADERCLIPDISTANCE_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
+    renderer->desiredDeviceFeatures.drawIndirectFirstInstance = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_VULKAN_DRAWINDIRECTFIRST_BOOLEAN, true) ? VK_TRUE : VK_FALSE;
 
     // These features have near universal support so they are always enabled
     renderer->desiredDeviceFeatures.independentBlend = VK_TRUE;
     renderer->desiredDeviceFeatures.sampleRateShading = VK_TRUE;
     renderer->desiredDeviceFeatures.imageCubeArray = VK_TRUE;
 
+#ifdef XR_OPENXR
+    bool xr = SDL_GetBooleanProperty(props, GPU_PROP_DEVICE_CREATE_XR_ENABLE, false);
+    XrInstance *xrInstance = SDL_GetPointerProperty(props, GPU_PROP_DEVICE_CREATE_XR_INSTANCE_OUT, NULL);
+    XrSystemId *xrSystemId = SDL_GetPointerProperty(props, GPU_PROP_DEVICE_CREATE_XR_SYSTEM_ID_OUT, NULL);
+
+    if (xr)
+    {
+        XrExtensionProperties gpuExtension;
+
+        if (!xrInstance)
+        {
+            SDL_SetError("You must specify an out pointer for the OpenXR instance");
+            return NULL;
+        }
+
+        if (!xrSystemId)
+        {
+            SDL_SetError("You must specify an out pointer for the OpenXR system ID");
+            return NULL;
+        }
+
+        if (!GPU_OpenXR_LoadLibrary())
+        {
+            SDL_assert(!"This should have failed in PrepareDevice first!");
+            return NULL;
+        }
+
+        if (!VULKAN_INTERNAL_SearchForOpenXrGpuExtension(&gpuExtension))
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to find a compatible OpenXR vulkan extension");
+            GPU_OpenXR_UnloadLibrary();
+            return false;
+        }
+
+        if (!GPU_OPENXR_INTERNAL_GPUInitOpenXR(debugMode, gpuExtension, props, xrInstance, xrSystemId, &renderer->xr))
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to init OpenXR");
+            GPU_OpenXR_UnloadLibrary();
+            return false;
+        }
+
+        renderer->xrInstance = *xrInstance;
+        renderer->xrSystemId = *xrSystemId;
+
+        XrVersion minimumVulkanApiVersion;
+        if (VULKAN_INTERNAL_GetXrMinimumVulkanApiVersion(&minimumVulkanApiVersion, *xrInstance, *xrSystemId) != XR_SUCCESS)
+        {
+            SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to get OpenXR graphics requirements");
+            renderer->xr->xrDestroyInstance(*xrInstance);
+            GPU_OpenXR_UnloadLibrary();
+            SDL_free(renderer->xr);
+            SDL_free(renderer);
+            return false;
+        }
+
+        renderer->minimumVkVersion = VK_MAKE_VERSION(
+            XR_VERSION_MAJOR(minimumVulkanApiVersion),
+            XR_VERSION_MINOR(minimumVulkanApiVersion),
+            XR_VERSION_PATCH(minimumVulkanApiVersion));
+    }
+#endif /* HAVE_GPU_OPENXR */
+
     if (!VULKAN_INTERNAL_PrepareVulkan(renderer))
     {
+#ifdef XR_OPENXR
+        if (xr)
+        {
+            renderer->xr->xrDestroyInstance(*xrInstance);
+            GPU_OpenXR_UnloadLibrary();
+            SDL_free(renderer->xr);
+        }
+#endif /* HAVE_GPU_OPENXR */
         SET_STRING_ERROR("Failed to initialize Vulkan!");
         SDL_free(renderer);
         SDL_Vulkan_UnloadLibrary();
@@ -12997,6 +13357,14 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
     if (!VULKAN_INTERNAL_CreateLogicalDevice(
             renderer))
     {
+#ifdef XR_OPENXR
+        if (xr)
+        {
+            renderer->xr->xrDestroyInstance(*xrInstance);
+            GPU_OpenXR_UnloadLibrary();
+            SDL_free(renderer->xr);
+        }
+#endif /* HAVE_GPU_OPENXR */
         SET_STRING_ERROR("Failed to create logical device!");
         SDL_free(renderer);
         SDL_Vulkan_UnloadLibrary();

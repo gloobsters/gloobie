@@ -151,7 +151,7 @@ PFN_xrGetInstanceProcAddr GPU_OpenXR_GetXrGetInstanceProcAddr(void)
     return xrGetInstanceProcAddr;
 }
 
-XrInstancePfns *GPU_OPENXR_LoadInstance_Symbols(XrInstance instance)
+XrInstancePfns *GPU_OPENXR_LoadInstanceSymbols(XrInstance instance)
 {
     XrResult result;
 

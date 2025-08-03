@@ -120,7 +120,7 @@ XrResult GPU_OPENXR_INTERNAL_GPUInitOpenXR(
     SDL_stack_free(apiLayerNames);
     SDL_stack_free(extensionNames);
 
-    *xr = GPU_OPENXR_LoadInstance_Symbols(*instance);
+    *xr = GPU_OPENXR_LoadInstanceSymbols(*instance);
     if (!*xr)
     {
         SDL_LogDebug(SDL_LOG_CATEGORY_GPU, "Failed to load required OpenXR instance symbols");

@@ -42,7 +42,7 @@ extern "C"
 #include "gpu_openxrsym.h"
     } XrInstancePfns;
 
-    extern XrInstancePfns *GPU_OPENXR_LoadInstance_Symbols(XrInstance instance);
+    extern XrInstancePfns *GPU_OPENXR_LoadInstanceSymbols(XrInstance instance);
 
 /* Define the function pointers */
 #define SDL_OPENXR_SYM(name) \

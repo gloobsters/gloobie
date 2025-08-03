@@ -332,6 +332,7 @@ pub fn build(b: *std.Build) !void {
 
             .imports = &.{
                 .{ .name = "sdl3", .module = sdl3_mod },
+                .{ .name = "gpu", .module = gpu_mod },
                 .{ .name = "options", .module = options_module },
             },
         });
