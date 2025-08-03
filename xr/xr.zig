@@ -18,6 +18,10 @@ pub const Backend = opaque {
     pub fn deinit(backend: *Backend, gpa: std.mem.Allocator) void {
         return impl.deinit(gpa, @ptrCast(@alignCast(backend)));
     }
+
+    pub fn handleEvents(backend: *Backend) impl.HandleEventsError!void {
+        return impl.handleEvents(@ptrCast(@alignCast(backend)));
+    }
 };
 
 pub fn init(gpa: std.mem.Allocator) impl.InitError!*Backend {

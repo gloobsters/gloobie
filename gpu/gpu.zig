@@ -1835,7 +1835,7 @@ pub const Device = packed struct {
             if (self.xr_enable) |val|
                 try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_ENABLE, .{ .boolean = val });
             if (self.xr_instance_out) |val|
-                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_INSTANCE_OUT, .{ .pointer = val });
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_INSTANCE_OUT, .{ .pointer = @ptrCast(&val.value) });
             if (self.xr_system_id_out) |val|
                 try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_SYSTEM_ID_OUT, .{ .pointer = val });
             if (self.xr_version) |val|
@@ -5258,6 +5258,19 @@ pub const Viewport = struct {
         };
     }
 };
+
+pub fn openXrLoadLibrary() bool {
+    return c.GPU_OpenXR_LoadLibrary();
+}
+
+pub fn openXrUnloadLibrary() void {
+    return c.GPU_OpenXR_UnloadLibrary();
+}
+
+pub fn openXrGetXrInstanceProcAddr() openxr.c.PFN_xrGetInstanceProcAddr {
+    // SAFETY: these are the same underlying types
+    return @ptrCast(c.GPU_OpenXR_GetXrGetInstanceProcAddr());
+}
 
 /// Get the name of a built in GPU driver.
 ///

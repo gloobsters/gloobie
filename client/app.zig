@@ -249,9 +249,9 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
 pub fn deinit(self: *App) void {
     if (self.imgui) |imgui| imgui.deinit();
+    if (self.xr) |xr| xr.deinit(self.gpa);
     self.graphics.deinit();
     self.window.deinit();
-    if (self.xr) |xr| xr.deinit(self.gpa);
 
     const gpa = self.gpa;
     gpa.destroy(self);
@@ -325,6 +325,10 @@ pub fn frameLoop(self: *App) !void {
 
         var show_demo_window: bool = true;
         imgui_t.showDemoWindow(&show_demo_window);
+
+        if (self.xr) |xr| {
+            try xr.backend.handleEvents();
+        }
 
         // handle any messages from the queues, happens before processing most of the frame/rendering
         try handleMessages(self);

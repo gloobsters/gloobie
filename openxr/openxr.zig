@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const c = @import("c");
 pub const SystemId = c.XrSystemId;
+pub const Time = c.XrTime;
 
 pub const Result = enum(c.XrResult) {
     success = 0,
@@ -624,8 +625,117 @@ pub const StructureType = enum(c.XrStructureType) {
     system_spatial_entity_group_sharing_properties_meta = 1000572100,
 };
 
-pub const Instance = extern struct {
+pub const InstanceFnPtrs = struct {
+    xrPollEvent: c.PFN_xrPollEvent,
+    xrDestroySession: c.PFN_xrDestroySession,
+    xrDestroyInstance: c.PFN_xrDestroyInstance,
+};
+
+pub fn loadFnPtrs(get_proc_addr: c.PFN_xrGetInstanceProcAddr, instance: c.XrInstance, comptime T: type) ResultError!T {
+    var ret: T = undefined;
+    inline for (@typeInfo(T).@"struct".fields) |field| {
+        var func: c.PFN_xrVoidFunction = undefined;
+        try convertResult(get_proc_addr.?(instance, field.name.ptr, &func));
+        @field(ret, field.name) = @ptrCast(func.?);
+    }
+    return ret;
+}
+
+pub const SessionState = enum(c.XrSessionState) {
+    idle = 1,
+    ready = 2,
+    synchronized = 3,
+    visible = 4,
+    focused = 5,
+    stopping = 6,
+    loss_pending = 7,
+    exiting = 8,
+};
+
+pub const Event = extern union {
+    pub const DataBuffer = extern struct {
+        type: StructureType = .event_data_buffer,
+        next: ?*anyopaque = null,
+        varying: [4000]u8,
+
+        comptime {
+            std.debug.assert(@sizeOf(DataBuffer) == @sizeOf(c.XrEventDataBuffer));
+            std.debug.assert(@offsetOf(DataBuffer, "type") == @offsetOf(c.XrEventDataBuffer, "type"));
+            std.debug.assert(@offsetOf(DataBuffer, "next") == @offsetOf(c.XrEventDataBuffer, "next"));
+            std.debug.assert(@offsetOf(DataBuffer, "varying") == @offsetOf(c.XrEventDataBuffer, "varying"));
+        }
+    };
+
+    pub const SessionStateChanged = extern struct {
+        type: StructureType = .event_data_buffer,
+        next: ?*anyopaque = null,
+        session: c.XrSession,
+        state: SessionState,
+        time: Time,
+    };
+
+    data_buffer: DataBuffer,
+    session_state_changed: SessionStateChanged,
+
+    pub fn to(self: *Event) *c.XrEventDataBuffer {
+        return @ptrCast(self);
+    }
+};
+
+pub const PollEventError = error{
+    error_validation_failure,
+    error_runtime_failure,
+    error_handle_invalid,
+    error_instance_lost,
+};
+
+pub const DestroySessionError = error{error_handle_invalid};
+
+pub const DestroyInstanceError = error{error_handle_invalid};
+
+pub const Instance = struct {
     value: c.XrInstance,
+
+    fn_ptrs: InstanceFnPtrs,
+
+    pub fn pollEvent(self: Instance, out: *Event) PollEventError!bool {
+        convertResult(self.fn_ptrs.xrPollEvent.?(self.value, out.to())) catch |err| {
+            switch (err) {
+                ResultError.event_unavailable => return false,
+
+                ResultError.error_runtime_failure,
+                ResultError.error_instance_lost,
+                ResultError.error_handle_invalid,
+                ResultError.error_validation_failure,
+                => |caught_err| return caught_err,
+
+                // SAFETY: according to the specification, no other errors are reachable
+                else => unreachable,
+            }
+        };
+
+        return true;
+    }
+
+    pub fn destroySession(self: Instance, session: Session) DestroySessionError!void {
+        return convertResult(self.fn_ptrs.xrDestroySession.?(session.value)) catch |err| {
+            if (err == DestroySessionError.error_handle_invalid)
+                return DestroySessionError.error_handle_invalid;
+
+            // SAFETY: spec says no other errors are possible
+            unreachable;
+        };
+    }
+
+    pub fn deinit(self: Instance) DestroyInstanceError!void {
+        return convertResult(self.fn_ptrs.xrDestroyInstance.?(self.value)) catch |err| {
+            if (err == DestroyInstanceError.error_handle_invalid)
+                return DestroyInstanceError.error_handle_invalid;
+
+            // SAFETY: spec says no other errors are possible
+            unreachable;
+        };
+    }
 };
 
 pub const Version = packed struct(c.XrVersion) {
