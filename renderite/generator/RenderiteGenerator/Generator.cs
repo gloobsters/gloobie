@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
 
 namespace RenderiteGenerator;
 
@@ -191,9 +192,22 @@ public class Generator : IDisposable
             this._writer.WriteLine($"\t\t// {method.Name} {type.Name}");
 
         TypeDefinition typeDef = this._cecilAssembly.MainModule.GetType(type.Namespace + '.' + type.Name);
-        MethodDefinition? methodDef = typeDef.Methods.FirstOrDefault(m => m.Name == method.Name);
+        MethodDefinition? methodDef = typeDef.GetMethods().FirstOrDefault(m => m.Name == method.Name);
         if (methodDef == null)
+        {
+            if (type.BaseType == null)
+            {
+                // this should never happen
+                this._writer.WriteLine($"\t\t// BUG: {type.Name} has no explicitly defined method named {method.Name}, and has no base type");
+                return;
+            }
+            
+            if(this._ilVerbose)
+                this._writer.WriteLine($"\t\t// NOTE: {type.Name} has no explicitly defined method named {method.Name}, trying {type.BaseType?.Name}.{method.Name}");
+
+            WritePackFunction(type.BaseType!, type.BaseType!.GetMethod(method.Name)!);
             return;
+        }
 
         string name = null!;
         foreach (Instruction instruction in methodDef.Body.Instructions)
@@ -215,9 +229,9 @@ public class Generator : IDisposable
             {
                 string typeName = callRef.DeclaringType.FullName;
                 
-                if (callRef.Name == "Write")
-                    this._writer.WriteLine($"\t\twriter.write(@Typeof(self.{name}), self.{name});");
-                else if (callRef.Name == "Read")
+                if (callRef.Name == "Write" && callRef.Parameters.Count == 1)
+                    this._writer.WriteLine($"\t\twriter.write(@TypeOf(self.{name}), self.{name});");
+                else if (callRef.Name == "Read" && callRef.Parameters.Count == 1)
                     this._writer.WriteLine($"\t\tself.{name} = reader.read(@TypeOf(self.{name}));");
                 else if (callRef.Name is "Pack" or "Unpack")
                 {
