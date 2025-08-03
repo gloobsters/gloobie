@@ -1,6 +1,65 @@
 const std = @import("std");
 const zinterprocess = @import("zinterprocess");
 
+const log = std.log.scoped(.messaging);
+
+pub const MessagingHost = struct {
+    primary: MessagingManager,
+    background: MessagingManager,
+
+    pub fn init(queue_name: []const u8, queue_length: u32, allocator: std.mem.Allocator) !MessagingHost {
+        const queue_name_primary = try queueSuffix(queue_name, "Primary", allocator);
+        defer allocator.free(queue_name_primary);
+
+        const queue_name_background = try queueSuffix(queue_name, "Background", allocator);
+        defer allocator.free(queue_name_background);
+
+        const primary = try MessagingManager.init(queue_name_primary, false, queue_length, allocator);
+        const background = try MessagingManager.init(queue_name_background, false, queue_length, allocator);
+
+        return MessagingHost{
+            .primary = primary,
+            .background = background,
+        };
+    }
+
+    pub fn initFromArgs(allocator: std.mem.Allocator) !MessagingHost {
+        const args = try std.process.argsAlloc(allocator);
+        defer std.process.argsFree(allocator, args);
+
+        // -QueueName randomString -QueueLength 8388608
+
+        if (args.len != 5)
+            return error.InvalidNumArguments;
+
+        if (!std.mem.eql(u8, args[1], "-QueueName"))
+            return error.InvalidArguments;
+
+        const queue_name = args[2];
+
+        if (!std.mem.eql(u8, args[3], "-QueueLength"))
+            return error.InvalidArguments;
+
+        const queue_length = try std.fmt.parseInt(u32, args[4], 10);
+
+        return try MessagingHost.init(queue_name, queue_length, allocator);
+    }
+
+    fn queueSuffix(queue_name: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+        const suffixed_name = try allocator.alloc(u8, queue_name.len + suffix.len);
+
+        @memcpy(suffixed_name[0..queue_name.len], queue_name);
+        @memcpy(suffixed_name[queue_name.len..], suffix);
+
+        return suffixed_name;
+    }
+
+    pub fn deinit(self: MessagingHost) void {
+        self.primary.deinit();
+        self.background.deinit();
+    }
+};
+
 pub const MessagingManager = struct {
     publisher: zinterprocess.Queue,
     subscriber: zinterprocess.Queue,
@@ -10,6 +69,8 @@ pub const MessagingManager = struct {
         const name_s = try queueSuffix(queue_name, 'S', allocator);
         defer allocator.free(name_a);
         defer allocator.free(name_s);
+
+        log.debug("Inititalizing MessagingManager with names {s} and {s} (size {d})", .{ name_a, name_s, capacity });
 
         const publisher = try zinterprocess.Queue.init(.{
             .allocator = allocator,
@@ -31,28 +92,6 @@ pub const MessagingManager = struct {
             .publisher = publisher,
             .subscriber = subscriber,
         };
-    }
-
-    pub fn initFromArgs(allocator: std.mem.Allocator) !MessagingManager {
-        const args = try std.process.argsAlloc(allocator);
-        defer std.process.argsFree(allocator, args);
-
-        // -QueueName randomString -QueueLength 8388608
-
-        if (args.len != 5)
-            return error.InvalidNumArguments;
-
-        if (!std.mem.eql(u8, args[1], "-QueueName"))
-            return error.InvalidArguments;
-
-        const queue_name = args[2];
-
-        if (!std.mem.eql(u8, args[3], "-QueueLength"))
-            return error.InvalidArguments;
-
-        const queue_length = try std.fmt.parseInt(u32, args[4], 10);
-
-        return MessagingManager.init(queue_name, true, queue_length, allocator);
     }
 
     pub fn deinit(self: MessagingManager) void {
