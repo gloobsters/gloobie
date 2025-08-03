@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const zinterprocess = @import("zinterprocess");
 
 pub const MessagingManager = struct {
@@ -7,8 +8,8 @@ pub const MessagingManager = struct {
 
     pub fn init(queue_name: []const u8, is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !MessagingManager {
         const name_a = try queueSuffix(queue_name, 'A', allocator);
-        const name_s = try queueSuffix(queue_name, 'S', allocator);
         defer allocator.free(name_a);
+        const name_s = try queueSuffix(queue_name, 'S', allocator);
         defer allocator.free(name_s);
 
         const publisher = try zinterprocess.Queue.init(.{
