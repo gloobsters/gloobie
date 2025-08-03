@@ -78,7 +78,7 @@ pub const gpu = struct {
         return if (c.ImGui_ImplGPU_Init(&info.to())) {} else return error.FailedToInitImGuiGpu;
     }
 
-    pub fn deinit() void {
+    pub fn shutdown() void {
         return c.ImGui_ImplGPU_Shutdown();
     }
 

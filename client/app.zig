@@ -48,6 +48,7 @@ const ImGuiData = struct {
     context: imgui_t.Context,
 
     pub fn deinit(self: ImGuiData) void {
+        imgui_t.gpu.shutdown();
         imgui_t.sdl3.shutdown();
         self.context.destroy();
     }
@@ -171,6 +172,18 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         context.setCurrent();
 
         try imgui_t.sdl3.initForOther(window_data.window);
+        errdefer imgui_t.sdl3.shutdown();
+
+        log.info("Initialized ImGui SDL3 backend", .{});
+
+        try imgui_t.gpu.init(.{
+            .color_target_format = window_data.swapchain_format,
+            .device = graphics_data.device,
+            .msaa_samples = .no_multisampling,
+        });
+        errdefer imgui_t.gpu.shutdown();
+
+        log.info("Initialized ImGui GPU backend", .{});
 
         break :create_imgui_data .{
             .context = context,
