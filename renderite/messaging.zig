@@ -27,18 +27,18 @@ pub const MessagingHost = struct {
         const args = try std.process.argsAlloc(allocator);
         defer std.process.argsFree(allocator, args);
 
-        // -QueueName randomString -QueueLength 8388608
+        // -QueueName randomString -QueueCapacity 8388608
 
         if (args.len != 5)
-            return error.InvalidNumArguments;
+            return error.InvalidNumberOfArguments;
 
         if (!std.mem.eql(u8, args[1], "-QueueName"))
-            return error.InvalidArguments;
+            return error.InvalidQueueName;
 
         const queue_name = args[2];
 
-        if (!std.mem.eql(u8, args[3], "-QueueLength"))
-            return error.InvalidArguments;
+        if (!std.mem.eql(u8, args[3], "-QueueCapacity"))
+            return error.InvalidQueueLength;
 
         const queue_length = try std.fmt.parseInt(u32, args[4], 10);
 

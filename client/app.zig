@@ -66,8 +66,8 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     errdefer gpa.destroy(app);
 
     const messaging_data: MessagingData = create_messaging_data: {
-        const host = MessagingHost.initFromArgs(gpa) catch debug_queue: {
-            log.warn("Failed to initialize messaging manager from command line arguments, setting up dummy queue", .{});
+        const host = MessagingHost.initFromArgs(gpa) catch |err| debug_queue: {
+            log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
             break :debug_queue try MessagingHost.init("gloopie", 8388608, gpa);
         };
         errdefer host.deinit();
