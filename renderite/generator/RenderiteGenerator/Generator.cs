@@ -215,9 +215,10 @@ public class Generator : IDisposable
             {
                 if (genericDef.Name == "Write")
                     this._writer.WriteLine($"\t\treader.writeStruct(self.{name});");
-                
-                if (genericDef.Name == "Read")
+                else if (genericDef.Name == "Read")
                     this._writer.WriteLine($"\t\tself.{name} = reader.readStruct(@TypeOf(self.{name}));");
+                else
+                    this._writer.WriteLine($"\t\t// FIXME: Unknown generic method {genericDef}");
             }
             
             if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodDefinition callDef)
@@ -230,9 +231,7 @@ public class Generator : IDisposable
                     WritePackFunction(type.BaseType, type.BaseType.GetMethod(method.Name)!);
                 }
                 else
-                {
                     this._writer.WriteLine($"\t\t// FIXME: Unknown method {callDef}");
-                }
             }
         }
 
