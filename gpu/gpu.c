@@ -1140,8 +1140,6 @@ GPU_GraphicsPipeline *GPU_CreateGraphicsPipeline(
                 return NULL;
             }
         }
-        // !GLOOBIE! enable_alpha_to_coverage is commented out for now to make it compile
-        /*
         if (graphicsPipelineCreateInfo->multisample_state.enable_alpha_to_coverage)
         {
             if (graphicsPipelineCreateInfo->target_info.num_color_targets < 1)
@@ -1157,7 +1155,6 @@ GPU_GraphicsPipeline *GPU_CreateGraphicsPipeline(
 
             // TODO: validate that format supports belnding? This is only required on Metal.
         }
-        */
         if (graphicsPipelineCreateInfo->vertex_input_state.num_vertex_buffers > 0 && graphicsPipelineCreateInfo->vertex_input_state.vertex_buffer_descriptions == NULL)
         {
             SDL_assert_release(!"Vertex buffer descriptions array pointer cannot be NULL!");

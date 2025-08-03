@@ -3214,7 +3214,7 @@ pub const MultisampleState = struct {
     /// Must be set to false.
     enable_mask: bool = false,
     // /// True enables the alpha-to-coverage feature.
-    // enable_alpha_to_coverage: bool,
+    enable_alpha_to_coverage: bool,
 
     /// Convert from an SDL value.
     pub fn fromSdl(value: c.GPU_MultisampleState) MultisampleState {
@@ -3222,7 +3222,7 @@ pub const MultisampleState = struct {
             .sample_count = @enumFromInt(value.sample_count),
             .sample_mask = value.sample_mask,
             .enable_mask = value.enable_mask,
-            // .enable_alpha_to_coverage = value.enable_alpha_to_coverage,
+            .enable_alpha_to_coverage = value.enable_alpha_to_coverage,
         };
     }
 
@@ -3232,7 +3232,7 @@ pub const MultisampleState = struct {
             .sample_count = @intFromEnum(self.sample_count),
             .sample_mask = self.sample_mask,
             .enable_mask = self.enable_mask,
-            // .enable_alpha_to_coverage = self.enable_alpha_to_coverage,
+            .enable_alpha_to_coverage = self.enable_alpha_to_coverage,
         };
     }
 };
