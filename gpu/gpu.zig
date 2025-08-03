@@ -1789,6 +1789,17 @@ pub const Device = packed struct {
         shaders_metallib: ?bool = null,
         /// The prefix to use for all vertex semantics, default is "TEXCOORD".
         d3d12_semantic_name: ?[:0]const u8 = null,
+        xr_enable: ?bool = null,
+        xr_instance_out: ?*openxr.Instance = null,
+        xr_system_id_out: ?*openxr.SystemId = null,
+        xr_version: ?openxr.Version = null,
+        xr_form_factor: ?openxr.FormFactor = null,
+        xr_extensions: ?[][*:0]const u8 = null,
+        xr_layers: ?[][*:0]const u8 = null,
+        xr_application_name: ?[:0]const u8 = null,
+        xr_application_verison: ?u32 = null,
+        xr_engine_name: ?[:0]const u8 = null,
+        xr_engine_version: ?u32 = null,
         // vulkan_shader_clip_distance: ?bool = null,
         // vulkan_depth_clamp: ?bool = null,
         // vulkan_draw_indirect_first: ?bool = null,
@@ -1821,6 +1832,34 @@ pub const Device = packed struct {
                 try ret.set(c.GPU_PROP_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING, .{ .string = val });
             // if (self.vulkan_shader_clip_distance) |val|
             //     try ret.set(c.GPU_PROP_DEVICE_CREATE_VULKAN_SHADERCLIPDISTANCE_BOOLEAN, .{ .boolean = val });
+            if (self.xr_enable) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_ENABLE, .{ .boolean = val });
+            if (self.xr_instance_out) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_INSTANCE_OUT, .{ .pointer = @ptrCast(&val.value) });
+            if (self.xr_system_id_out) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_SYSTEM_ID_OUT, .{ .pointer = val });
+            if (self.xr_version) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_VERSION, .{ .number = @bitCast(val) });
+            if (self.xr_form_factor) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_FORM_FACTOR, .{ .number = @intFromEnum(val) });
+            if (self.xr_extensions) |val| {
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_EXTENSION_COUNT, .{ .number = @intCast(val.len) });
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_EXTENSION_NAMES, .{ .pointer = @ptrCast(val.ptr) });
+            }
+            if (self.xr_layers) |val| {
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_LAYER_COUNT, .{ .number = @intCast(val.len) });
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_LAYER_NAMES, .{ .pointer = @ptrCast(val.ptr) });
+            }
+            // SAFETY: constCast *is* safe here because GPU never writes
+            if (self.xr_application_name) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_APPLICATION_NAME, .{ .pointer = @constCast(val.ptr) });
+            if (self.xr_application_verison) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_APPLICATION_VERSION, .{ .number = val });
+            // SAFETY: constCast *is* safe here because GPU never writes
+            if (self.xr_engine_name) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_ENGINE_NAME, .{ .pointer = @constCast(val.ptr) });
+            if (self.xr_engine_version) |val|
+                try ret.set(c.GPU_PROP_DEVICE_CREATE_XR_ENGINE_VERSION, .{ .number = val });
             return ret;
         }
     };
@@ -5219,6 +5258,19 @@ pub const Viewport = struct {
         };
     }
 };
+
+pub fn openXrLoadLibrary() bool {
+    return c.GPU_OpenXR_LoadLibrary();
+}
+
+pub fn openXrUnloadLibrary() void {
+    return c.GPU_OpenXR_UnloadLibrary();
+}
+
+pub fn openXrGetXrInstanceProcAddr() openxr.c.PFN_xrGetInstanceProcAddr {
+    // SAFETY: these are the same underlying types
+    return @ptrCast(c.GPU_OpenXR_GetXrGetInstanceProcAddr());
+}
 
 /// Get the name of a built in GPU driver.
 ///

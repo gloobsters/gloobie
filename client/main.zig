@@ -5,6 +5,7 @@ const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const renderite = @import("renderite").Shared;
 const sdl3 = @import("sdl3");
+const tracy = @import("tracy");
 const xr = @import("xr");
 const zinterprocess = @import("zinterprocess");
 
@@ -30,13 +31,19 @@ fn start() !void {
         @panic("Memory leak!");
     };
 
-    const gpa = if (build_options.safety) debug_alloc_impl.allocator() else std.heap.smp_allocator;
+    var tracy_allocator = tracy.tracyAllocator("General Purpose Allocator", if (build_options.safety) debug_alloc_impl.allocator() else std.heap.smp_allocator);
+    const gpa = tracy_allocator.allocator();
 
     sdl3.errors.error_callback = sdl3ErrorCallback;
 
-    try sdl3.init(.{
-        .video = true,
-    });
+    {
+        const trace = tracy.traceNamed(@src(), "Init SDL");
+        defer trace.end();
+
+        try sdl3.init(.{
+            .video = true,
+        });
+    }
     defer sdl3.shutdown();
     defer if (sdl3.getNumAllocations()) |num_allocations| {
         if (num_allocations > 0) {
@@ -44,7 +51,12 @@ fn start() !void {
         }
     };
 
-    const app = try App.init(gpa);
+    const app = init_app: {
+        const trace = tracy.traceNamed(@src(), "Init application");
+        defer trace.end();
+
+        break :init_app try App.init(gpa);
+    };
     defer app.deinit();
 
     try app.frameLoop();

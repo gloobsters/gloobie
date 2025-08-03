@@ -399,6 +399,64 @@ extern "C"
 {
 #endif /* __cplusplus */
 
+/**
+ * A variable that specifies which library names to look for when loading the OpenXR loader
+ *
+ * By default, SDL will try the system default name, but on some platforms like Windows,
+ * debug builds of the OpenXR loader have a different name, and are not always directly compatible with release applications.
+ * Setting this hint allows you to compensate for this difference in your app when applicable.
+ *
+ * This variable accepts a comma-separated list of library names to check.
+ *
+ * This hint should be set before the OpenXR loader is loaded.
+ * For example, creating an OpenXR GPU device will load the OpenXR lodaer.
+ */
+#define GPU_HINT_OPENXR_SONAMES "SDL_OPENXR_SONAMES"
+
+    /**
+     * Dynamically load the OpenXR loader. This can be called at any time.
+     *
+     * SDL keeps a reference count of the OpenXR loader, calling this function multiple
+     * times will increment that count, rather than loading the library multiple times.
+     *
+     * If not called, this will be implicitly called when creating a GPU device with OpenXR.
+     *
+     * This function will use the platform default OpenXR loader name,
+     * unless the `SDL_HINT_OPENXR_SONAMES` hint is set.
+     *
+     * \returns whether the call succeeded or not.
+     *
+     * \threadsafety This function is not thread safe.
+     *
+     * \sa SDL_HINT_OPENXR_SONAMES
+     */
+    extern SDL_DECLSPEC bool SDLCALL GPU_OpenXR_LoadLibrary(void);
+
+    /**
+     * Unload the OpenXR loader previously loaded by SDL_OpenXR_LoadLibrary.
+     *
+     * SDL keeps a reference count of the OpenXR loader, calling this function will decrement that count.
+     * Once the reference count reaches zero, the library is unloaded.
+     *
+     * \threadsafety This function is not thread safe.
+     */
+    extern SDL_DECLSPEC void SDLCALL GPU_OpenXR_UnloadLibrary(void);
+
+    /**
+     * Get the address of the `xrGetInstanceProcAddr` function.
+     *
+     * This should be called after either calling SDL_OpenXR_LoadLibrary() or
+     * creating an OpenXR SDL_GPUDevice.
+     *
+     * The actual type of the returned function pointer is PFN_xrGetInstanceProcAddr,
+     * but that isn't always available. You should include the OpenXR headers before this header,
+     * or cast the return value of this function to the correct type.
+     *
+     * \returns the function pointer for `xrGetInstanceProcAddr` or NULL on
+     *          failure; call SDL_GetError() for more information.
+     */
+    extern SDL_DECLSPEC PFN_xrGetInstanceProcAddr SDLCALL GPU_OpenXR_GetXrGetInstanceProcAddr(void);
+
     /* Type Declarations */
 
     /**
