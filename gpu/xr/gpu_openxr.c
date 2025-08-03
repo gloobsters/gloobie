@@ -41,6 +41,12 @@ bool GPU_OPENXR_INTERNAL_ValidationLayerAvailable()
     }
 
     XrApiLayerProperties *apiLayerProperties = SDL_stack_alloc(XrApiLayerProperties, apiLayerCount);
+    for (int i = 0; i < apiLayerCount; i++)
+    {
+        SDL_zerop(&apiLayerProperties[i]);
+        apiLayerProperties[i].type = XR_TYPE_API_LAYER_PROPERTIES;
+    }
+
     if (XR_FAILED(xrEnumerateApiLayerProperties(apiLayerCount, &apiLayerCount, apiLayerProperties)))
     {
         SDL_stack_free(apiLayerProperties);
