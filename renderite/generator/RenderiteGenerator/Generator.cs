@@ -237,7 +237,7 @@ public class Generator : IDisposable
                 if (callRef.Name == "Write" && callRef.Parameters.Count == 1)
                 {
                     string name = names.Dequeue();
-                    this._writer.WriteLine($"\t\tipc.write(@TypeOf(self.{name}), self.{name});");
+                    this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
                     written = true;
                 }
                 else if (callRef.Name == "Write" &&
@@ -248,7 +248,7 @@ public class Generator : IDisposable
                     {
                         paramsList.Add("false");
                     }
-                    this._writer.WriteLine($"\t\tipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
+                    this._writer.WriteLine($"\t\ttry ipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
                     names.Clear();
                     written = true;
                 }
