@@ -83,11 +83,17 @@ XrResult GPU_OPENXR_INTERNAL_GPUInitOpenXR(
 
     // allocate enough space for the validation layer + the user's api layers
     const char **apiLayerNames = SDL_stack_alloc(const char *, userApiLayerCount + 1);
-    SDL_memcpy(apiLayerNames, userApiLayerNames, sizeof(const char *) * (userApiLayerCount));
+    if (userApiLayerCount > 0 && userApiLayerNames == NULL)
+    {
+        SDL_memcpy(apiLayerNames, userApiLayerNames, sizeof(const char *) * (userApiLayerCount));
+    }
     apiLayerNames[userApiLayerCount] = VALIDATION_LAYER_API_NAME;
 
     const char **extensionNames = SDL_stack_alloc(const char *, userExtensionCount + 1);
-    SDL_memcpy(extensionNames, userExtensionNames, sizeof(const char *) * (userExtensionCount));
+    if (userExtensionCount > 0 && userExtensionNames == NULL)
+    {
+        SDL_memcpy(extensionNames, userExtensionNames, sizeof(const char *) * (userExtensionCount));
+    }
     extensionNames[userExtensionCount] = gpuExtension.extensionName;
 
     XrInstanceCreateInfo xrInstanceCreateInfo = {XR_TYPE_INSTANCE_CREATE_INFO};

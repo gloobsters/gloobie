@@ -624,11 +624,22 @@ pub const StructureType = enum(c.XrStructureType) {
     system_spatial_entity_group_sharing_properties_meta = 1000572100,
 };
 
-pub const Instance = struct {
+pub const Instance = extern struct {
     value: c.XrInstance,
 };
 
-pub const Session = struct {
+pub const Version = packed struct(c.XrVersion) {
+    patch: u32,
+    minor: u16,
+    major: u16,
+};
+
+pub const FormFactor = enum(c.XrFormFactor) {
+    head_mounted_display = 1,
+    handheld_display = 2,
+};
+
+pub const Session = extern struct {
     value: c.XrSession,
 
     pub const CreateFlags = packed struct(c.XrSessionCreateFlags) {
@@ -660,7 +671,7 @@ pub const Session = struct {
     }
 };
 
-pub const Swapchain = struct {
+pub const Swapchain = extern struct {
     value: c.XrSwapchain,
 
     pub const CreateFlags = packed struct(c.XrSwapchainCreateFlags) {

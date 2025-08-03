@@ -139,9 +139,13 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
     const graphics_data: GraphicsData = create_graphics_data: {
         if (xr_data) |xr| {
-            _ = xr; // autofix
+            const gpu_device = xr.backend.getGpuDevice();
 
-            @panic("TODO: XR based graphics init");
+            log.info("Acquired OpenXR GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
+
+            break :create_graphics_data .{
+                .device = gpu_device,
+            };
         } else {
             const gpu_device = try gpu.Device.initWithProperties(.{
                 .debug_mode = build_options.safety,

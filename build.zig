@@ -192,6 +192,7 @@ pub fn build(b: *std.Build) !void {
             .imports = &.{
                 .{ .name = "sdl3", .module = sdl3_mod },
                 .{ .name = "c", .module = translate_c_mod },
+                .{ .name = "openxr", .module = openxr_mod },
                 .{ .name = "options", .module = options_module },
             },
 
