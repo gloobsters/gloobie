@@ -4,9 +4,9 @@ A cross-platform experimental renderer for Resonite.
 
 ## TODO
 
-- [ ] ImGui initialization and rendering
+- [x] ImGui initialization and rendering
 - [ ] Begin communicating with FE
-- [ ] Desktop mode graphics initialization
+- [x] Desktop mode graphics initialization
 - [ ] Desktop mode frame loop
 - [ ] OpenXR graphics init
 - [ ] OpenXR frame loop
