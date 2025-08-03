@@ -787,12 +787,12 @@ pub const MaterialsUpdateBatch = struct {
 		ipc.write(@TypeOf(self.materialRemovals), self.materialRemovals);
 		ipc.write(@TypeOf(self.materialPropertyBlockRemovals), self.materialPropertyBlockRemovals);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.MaterialPropertyUpdate>>(System.Collections.Generic.List`1<T>)
-		ipc.write(@TypeOf(self.materialUpdateCount), self.materialUpdateCount);
+		ipc.write(@TypeOf(self.materialUpdates), self.materialUpdates);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Int32>>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Single>>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderVector4>>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderMatrix4x4>>(System.Collections.Generic.List`1<T>)
-		ipc.write(@TypeOf(self.instanceChangedBuffer), self.instanceChangedBuffer);
+		ipc.write(@TypeOf(self.materialUpdateCount), self.materialUpdateCount);
 	}
 
 	pub fn read(self: MaterialsUpdateBatch, ipc: IpcDeserializer) !void {
@@ -800,12 +800,12 @@ pub const MaterialsUpdateBatch = struct {
 		self.materialRemovals = ipc.read(@TypeOf(self.materialRemovals));
 		self.materialPropertyBlockRemovals = ipc.read(@TypeOf(self.materialPropertyBlockRemovals));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.MaterialPropertyUpdate>>(System.Collections.Generic.List`1<T>&)
-		self.materialUpdateCount = ipc.read(@TypeOf(self.materialUpdateCount));
+		self.materialUpdates = ipc.read(@TypeOf(self.materialUpdates));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Int32>>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Single>>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderVector4>>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderMatrix4x4>>(System.Collections.Generic.List`1<T>&)
-		self.instanceChangedBuffer = ipc.read(@TypeOf(self.instanceChangedBuffer));
+		self.materialUpdateCount = ipc.read(@TypeOf(self.materialUpdateCount));
 	}
 };
 
@@ -858,8 +858,8 @@ pub const MeshUploadData = struct {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.VertexAttributeDescriptor>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SubmeshBufferDescriptor>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.BlendshapeBufferDescriptor>(System.Collections.Generic.List`1<T>)
-		ipc.write(@TypeOf(self.uploadHint), self.uploadHint);
-		ipc.write(@TypeOf(self.bounds), self.bounds);
+		ipc.write(@TypeOf(self.vertexAttributes), self.vertexAttributes);
+		ipc.write(@TypeOf(self.submeshes), self.submeshes);
 	}
 
 	pub fn read(self: MeshUploadData, ipc: IpcDeserializer) !void {
@@ -873,8 +873,8 @@ pub const MeshUploadData = struct {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.VertexAttributeDescriptor>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SubmeshBufferDescriptor>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.BlendshapeBufferDescriptor>(System.Collections.Generic.List`1<T>&)
-		self.uploadHint = ipc.read(@TypeOf(self.uploadHint));
-		self.bounds = ipc.read(@TypeOf(self.bounds));
+		self.vertexAttributes = ipc.read(@TypeOf(self.vertexAttributes));
+		self.submeshes = ipc.read(@TypeOf(self.submeshes));
 	}
 };
 
@@ -1067,8 +1067,8 @@ pub const SetCubemapData = struct {
 		ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
-		ipc.write(@TypeOf(self.flipY), self.flipY);
-		ipc.write(@TypeOf(self.highPriority), self.highPriority);
+		ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
+		ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
 	}
 
 	pub fn read(self: SetCubemapData, ipc: IpcDeserializer) !void {
@@ -1077,8 +1077,8 @@ pub const SetCubemapData = struct {
 		self.startMipLevel = ipc.read(@TypeOf(self.startMipLevel));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
-		self.flipY = ipc.read(@TypeOf(self.flipY));
-		self.highPriority = ipc.read(@TypeOf(self.highPriority));
+		self.mipMapSizes = ipc.read(@TypeOf(self.mipMapSizes));
+		self.mipStarts = ipc.read(@TypeOf(self.mipStarts));
 	}
 };
 
@@ -1278,9 +1278,9 @@ pub const SetTexture2DData = struct {
 		ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
+		ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
+		ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
 		ipc.write(@TypeOf(self.flipY), self.flipY);
-		ipc.write(@TypeOf(self.hint), self.hint);
-		ipc.write(@TypeOf(self.highPriority), self.highPriority);
 	}
 
 	pub fn read(self: SetTexture2DData, ipc: IpcDeserializer) !void {
@@ -1289,9 +1289,9 @@ pub const SetTexture2DData = struct {
 		self.startMipLevel = ipc.read(@TypeOf(self.startMipLevel));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
+		self.mipMapSizes = ipc.read(@TypeOf(self.mipMapSizes));
+		self.mipStarts = ipc.read(@TypeOf(self.mipStarts));
 		self.flipY = ipc.read(@TypeOf(self.flipY));
-		self.hint = ipc.read(@TypeOf(self.hint));
-		self.highPriority = ipc.read(@TypeOf(self.highPriority));
 	}
 };
 
@@ -1656,13 +1656,13 @@ pub const VideoTextureUpdate = struct {
 	pub fn write(self: VideoTextureUpdate, ipc: IpcSerializer) !void {
 		ipc.write(@TypeOf(self.assetId), self.assetId);
 		ipc.write(@TypeOf(self.position), self.position);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.play, self.loop, false, false, false, false, false, false);
 	}
 
 	pub fn read(self: VideoTextureUpdate, ipc: IpcDeserializer) !void {
 		self.assetId = ipc.read(@TypeOf(self.assetId));
 		self.position = ipc.read(@TypeOf(self.position));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&)
+		self.play, self.loop, _, _, _, _, _, _ = ipc.read8PackedBools();
 	}
 };
 
@@ -1818,7 +1818,7 @@ pub const CameraRenderTask = struct {
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.CameraRenderParameters>(T)
-		ipc.write(@TypeOf(self.resultData), self.resultData);
+		ipc.write(@TypeOf(self.parameters), self.parameters);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
 	}
@@ -1828,7 +1828,7 @@ pub const CameraRenderTask = struct {
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.CameraRenderParameters>(T&)
-		self.resultData = ipc.read(@TypeOf(self.resultData));
+		self.parameters = ipc.read(@TypeOf(self.parameters));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
 	}
@@ -2000,7 +2000,7 @@ pub const ReflectionProbeRenderTask = struct {
 		ipc.write(@TypeOf(self.size), self.size);
 		ipc.write(@TypeOf(self.hdr), self.hdr);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
-		ipc.write(@TypeOf(self.resultData), self.resultData);
+		ipc.write(@TypeOf(self.mipOrigins), self.mipOrigins);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
 	}
 
@@ -2010,7 +2010,7 @@ pub const ReflectionProbeRenderTask = struct {
 		self.size = ipc.read(@TypeOf(self.size));
 		self.hdr = ipc.read(@TypeOf(self.hdr));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
-		self.resultData = ipc.read(@TypeOf(self.resultData));
+		self.mipOrigins = ipc.read(@TypeOf(self.mipOrigins));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
 	}
 };
@@ -2147,12 +2147,12 @@ pub const DragAndDropEvent = struct {
 
 	pub fn write(self: DragAndDropEvent, ipc: IpcSerializer) !void {
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::WriteStringList(System.Collections.Generic.List`1<System.String>)
-		ipc.write(@TypeOf(self.dropPoint), self.dropPoint);
+		ipc.write(@TypeOf(self.paths), self.paths);
 	}
 
 	pub fn read(self: DragAndDropEvent, ipc: IpcDeserializer) !void {
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::ReadStringList(System.Collections.Generic.List`1<System.String>&)
-		self.dropPoint = ipc.read(@TypeOf(self.dropPoint));
+		self.paths = ipc.read(@TypeOf(self.paths));
 	}
 };
 
@@ -2189,9 +2189,9 @@ pub const GamepadState = struct {
 		ipc.write(@TypeOf(self.dPad), self.dPad);
 		ipc.write(@TypeOf(self.leftTrigger), self.leftTrigger);
 		ipc.write(@TypeOf(self.rightTrigger), self.rightTrigger);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper);
+		ipc.write8PackedBools(self.start, self.menu, false, false, false, false, false, false);
+		ipc.write8PackedBools(self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3);
 	}
 
 	pub fn read(self: GamepadState, ipc: IpcDeserializer) !void {
@@ -2201,9 +2201,9 @@ pub const GamepadState = struct {
 		self.dPad = ipc.read(@TypeOf(self.dPad));
 		self.leftTrigger = ipc.read(@TypeOf(self.leftTrigger));
 		self.rightTrigger = ipc.read(@TypeOf(self.rightTrigger));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&)
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper = ipc.read8PackedBools();
+		self.start, self.menu, _, _, _, _, _, _ = ipc.read8PackedBools();
+		self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3 = ipc.read8PackedBools();
 	}
 };
 
@@ -2224,10 +2224,10 @@ pub const HandState = struct {
 		ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
 		ipc.write(@TypeOf(self.priority), self.priority);
 		ipc.write(@TypeOf(self.chirality), self.chirality);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.tracksMetacarpals, false, false, false, false, false);
 		ipc.write(@TypeOf(self.confidence), self.confidence);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.wristPosition), self.wristPosition);
-		ipc.write(@TypeOf(self.wristRotation), self.wristRotation);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderQuaternion>(System.Collections.Generic.List`1<T>)
 	}
@@ -2236,10 +2236,10 @@ pub const HandState = struct {
 		self.uniqueId = ipc.read(@TypeOf(self.uniqueId));
 		self.priority = ipc.read(@TypeOf(self.priority));
 		self.chirality = ipc.read(@TypeOf(self.chirality));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.tracksMetacarpals, _, _, _, _, _ = ipc.read8PackedBools();
 		self.confidence = ipc.read(@TypeOf(self.confidence));
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.wristPosition = ipc.read(@TypeOf(self.wristPosition));
-		self.wristRotation = ipc.read(@TypeOf(self.wristRotation));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderQuaternion>(System.Collections.Generic.List`1<T>&)
 	}
@@ -2307,7 +2307,7 @@ pub const MouseState = struct {
 	scrollWheelDelta: @Vector(2, f32),
 
 	pub fn write(self: MouseState, ipc: IpcSerializer) !void {
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, false, false);
 		ipc.write(@TypeOf(self.desktopPosition), self.desktopPosition);
 		ipc.write(@TypeOf(self.windowPosition), self.windowPosition);
 		ipc.write(@TypeOf(self.directDelta), self.directDelta);
@@ -2315,7 +2315,7 @@ pub const MouseState = struct {
 	}
 
 	pub fn read(self: MouseState, ipc: IpcDeserializer) !void {
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, _, _ = ipc.read8PackedBools();
 		self.desktopPosition = ipc.read(@TypeOf(self.desktopPosition));
 		self.windowPosition = ipc.read(@TypeOf(self.windowPosition));
 		self.directDelta = ipc.read(@TypeOf(self.directDelta));
@@ -2375,14 +2375,14 @@ pub const CosmosControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY);
 		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
 		ipc.write(@TypeOf(self.trigger), self.trigger);
 		ipc.write(@TypeOf(self.bumper), self.bumper);
@@ -2393,14 +2393,14 @@ pub const CosmosControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY = ipc.read8PackedBools();
 		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
 		self.trigger = ipc.read(@TypeOf(self.trigger));
 		self.bumper = ipc.read(@TypeOf(self.bumper));
@@ -2435,16 +2435,16 @@ pub const GenericControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		ipc.write(@TypeOf(self.strength), self.strength);
 		ipc.write(@TypeOf(self.axis), self.axis);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, false, false);
 	}
 
 	pub fn read(self: GenericControllerState, ipc: IpcDeserializer) !void {
@@ -2452,16 +2452,16 @@ pub const GenericControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
 		self.strength = ipc.read(@TypeOf(self.strength));
 		self.axis = ipc.read(@TypeOf(self.axis));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, _, _ = ipc.read8PackedBools();
 	}
 };
 
@@ -2496,14 +2496,14 @@ pub const HP_ReverbControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick);
 		ipc.write(@TypeOf(self.grip), self.grip);
 		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
 		ipc.write(@TypeOf(self.trigger), self.trigger);
@@ -2514,14 +2514,14 @@ pub const HP_ReverbControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick = ipc.read8PackedBools();
 		self.grip = ipc.read(@TypeOf(self.grip));
 		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
 		self.trigger = ipc.read(@TypeOf(self.trigger));
@@ -2565,17 +2565,17 @@ pub const IndexControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick);
 		ipc.write(@TypeOf(self.grip), self.grip);
 		ipc.write(@TypeOf(self.trigger), self.trigger);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, false, false, false, false);
 		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
 		ipc.write(@TypeOf(self.touchpad), self.touchpad);
 		ipc.write(@TypeOf(self.touchpadForce), self.touchpadForce);
@@ -2586,17 +2586,17 @@ pub const IndexControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick = ipc.read8PackedBools();
 		self.grip = ipc.read(@TypeOf(self.grip));
 		self.trigger = ipc.read(@TypeOf(self.trigger));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, _, _, _, _ = ipc.read8PackedBools();
 		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
 		self.touchpad = ipc.read(@TypeOf(self.touchpad));
 		self.touchpadForce = ipc.read(@TypeOf(self.touchpadForce));
@@ -2633,14 +2633,14 @@ pub const PicoNeo2ControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick);
 		ipc.write(@TypeOf(self.joystick), self.joystick);
 		ipc.write(@TypeOf(self.trigger), self.trigger);
 	}
@@ -2650,14 +2650,14 @@ pub const PicoNeo2ControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick = ipc.read8PackedBools();
 		self.joystick = ipc.read(@TypeOf(self.joystick));
 		self.trigger = ipc.read(@TypeOf(self.trigger));
 	}
@@ -2698,16 +2698,16 @@ pub const TouchControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		ipc.write(@TypeOf(self.model), self.model);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, false, false);
+		ipc.write8PackedBools(self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, false, false, false);
 		ipc.write(@TypeOf(self.grip), self.grip);
 		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
 		ipc.write(@TypeOf(self.trigger), self.trigger);
@@ -2718,16 +2718,16 @@ pub const TouchControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
 		self.model = ipc.read(@TypeOf(self.model));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, _, _ = ipc.read8PackedBools();
+		self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, _, _, _ = ipc.read8PackedBools();
 		self.grip = ipc.read(@TypeOf(self.grip));
 		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
 		self.trigger = ipc.read(@TypeOf(self.trigger));
@@ -2762,14 +2762,14 @@ pub const ViveControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, false, false);
 		ipc.write(@TypeOf(self.trigger), self.trigger);
 		ipc.write(@TypeOf(self.touchpad), self.touchpad);
 	}
@@ -2779,14 +2779,14 @@ pub const ViveControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, _, _ = ipc.read8PackedBools();
 		self.trigger = ipc.read(@TypeOf(self.trigger));
 		self.touchpad = ipc.read(@TypeOf(self.touchpad));
 	}
@@ -2822,14 +2822,14 @@ pub const WindowsMR_ControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, false);
 		ipc.write(@TypeOf(self.trigger), self.trigger);
 		ipc.write(@TypeOf(self.touchpad), self.touchpad);
 		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
@@ -2840,14 +2840,14 @@ pub const WindowsMR_ControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&,System.Boolean&)
+		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, _ = ipc.read8PackedBools();
 		self.trigger = ipc.read(@TypeOf(self.trigger));
 		self.touchpad = ipc.read(@TypeOf(self.touchpad));
 		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
@@ -2865,23 +2865,23 @@ pub const HeadsetState = struct {
 	headsetModel: []const u16,
 
 	pub fn write(self: HeadsetState, ipc: IpcSerializer) !void {
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
 		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
 		ipc.write(@TypeOf(self.connectionType), self.connectionType);
 		ipc.write(@TypeOf(self.headsetManufacturer), self.headsetManufacturer);
-		ipc.write(@TypeOf(self.headsetModel), self.headsetModel);
 	}
 
 	pub fn read(self: HeadsetState, ipc: IpcDeserializer) !void {
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&)
+		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
 		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
 		self.connectionType = ipc.read(@TypeOf(self.connectionType));
 		self.headsetManufacturer = ipc.read(@TypeOf(self.headsetManufacturer));
-		self.headsetModel = ipc.read(@TypeOf(self.headsetModel));
 	}
 };
 
@@ -2895,18 +2895,18 @@ pub const TrackerState = struct {
 
 	pub fn write(self: TrackerState, ipc: IpcSerializer) !void {
 		ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
 	}
 
 	pub fn read(self: TrackerState, ipc: IpcDeserializer) !void {
 		self.uniqueId = ipc.read(@TypeOf(self.uniqueId));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&)
+		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
 	}
 };
 
@@ -2919,15 +2919,15 @@ pub const TrackingReferenceState = struct {
 	pub fn write(self: TrackingReferenceState, ipc: IpcSerializer) !void {
 		ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
 		ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
 	}
 
 	pub fn read(self: TrackingReferenceState, ipc: IpcDeserializer) !void {
 		self.uniqueId = ipc.read(@TypeOf(self.uniqueId));
 		self.isTracking = ipc.read(@TypeOf(self.isTracking));
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
 	}
 };
 
@@ -2941,25 +2941,21 @@ pub const VR_InputsState = struct {
 	hands: []HandState,
 
 	pub fn write(self: VR_InputsState, ipc: IpcSerializer) !void {
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.userPresentInHeadset, self.dashboardOpen, false, false, false, false, false, false);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.HeadsetState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WritePolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TrackingReferenceState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>)
-		_ = self;
-		_ = ipc;
 	}
 
 	pub fn read(self: VR_InputsState, ipc: IpcDeserializer) !void {
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&)
+		self.userPresentInHeadset, self.dashboardOpen, _, _, _, _, _, _ = ipc.read8PackedBools();
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.HeadsetState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadPolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackingReferenceState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>&)
-		_ = self;
-		_ = ipc;
 	}
 };
 
@@ -3657,13 +3653,13 @@ pub const VR_ControllerState = struct {
 		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
 		ipc.write(@TypeOf(self.side), self.side);
 		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::Write(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)
+		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		ipc.write(@TypeOf(self.position), self.position);
 		ipc.write(@TypeOf(self.rotation), self.rotation);
+		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 	}
 
 	pub fn read(self: VR_ControllerState, ipc: IpcDeserializer) !void {
@@ -3671,13 +3667,13 @@ pub const VR_ControllerState = struct {
 		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
 		self.side = ipc.read(@TypeOf(self.side));
 		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::Read(System.Boolean&,System.Boolean&,System.Boolean&)
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
+		self.isTracking = ipc.read(@TypeOf(self.isTracking));
 		self.position = ipc.read(@TypeOf(self.position));
 		self.rotation = ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.batteryCharging = ipc.read(@TypeOf(self.batteryCharging));
 	}
 };
 

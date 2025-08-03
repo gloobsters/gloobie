@@ -213,7 +213,7 @@ public class Generator : IDisposable
             return written;
         }
 
-        Stack<string> names = new();
+        Queue<string> names = new();
         foreach (Instruction instruction in methodDef.Body.Instructions)
         {
             // if (this._ilVerbose)
@@ -225,7 +225,7 @@ public class Generator : IDisposable
             if (instruction.OpCode.Code is Code.Ldfld or Code.Ldflda)
             {
                 string name = ((FieldReference)instruction.Operand).Name;
-                names.Push(name);
+                names.Enqueue(name);
                 if (this._ilVerbose)
                     this._writer.WriteLine($"\t\t// {instruction.OpCode.Code} {name}");
             }
@@ -236,14 +236,38 @@ public class Generator : IDisposable
 
                 if (callRef.Name == "Write" && callRef.Parameters.Count == 1)
                 {
-                    string name = names.Pop();
+                    string name = names.Dequeue();
                     this._writer.WriteLine($"\t\tipc.write(@TypeOf(self.{name}), self.{name});");
+                    written = true;
+                }
+                else if (callRef.Name == "Write" &&
+                         callRef.Parameters.All(p => p.ParameterType.Name == "Boolean"))
+                {
+                    List<string> paramsList = names.Select(n => "self." + n).ToList();
+                    while (paramsList.Count < 8)
+                    {
+                        paramsList.Add("false");
+                    }
+                    this._writer.WriteLine($"\t\tipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
+                    names.Clear();
                     written = true;
                 }
                 else if (callRef.Name == "Read" && callRef.Parameters.Count == 1)
                 {
-                    string name = names.Pop();
+                    string name = names.Dequeue();
                     this._writer.WriteLine($"\t\tself.{name} = ipc.read(@TypeOf(self.{name}));");
+                    written = true;
+                }
+                else if (callRef.Name == "Read" &&
+                         callRef.Parameters.All(p => p.ParameterType.Name == "Boolean&"))
+                {
+                    List<string> paramsList = names.Select(n => "self." + n).ToList();
+                    while (paramsList.Count < 8)
+                    {
+                        paramsList.Add("_");
+                    }
+                    this._writer.WriteLine($"\t\t{string.Join(", ", paramsList)} = ipc.read{paramsList.Count}PackedBools();");
+                    names.Clear();
                     written = true;
                 }
                 else if (callRef.Name is "Pack" or "Unpack")
