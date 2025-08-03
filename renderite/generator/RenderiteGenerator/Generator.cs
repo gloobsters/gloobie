@@ -190,7 +190,7 @@ public class Generator : IDisposable
         if(_ilVerbose)
             this._writer.WriteLine($"\t\t// {method.Name} {type.Name}");
 
-        TypeDefinition typeDef = this._cecilAssembly.MainModule.GetType(type.FullName);
+        TypeDefinition typeDef = this._cecilAssembly.MainModule.GetType(type.Namespace + '.' + type.Name);
         MethodDefinition? methodDef = typeDef.Methods.FirstOrDefault(m => m.Name == method.Name);
         if (methodDef == null)
             return;
@@ -206,32 +206,32 @@ public class Generator : IDisposable
 
             if (instruction.OpCode.Code is Code.Ldfld or Code.Ldflda)
             {
-                name = ((FieldDefinition)instruction.Operand).Name;
+                name = ((FieldReference)instruction.Operand).Name;
                 if (this._ilVerbose)
                     this._writer.WriteLine($"\t\t// {instruction.OpCode.Code} {name}");
             }
 
-            if (instruction.OpCode.Code is Code.Call && instruction.Operand is GenericInstanceMethod genericDef)
+            if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodReference callRef)
             {
-                if (genericDef.Name == "Write")
-                    this._writer.WriteLine($"\t\twriter.writeStruct(self.{name});");
-                else if (genericDef.Name == "Read")
-                    this._writer.WriteLine($"\t\tself.{name} = reader.readStruct(@TypeOf(self.{name}));");
-                else
-                    this._writer.WriteLine($"\t\t// FIXME: Unknown generic method {genericDef}");
-            }
-            
-            if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodDefinition callDef)
-            {
-                string typeName = callDef.DeclaringType.FullName;
+                string typeName = callRef.DeclaringType.FullName;
                 
-                if (callDef.Name is "Pack" or "Unpack")
+                if (callRef.Name == "Write")
+                    this._writer.WriteLine($"\t\twriter.write(@Typeof(self.{name}), self.{name});");
+                else if (callRef.Name == "Read")
+                    this._writer.WriteLine($"\t\tself.{name} = reader.read(@TypeOf(self.{name}));");
+                else if (callRef.Name is "Pack" or "Unpack")
                 {
-                    Debug.Assert(typeName == type.BaseType!.FullName);
-                    WritePackFunction(type.BaseType, type.BaseType.GetMethod(method.Name)!);
+                    // Debug.Assert(typeName == type.BaseType!.FullName, $"{typeName} != {type.BaseType.Name}");
+                    MethodInfo? subMethod = type.BaseType?.GetMethod(method.Name);
+                    if (subMethod == null)
+                    {
+                        this._writer.WriteLine($"\t\t// FIXME: Could not find {method.Name} on {type.BaseType}");
+                        continue;
+                    }
+                    WritePackFunction(type.BaseType!, subMethod);
                 }
                 else
-                    this._writer.WriteLine($"\t\t// FIXME: Unknown method {callDef}");
+                    this._writer.WriteLine($"\t\t// FIXME: Unknown {callRef.GetType().Name} {callRef}");
             }
         }
 
