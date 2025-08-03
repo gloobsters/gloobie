@@ -61,6 +61,7 @@ pub const MessagingHost = struct {
 };
 
 pub const QueueManager = struct {
+    allocator: std.mem.Allocator,
     publisher: zinterprocess.Queue,
     subscriber: zinterprocess.Queue,
     thread: std.Thread = undefined,
@@ -90,6 +91,7 @@ pub const QueueManager = struct {
         });
 
         var queue = QueueManager{
+            .allocator = allocator,
             .publisher = publisher,
             .subscriber = subscriber,
         };
@@ -117,6 +119,8 @@ pub const QueueManager = struct {
         // log.debug("Starting receiver loop", .{});
         while (true) {
             const msg = try self.subscriber.dequeue();
+            defer self.allocator.free(msg);
+
             log.debug("Received message: {s}", .{msg});
         }
     }
