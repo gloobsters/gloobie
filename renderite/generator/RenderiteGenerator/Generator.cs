@@ -173,7 +173,7 @@ public class Generator : IDisposable
         if (isPackable)
         {
             this._writer.WriteLine();
-            this._writer.WriteLine($"\tpub fn write(self: {structName}, reader: IpcDeserializer) !void {{");
+            this._writer.WriteLine($"\tpub fn write(self: {structName}, writer: IpcSerializer) !void {{");
             WritePackFunction(type, type.GetMethod("Pack")!);
             this._writer.WriteLine("\t}\n");
             
@@ -214,7 +214,7 @@ public class Generator : IDisposable
             if (instruction.OpCode.Code is Code.Call && instruction.Operand is GenericInstanceMethod genericDef)
             {
                 if (genericDef.Name == "Write")
-                    this._writer.WriteLine($"\t\treader.writeStruct(self.{name});");
+                    this._writer.WriteLine($"\t\twriter.writeStruct(self.{name});");
                 else if (genericDef.Name == "Read")
                     this._writer.WriteLine($"\t\tself.{name} = reader.readStruct(@TypeOf(self.{name}));");
                 else
