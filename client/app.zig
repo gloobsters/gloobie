@@ -46,7 +46,7 @@ const MessagingData = struct {
     host: MessagingHost,
 
     to_render: ToRenderMailbox,
-    to_render_letter_pool: std.heap.MemoryPool(ToRenderLetter),
+    to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
 
     letter_allocation_mutex: std.Thread.Mutex,
 
@@ -54,7 +54,7 @@ const MessagingData = struct {
         self.host.deinit();
 
         _ = self.to_render.close();
-        self.to_render_letter_pool.deinit();
+        self.to_render_envelope_pool.deinit();
     }
 };
 
@@ -95,7 +95,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         break :create_messaging_data .{
             .host = host,
             .to_render = .{},
-            .to_render_letter_pool = .init(gpa),
+            .to_render_envelope_pool = .init(gpa),
             .letter_allocation_mutex = .{},
         };
     };
@@ -267,9 +267,30 @@ fn handleMessages(self: *App) !void {
             return err;
         };
 
+        // destroy the sent envelope to allow the memory to be re-used
+        defer {
+            self.messaging.letter_allocation_mutex.lock();
+            defer self.messaging.letter_allocation_mutex.unlock();
+
+            self.messaging.to_render_envelope_pool.destroy(envelope);
+        }
+
         // process the letter in the envelope
         switch (envelope.letter) {}
     }
+}
+
+/// Sends an envelope to the render thread
+pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
+    self.messaging.letter_allocation_mutex.lock();
+    defer self.messaging.letter_allocation_mutex.unlock();
+
+    const envelope = try self.messaging.to_render_envelope_pool.create();
+    errdefer self.messaging.to_render_envelope_pool.destroy(envelope);
+
+    envelope.* = .{ .letter = letter };
+
+    try self.messaging.to_render.send(envelope);
 }
 
 pub fn frameLoop(self: *App) !void {
