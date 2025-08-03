@@ -231,7 +231,7 @@ public class Generator : IDisposable
                 }
                 else
                 {
-                    this._writer.WriteLine($"\t\t// FIXME: Unknown method {callDef.Name} defined in {typeName}");
+                    this._writer.WriteLine($"\t\t// FIXME: Unknown method {callDef}");
                 }
             }
         }
