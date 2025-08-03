@@ -3,6 +3,7 @@ const std = @import("std");
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const imgui_t = @import("imgui");
+const mailbox = @import("mailbox");
 const math = @import("math");
 const MessagingHost = @import("renderite").MessagingHost;
 const sdl3 = @import("sdl3");
@@ -37,11 +38,23 @@ const WindowData = struct {
     }
 };
 
+pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
+
+pub const ToRenderLetter = union(enum) {};
+
 const MessagingData = struct {
     host: MessagingHost,
 
+    to_render: ToRenderMailbox,
+    to_render_letter_pool: std.heap.MemoryPool(ToRenderLetter),
+
+    letter_allocation_mutex: std.Thread.Mutex,
+
     pub fn deinit(self: MessagingData) void {
         self.host.deinit();
+
+        _ = self.to_render.close();
+        self.to_render_letter_pool.deinit();
     }
 };
 
@@ -79,7 +92,12 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         };
         errdefer host.deinit();
 
-        break :create_messaging_data .{ .host = host };
+        break :create_messaging_data .{
+            .host = host,
+            .to_render = .{},
+            .to_render_letter_pool = .init(gpa),
+            .letter_allocation_mutex = .{},
+        };
     };
 
     const xr_data: ?XrData = create_xr_data: {
@@ -239,6 +257,21 @@ fn beginExit(self: *App) void {
     self.game.run_loop = false;
 }
 
+fn handleMessages(self: *App) !void {
+    while (true) {
+        const envelope = self.messaging.to_render.receive(0) catch |err| {
+            if (err == error.Timeout) {
+                break;
+            }
+
+            return err;
+        };
+
+        // process the letter in the envelope
+        switch (envelope.letter) {}
+    }
+}
+
 pub fn frameLoop(self: *App) !void {
     while (self.game.run_loop) {
         // Poll SDL3 events
@@ -267,6 +300,9 @@ pub fn frameLoop(self: *App) !void {
 
         var show_demo_window: bool = true;
         imgui_t.showDemoWindow(&show_demo_window);
+
+        // handle any messages from the queues, happens before processing most of the frame/rendering
+        try handleMessages(self);
 
         const command_buffer = try self.graphics.device.acquireCommandBuffer();
 

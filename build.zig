@@ -76,6 +76,7 @@ pub fn build(b: *std.Build) void {
 
         .c_sdl_preferred_linkage = .static,
     });
+    const sdl3_mod = sdl3_dep.module("sdl3");
 
     const upstream_sdl3_dep = sdl3_dep.builder.dependency("sdl", .{
         .target = target,
@@ -95,7 +96,10 @@ pub fn build(b: *std.Build) void {
         .registry = b.dependency("vulkan-headers", .{}).path("registry/vk.xml"),
     }).module("vulkan-zig");
 
-    const sdl3_mod = sdl3_dep.module("sdl3");
+    const mailbox_mod = b.dependency("mailbox", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("mailbox");
 
     // openxr wrapper
     const openxr_mod = create_openxr_mod: {
@@ -360,6 +364,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "options", .module = options_module },
             .{ .name = "imgui", .module = imgui_mod },
             .{ .name = "math", .module = math_mod },
+            .{ .name = "mailbox", .module = mailbox_mod },
         },
     });
 
