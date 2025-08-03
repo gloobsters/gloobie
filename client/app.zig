@@ -68,7 +68,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     const messaging_data: MessagingData = create_messaging_data: {
         const manager = MessagingManager.initFromArgs(gpa) catch debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments, setting up dummy queue", .{});
-            break :debug_queue try MessagingManager.init("gloopie", false, 1024 * 1024, gpa);
+            break :debug_queue try MessagingManager.init("gloopie", false, 8388608, gpa);
         };
         errdefer manager.deinit();
 

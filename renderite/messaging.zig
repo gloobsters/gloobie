@@ -37,7 +37,7 @@ pub const MessagingManager = struct {
         const args = try std.process.argsAlloc(allocator);
         defer std.process.argsFree(allocator, args);
 
-        // -QueueName randomString -QueueLength 1024
+        // -QueueName randomString -QueueLength 8388608
 
         if (args.len != 5)
             return error.InvalidNumArguments;
