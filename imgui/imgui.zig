@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const c = @import("c");
 pub const Io = c.ImGuiIO;
+pub const DrawData = c.ImDrawData;
 const gpu_t = @import("gpu");
 const sdl3_t = @import("sdl3");
 
@@ -37,6 +38,22 @@ pub fn deinit() void {
     return c.igShutdown();
 }
 
+pub fn newFrame() void {
+    return c.igNewFrame();
+}
+
+pub fn render() void {
+    return c.igRender();
+}
+
+pub fn getDrawData() *DrawData {
+    return c.igGetDrawData();
+}
+
+pub fn showDemoWindow(p_open: *bool) void {
+    return c.igShowDemoWindow(p_open);
+}
+
 pub const sdl3 = struct {
     pub fn initForOther(window: sdl3_t.video.Window) !void {
         // SAFETY: These should be compatible values of "window"
@@ -51,8 +68,8 @@ pub const sdl3 = struct {
         c.ImGui_ImplSDL3_NewFrame();
     }
 
-    pub fn processEvent(event: sdl3_t.events.Event) !void {
-        return if (c.ImGui_ImplSDL3_ProcessEvent(&event.toSdl())) {} else error.FailedToProcessSdl3Event;
+    pub fn processEvent(event: sdl3_t.events.Event) bool {
+        return c.ImGui_ImplSDL3_ProcessEvent(@ptrCast(&event.toSdl()));
     }
 };
 
@@ -87,10 +104,15 @@ pub const gpu = struct {
     }
 
     pub fn prepareDrawData(draw_data: *c.ImDrawData, command_buffer: gpu_t.CommandBuffer) void {
-        return c.ImGui_ImplGPU_PrepareDrawData(draw_data, command_buffer.value);
+        return c.ImGui_ImplGPU_PrepareDrawData(draw_data, @ptrCast(command_buffer.value));
     }
 
-    pub fn renderDrawData(draw_data: *c.ImDrawData, command_buffer: gpu_t.CommandBuffer, render_pass: gpu_t.RenderPass, pipeline: gpu_t.GraphicsPipeline) void {
-        return c.ImGui_ImplGPU_RenderDrawData(draw_data, command_buffer.value, render_pass.value, pipeline.value);
+    pub fn renderDrawData(draw_data: *c.ImDrawData, command_buffer: gpu_t.CommandBuffer, render_pass: gpu_t.RenderPass, maybe_pipeline: ?gpu_t.GraphicsPipeline) void {
+        return c.ImGui_ImplGPU_RenderDrawData(
+            draw_data,
+            @ptrCast(command_buffer.value),
+            @ptrCast(render_pass.value),
+            if (maybe_pipeline) |pipeline| @ptrCast(pipeline.value) else null,
+        );
     }
 };

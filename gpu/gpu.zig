@@ -647,7 +647,7 @@ pub const CommandBuffer = packed struct {
         var width: u32 = undefined;
         var height: u32 = undefined;
         var texture: ?*c.GPU_Texture = undefined;
-        try errors.wrapCallBool(c.GPU_AcquireSwapchainTexture(self.value, window.value, &texture, &width, &height));
+        try errors.wrapCallBool(c.GPU_AcquireSwapchainTexture(self.value, @ptrCast(window.value), &texture, &width, &height));
         return .{
             .texture = if (texture) |val| .{ .value = val } else null,
             .width = width,

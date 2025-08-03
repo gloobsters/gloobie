@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const zinterprocess = @import("zinterprocess");
 
 const log = std.log.scoped(.messaging);
@@ -68,8 +69,8 @@ pub const QueueManager = struct {
 
     pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !QueueManager {
         const name_a = try queueSuffix(queue_name, 'A', allocator);
-        const name_s = try queueSuffix(queue_name, 'S', allocator);
         defer allocator.free(name_a);
+        const name_s = try queueSuffix(queue_name, 'S', allocator);
         defer allocator.free(name_s);
 
         log.debug("Inititalizing QueueManager with names {s} and {s} (size {d})", .{ name_a, name_s, capacity });

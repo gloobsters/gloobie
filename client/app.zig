@@ -54,7 +54,13 @@ const ImGuiData = struct {
     }
 };
 
+const GameData = struct {
+    run_loop: bool,
+};
+
 gpa: std.mem.Allocator,
+
+game: GameData,
 xr: ?XrData,
 graphics: GraphicsData,
 window: WindowData,
@@ -191,6 +197,10 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     };
     errdefer if (imgui_data) |imgui| imgui.deinit();
 
+    const game_data: GameData = .{
+        .run_loop = true,
+    };
+
     app.* = .{
         .gpa = gpa,
         .xr = xr_data,
@@ -198,6 +208,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         .window = window_data,
         .messaging = messaging_data,
         .imgui = imgui_data,
+        .game = game_data,
     };
 
     return app;
@@ -213,6 +224,73 @@ pub fn deinit(self: *App) void {
     gpa.destroy(self);
 }
 
+fn beginExit(self: *App) void {
+    self.game.run_loop = false;
+}
+
 pub fn frameLoop(self: *App) !void {
-    _ = self; // autofix
+    while (self.game.run_loop) {
+        // Poll SDL3 events
+        while (sdl3.events.poll()) |event| {
+            // ignore ret, doesnt help us
+            _ = imgui_t.sdl3.processEvent(event);
+
+            switch (event) {
+                .quit => {
+                    self.beginExit();
+                },
+                .window_close_requested => |window| {
+                    // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
+                    if (window.id == self.window.window.getId() catch unreachable) {
+                        self.beginExit();
+                    }
+                },
+                else => {},
+            }
+        }
+
+        // imgui new frame
+        imgui_t.gpu.newFrame();
+        imgui_t.sdl3.newFrame();
+        imgui_t.newFrame();
+
+        var show_demo_window: bool = true;
+        imgui_t.showDemoWindow(&show_demo_window);
+
+        const command_buffer = try self.graphics.device.acquireCommandBuffer();
+
+        const swapchain_texture_result = try command_buffer.acquireSwapchainTexture(self.window.window);
+        const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
+        _ = swapchain_height; // autofix
+        _ = swapchain_width; // autofix
+
+        imgui_t.render();
+        const draw_data = imgui_t.getDrawData();
+        const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
+
+        if (maybe_swapchain_texture) |swapchain_texture| {
+            if (!is_minimized) {
+                imgui_t.gpu.prepareDrawData(draw_data, command_buffer);
+            }
+
+            const render_pass = command_buffer.beginRenderPass(&.{.{
+                .texture = swapchain_texture,
+                .clear_color = .{ .a = 1.0 },
+                .load = .clear,
+            }}, null);
+
+            if (!is_minimized) {
+                imgui_t.gpu.renderDrawData(
+                    draw_data,
+                    command_buffer,
+                    render_pass,
+                    null,
+                );
+            }
+
+            render_pass.end();
+        }
+
+        try command_buffer.submit();
+    }
 }
