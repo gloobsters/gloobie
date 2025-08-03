@@ -7,6 +7,8 @@ const MessagingHost = @import("renderite").MessagingHost;
 const sdl3 = @import("sdl3");
 const xr_t = @import("xr");
 
+const math = @import("math.zig");
+
 const log = std.log.scoped(.app);
 
 const App = @This();
@@ -143,8 +145,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
     try graphics_data.device.claimWindow(window_data.window);
 
-    // TODO: figure out if this is the correct composition mode
-    const composition_mode: gpu.SwapchainComposition = .sdr;
+    const composition_mode: gpu.SwapchainComposition = .sdr_linear;
     const present_mode_preference: []const gpu.PresentMode = &.{
         .mailbox,
         .immediate,
@@ -176,6 +177,17 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         errdefer context.destroy();
 
         context.setCurrent();
+
+        const style = imgui_t.getStyle();
+        // Go through every colour and convert it to linear
+        // This is because ImGui uses linear colours but we are using sRGB
+        // This is a simple approximation of the conversion
+        for (0..imgui_t.c.ImGuiCol_COUNT) |i| {
+            const col = &style.Colors[i];
+            col.x = math.srgbToLinear(f32, col.x);
+            col.y = math.srgbToLinear(f32, col.y);
+            col.z = math.srgbToLinear(f32, col.z);
+        }
 
         try imgui_t.sdl3.initForOther(window_data.window);
         errdefer imgui_t.sdl3.shutdown();
