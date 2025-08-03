@@ -255,7 +255,7 @@ public class Generator : IDisposable
                 else if (callRef.Name == "Read" && callRef.Parameters.Count == 1)
                 {
                     string name = names.Dequeue();
-                    this._writer.WriteLine($"\t\tself.{name} = ipc.read(@TypeOf(self.{name}));");
+                    this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
                     written = true;
                 }
                 else if (callRef.Name == "Read" &&
@@ -266,7 +266,7 @@ public class Generator : IDisposable
                     {
                         paramsList.Add("_");
                     }
-                    this._writer.WriteLine($"\t\t{string.Join(", ", paramsList)} = ipc.read{paramsList.Count}PackedBools();");
+                    this._writer.WriteLine($"\t\t{string.Join(", ", paramsList)} = try ipc.read{paramsList.Count}PackedBools();");
                     names.Clear();
                     written = true;
                 }
