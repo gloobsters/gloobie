@@ -118,10 +118,13 @@ pub const QueueManager = struct {
     fn receiverLoop(self: QueueManager) !void {
         // log.debug("Starting receiver loop", .{});
         while (true) {
-            const msg = try self.subscriber.dequeue();
-            defer self.allocator.free(msg);
+            const data = try self.subscriber.dequeue();
+            defer self.allocator.free(data);
 
-            log.debug("Received message: {s}", .{msg});
+            log.debug("Received message: {s}", .{data});
+            for (data) |byte| {
+                std.debug.print("{X:0>2}", .{byte});
+            }
         }
     }
 };
