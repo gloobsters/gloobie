@@ -18,6 +18,13 @@ const Options = struct {
     xr_backend: XrBackend,
 
     safety: bool,
+
+    tracy: struct {
+        enable: bool,
+        enable_allocation: bool,
+        enable_callstack: bool,
+        callstack_depth: usize,
+    },
 };
 
 fn addPlatformDefines(module: anytype, options: Options, target: std.Build.ResolvedTarget) void {
@@ -62,9 +69,11 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const enable_tracy = b.option(bool, "tracy", "Enable tracy integration") orelse false;
+
     const build_options: Options = .{
-        .use_lld = b.option(bool, "use_lld", "Link using LLD"),
-        .use_llvm = b.option(bool, "use_llvm", "Compile using LLVM"),
+        .use_lld = if (enable_tracy) true else b.option(bool, "use_lld", "Link using LLD"),
+        .use_llvm = if (enable_tracy) true else b.option(bool, "use_llvm", "Compile using LLVM"),
 
         .xr_backend = b.option(XrBackend, "xr_backend", "The XR backend to use") orelse .openxr,
 
@@ -73,6 +82,13 @@ pub fn build(b: *std.Build) !void {
         },
 
         .safety = optimize == .ReleaseSafe or optimize == .Debug,
+
+        .tracy = .{
+            .enable = enable_tracy,
+            .enable_allocation = b.option(bool, "tracy_allocation", "Enable tracy allocation integration") orelse enable_tracy,
+            .enable_callstack = b.option(bool, "tracy_callstack", "Enable tracy callstack capture") orelse false,
+            .callstack_depth = b.option(usize, "tracy_callstack_depth", "The depth to capture callstacks at") orelse 0,
+        },
     };
 
     const options_module = create_options_module: {
@@ -113,6 +129,44 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     }).module("mailbox");
+
+    const tracy_mod = create_tracy_mod: {
+        const tracy_root = b.path("tracy/");
+
+        const tracy_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = tracy_root.path(b, "tracy.zig"),
+
+            .imports = &.{
+                .{ .name = "options", .module = options_module },
+            },
+
+            // tracy is silly goofy
+            .sanitize_c = .off,
+        });
+
+        if (build_options.tracy.enable) {
+            if (b.lazyDependency("tracy", .{})) |tracy_dep| {
+                tracy_mod.addCSourceFile(.{
+                    .file = tracy_dep.path("public/TracyClient.cpp"),
+                    .flags = cpp_flags,
+                    .language = .cpp,
+                });
+            }
+
+            tracy_mod.addCMacro("TRACY_ENABLE", "1");
+
+            // needed for tracy under windows
+            if (target.result.os.tag == .windows) {
+                tracy_mod.linkSystemLibrary("Ws2_32", .{});
+                tracy_mod.linkSystemLibrary("Dbghelp", .{});
+            }
+        }
+
+        break :create_tracy_mod tracy_mod;
+    };
 
     // openxr wrapper
     const openxr_mod = create_openxr_mod: {
@@ -388,6 +442,7 @@ pub fn build(b: *std.Build) !void {
             .{ .name = "imgui", .module = imgui_mod },
             .{ .name = "math", .module = math_mod },
             .{ .name = "mailbox", .module = mailbox_mod },
+            .{ .name = "tracy", .module = tracy_mod },
         },
     });
 

@@ -30,6 +30,11 @@
             .url = "git+https://github.com/Beyley/mailbox#8b89286b8f50206450dae482b28d3d80409893ed",
             .hash = "mailbox-0.0.0-eJsHsPZCAAC1iCwMcGdjVQsaUTAQoOEQtBCXA3Nc5sok",
         },
+        .tracy = .{
+            .url = "git+https://github.com/wolfpld/tracy?ref=v0.12.2#c556831ddc6fe26d2fce01c14c97205a9dad46d5",
+            .hash = "N-V-__8AANptPwE8EYOS5w6KRzVyfllpOBthYRcuuQvYhhxb",
+            .lazy = true,
+        },
     },
     .paths = .{
         "client/",

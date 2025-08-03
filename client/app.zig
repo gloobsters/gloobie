@@ -7,6 +7,7 @@ const mailbox = @import("mailbox");
 const math = @import("math");
 const MessagingHost = @import("renderite").MessagingHost;
 const sdl3 = @import("sdl3");
+const tracy = @import("tracy");
 const xr_t = @import("xr");
 
 const log = std.log.scoped(.app);
@@ -262,6 +263,9 @@ fn beginExit(self: *App) void {
 }
 
 fn handleMessages(self: *App) !void {
+    const trace = tracy.traceNamed(@src(), "Handle messages");
+    defer trace.end();
+
     while (true) {
         const envelope = self.messaging.to_render.receive(0) catch |err| {
             if (err == error.Timeout) {
@@ -299,34 +303,49 @@ pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
 
 pub fn frameLoop(self: *App) !void {
     while (self.game.run_loop) {
-        // Poll SDL3 events
-        while (sdl3.events.poll()) |event| {
-            // ignore ret, doesnt help us
-            _ = imgui_t.sdl3.processEvent(event);
+        tracy.frameMark();
 
-            switch (event) {
-                .quit => {
-                    self.beginExit();
-                },
-                .window_close_requested => |window| {
-                    // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
-                    if (window.id == self.window.window.getId() catch unreachable) {
+        {
+            const trace = tracy.traceNamed(@src(), "Poll SDL events");
+            defer trace.end();
+
+            // Poll SDL3 events
+            while (sdl3.events.poll()) |event| {
+                // ignore ret, doesnt help us
+                _ = imgui_t.sdl3.processEvent(event);
+
+                switch (event) {
+                    .quit => {
                         self.beginExit();
-                    }
-                },
-                else => {},
+                    },
+                    .window_close_requested => |window| {
+                        // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
+                        if (window.id == self.window.window.getId() catch unreachable) {
+                            self.beginExit();
+                        }
+                    },
+                    else => {},
+                }
             }
         }
 
-        // imgui new frame
-        imgui_t.gpu.newFrame();
-        imgui_t.sdl3.newFrame();
-        imgui_t.newFrame();
+        {
+            const trace = tracy.traceNamed(@src(), "ImGui start frame");
+            defer trace.end();
+
+            // imgui new frame
+            imgui_t.gpu.newFrame();
+            imgui_t.sdl3.newFrame();
+            imgui_t.newFrame();
+        }
 
         var show_demo_window: bool = true;
         imgui_t.showDemoWindow(&show_demo_window);
 
         if (self.xr) |xr| {
+            const trace = tracy.traceNamed(@src(), "XR event handling");
+            defer trace.end();
+
             try xr.backend.handleEvents();
         }
 
@@ -335,16 +354,30 @@ pub fn frameLoop(self: *App) !void {
 
         const command_buffer = try self.graphics.device.acquireCommandBuffer();
 
-        const swapchain_texture_result = try command_buffer.acquireSwapchainTexture(self.window.window);
-        const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
-        _ = swapchain_height; // autofix
-        _ = swapchain_width; // autofix
+        const swapchain_texture_result = acquire_swapchain_texture: {
+            const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
+            defer trace.end();
 
-        imgui_t.render();
+            break :acquire_swapchain_texture try command_buffer.acquireSwapchainTexture(self.window.window);
+        };
+        const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
+
+        _ = swapchain_height;
+        _ = swapchain_width;
+
+        {
+            const trace = tracy.traceNamed(@src(), "ImGui render");
+            defer trace.end();
+
+            imgui_t.render();
+        }
         const draw_data = imgui_t.getDrawData();
         const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
 
         if (maybe_swapchain_texture) |swapchain_texture| {
+            const trace = tracy.traceNamed(@src(), "Render Frame");
+            defer trace.end();
+
             if (!is_minimized) {
                 imgui_t.gpu.prepareDrawData(draw_data, command_buffer);
             }
@@ -367,6 +400,11 @@ pub fn frameLoop(self: *App) !void {
             render_pass.end();
         }
 
-        try command_buffer.submit();
+        {
+            const trace = tracy.traceNamed(@src(), "Submit Command Buffer");
+            defer trace.end();
+
+            try command_buffer.submit();
+        }
     }
 }
