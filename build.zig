@@ -308,20 +308,23 @@ pub fn build(b: *std.Build) void {
         break :create_xr_mod xr_mod;
     };
 
+    const zinterprocess_mod = b.dependency("zinterprocess", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("zinterprocess");
+
     const renderite_mod = create_renderite_mod: {
         const renderite_root = b.path("renderite/");
 
         const renderite_mod = b.createModule(.{
             .root_source_file = renderite_root.path(b, "renderite.zig"),
+            .imports = &.{
+                .{ .name = "zinterprocess", .module = zinterprocess_mod },
+            },
         });
 
         break :create_renderite_mod renderite_mod;
     };
-
-    const zinterprocess_mod = b.dependency("zinterprocess", .{
-        .target = target,
-        .optimize = optimize,
-    }).module("zinterprocess");
 
     const gloobie_mod = b.addModule("gloobie", .{
         .root_source_file = b.path("client/main.zig"),

@@ -4,6 +4,7 @@ const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const sdl3 = @import("sdl3");
 const xr_t = @import("xr");
+const MessagingManager = @import("renderite").MessagingManager;
 
 const log = std.log.scoped(.app);
 
@@ -33,14 +34,33 @@ const WindowData = struct {
     }
 };
 
+const MessagingData = struct {
+    manager: MessagingManager,
+
+    pub fn deinit(self: MessagingData) void {
+        self.manager.deinit();
+    }
+};
+
 gpa: std.mem.Allocator,
 xr: ?XrData,
 graphics: GraphicsData,
 window: WindowData,
+messaging: MessagingData,
 
 pub fn init(gpa: std.mem.Allocator) !*App {
     const app = try gpa.create(App);
     errdefer gpa.destroy(app);
+
+    const messaging_data: MessagingData = create_messaging_data: {
+        const manager = MessagingManager.initFromArgs(gpa) catch debug_queue: {
+            log.warn("Failed to initialize messaging manager from command line arguments, setting up dummy queue", .{});
+            break :debug_queue try MessagingManager.init("gloopie", false, 1024 * 1024, gpa);
+        };
+        errdefer manager.deinit();
+
+        break :create_messaging_data .{ .manager = manager };
+    };
 
     const xr_data: ?XrData = create_xr_data: {
         const xr_backend: ?*xr_t.Backend = xr_t.init(gpa) catch |err| backend_create_fail: {
@@ -108,6 +128,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         .xr = xr_data,
         .graphics = graphics_data,
         .window = window_data,
+        .messaging = messaging_data,
     };
 
     return app;
