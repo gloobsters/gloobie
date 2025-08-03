@@ -84,7 +84,7 @@ public class Generator : IDisposable
         this._writer.WriteLine("const buffer = @import(\"buffer.zig\");");
         this._writer.WriteLine("const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;");
         this._writer.WriteLine();
-        this._writer.WriteLine("const serialization = @import(\"serialization.zig\")");
+        this._writer.WriteLine("const serialization = @import(\"serialization.zig\");");
         this._writer.WriteLine("const IpcDeserializer = serialization.IpcDeserializer;");
         this._writer.WriteLine("const IpcSerializer = serialization.IpcSerializer;");
         this._writer.WriteLine();
@@ -174,20 +174,24 @@ public class Generator : IDisposable
         if (isPackable)
         {
             this._writer.WriteLine();
-            this._writer.WriteLine($"\tpub fn write(self: {structName}, writer: IpcSerializer) !void {{");
-            WritePackFunction(type, type.GetMethod("Pack")!);
+            this._writer.WriteLine($"\tpub fn write(self: {structName}, ipc: IpcSerializer) !void {{");
+            bool generated = WritePackFunction(type, type.GetMethod("Pack")!);
+            if(!generated) WritePackDiscard();
             this._writer.WriteLine("\t}\n");
             
-            this._writer.WriteLine($"\tpub fn read(self: {structName}, reader: IpcDeserializer) !void {{");
-            WritePackFunction(type, type.GetMethod("Unpack")!);
+            this._writer.WriteLine($"\tpub fn read(self: {structName}, ipc: IpcDeserializer) !void {{");
+            generated = WritePackFunction(type, type.GetMethod("Unpack")!);
+            if(!generated) WritePackDiscard();
             this._writer.WriteLine("\t}");
         }
         
         this._writer.WriteLine("};\n");
     }
 
-    private void WritePackFunction(Type type, MethodInfo method)
+    private bool WritePackFunction(Type type, MethodInfo method)
     {
+        bool written = false;
+        
         if(_ilVerbose)
             this._writer.WriteLine($"\t\t// {method.Name} {type.Name}");
 
@@ -199,17 +203,17 @@ public class Generator : IDisposable
             {
                 // this should never happen
                 this._writer.WriteLine($"\t\t// BUG: {type.Name} has no explicitly defined method named {method.Name}, and has no base type");
-                return;
+                return written;
             }
             
             if(this._ilVerbose)
                 this._writer.WriteLine($"\t\t// NOTE: {type.Name} has no explicitly defined method named {method.Name}, trying {type.BaseType?.Name}.{method.Name}");
 
-            WritePackFunction(type.BaseType!, type.BaseType!.GetMethod(method.Name)!);
-            return;
+            written |= WritePackFunction(type.BaseType!, type.BaseType!.GetMethod(method.Name)!);
+            return written;
         }
 
-        string name = null!;
+        Stack<string> names = new();
         foreach (Instruction instruction in methodDef.Body.Instructions)
         {
             // if (this._ilVerbose)
@@ -220,7 +224,8 @@ public class Generator : IDisposable
 
             if (instruction.OpCode.Code is Code.Ldfld or Code.Ldflda)
             {
-                name = ((FieldReference)instruction.Operand).Name;
+                string name = ((FieldReference)instruction.Operand).Name;
+                names.Push(name);
                 if (this._ilVerbose)
                     this._writer.WriteLine($"\t\t// {instruction.OpCode.Code} {name}");
             }
@@ -228,11 +233,19 @@ public class Generator : IDisposable
             if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodReference callRef)
             {
                 string typeName = callRef.DeclaringType.FullName;
-                
+
                 if (callRef.Name == "Write" && callRef.Parameters.Count == 1)
-                    this._writer.WriteLine($"\t\twriter.write(@TypeOf(self.{name}), self.{name});");
+                {
+                    string name = names.Pop();
+                    this._writer.WriteLine($"\t\tipc.write(@TypeOf(self.{name}), self.{name});");
+                    written = true;
+                }
                 else if (callRef.Name == "Read" && callRef.Parameters.Count == 1)
-                    this._writer.WriteLine($"\t\tself.{name} = reader.read(@TypeOf(self.{name}));");
+                {
+                    string name = names.Pop();
+                    this._writer.WriteLine($"\t\tself.{name} = ipc.read(@TypeOf(self.{name}));");
+                    written = true;
+                }
                 else if (callRef.Name is "Pack" or "Unpack")
                 {
                     // Debug.Assert(typeName == type.BaseType!.FullName, $"{typeName} != {type.BaseType.Name}");
@@ -240,9 +253,10 @@ public class Generator : IDisposable
                     if (subMethod == null)
                     {
                         this._writer.WriteLine($"\t\t// FIXME: Could not find {method.Name} on {type.BaseType}");
+                        written = true;
                         continue;
                     }
-                    WritePackFunction(type.BaseType!, subMethod);
+                    written |= WritePackFunction(type.BaseType!, subMethod);
                 }
                 else
                     this._writer.WriteLine($"\t\t// FIXME: Unknown {callRef.GetType().Name} {callRef}");
@@ -251,6 +265,14 @@ public class Generator : IDisposable
 
         if(_ilVerbose)
             this._writer.WriteLine($"\t\t// {type.Name} {method.Name.ToLower()}ed");
+
+        return written;
+    }
+
+    private void WritePackDiscard()
+    {
+        this._writer.WriteLine("\t\t_ = self;");
+        this._writer.WriteLine("\t\t_ = ipc;");
     }
 
     private string MapToZigType(Type type)
