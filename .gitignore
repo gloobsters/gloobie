@@ -3,3 +3,4 @@
 zig-out/
 *.qu
 imgui.ini
+compile_commands.json

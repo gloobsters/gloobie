@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const compile_commands = @import("build/compile_commands.zig");
+
 const XrBackend = enum {
     openxr,
     openvr,
@@ -45,7 +47,15 @@ fn addPlatformDefines(module: anytype, options: Options, target: std.Build.Resol
     }
 }
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
+    const shared_c_cpp_flags: []const []const u8 = &.{
+        "-gen-cdb-fragment-path",
+        b.fmt("{s}/{s}", .{ b.cache_root.path.?, "cdb" }),
+    };
+
+    const c_flags = shared_c_cpp_flags;
+    const cpp_flags = shared_c_cpp_flags;
+
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -189,13 +199,8 @@ pub fn build(b: *std.Build) void {
         gpu_mod.addCSourceFiles(.{
             .root = gpu_root,
             .language = .c,
-            .files = &.{"hashtable/hashtable.c"},
-        });
-
-        gpu_mod.addCSourceFiles(.{
-            .root = gpu_root,
-            .files = &.{"gpu.c"},
-            .language = .c,
+            .files = &.{ "hashtable/hashtable.c", "gpu.c" },
+            .flags = c_flags,
         });
 
         switch (build_options.xr_backend) {
@@ -215,6 +220,7 @@ pub fn build(b: *std.Build) void {
                 .root = gpu_root,
                 .files = &.{"vulkan/gpu_vulkan.c"},
                 .language = .c,
+                .flags = c_flags,
             });
         }
 
@@ -284,6 +290,7 @@ pub fn build(b: *std.Build) void {
                 "imgui_widgets.cpp",
             },
             .language = .cpp,
+            .flags = cpp_flags,
         });
 
         // custom implementation
@@ -295,6 +302,7 @@ pub fn build(b: *std.Build) void {
                 "imgui_impl_sdl3.cpp",
             },
             .language = .cpp,
+            .flags = cpp_flags,
         });
 
         break :create_imgui_mod imgui_mod;
@@ -401,4 +409,13 @@ pub fn build(b: *std.Build) void {
 
     const gloobie_test_exe_run = b.addRunArtifact(gloobie_test_exe);
     test_step.dependOn(&gloobie_test_exe_run.step);
+
+    const cc_step = b.step("cc", "Generate Compile Commands Database");
+    const gen_file_step = try compile_commands.createStep(
+        b,
+        b.fmt("{s}/{s}", .{ b.cache_root.path orelse "./", "cdb" }),
+        "compile_commands.json",
+    );
+    gen_file_step.dependOn(&gloobie_exe.step);
+    cc_step.dependOn(gen_file_step);
 }
