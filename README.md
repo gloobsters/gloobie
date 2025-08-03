@@ -4,9 +4,9 @@ A cross-platform experimental renderer for Resonite.
 
 ## TODO
 
-- [ ] ImGui initialization and rendering
+- [x] ImGui initialization and rendering
 - [ ] Begin communicating with FE
-- [ ] Desktop mode graphics initialization
+- [x] Desktop mode graphics initialization
 - [ ] Desktop mode frame loop
 - [ ] OpenXR graphics init
 - [ ] OpenXR frame loop
@@ -35,3 +35,4 @@ A cross-platform experimental renderer for Resonite.
 - `renderite/generator/`: Generates type definitions from the Renderite DLL file.
 - `renderite/`: Types from the Renderite DLL file. Should stay in sync with engine updates. Some parts auto-generated, some manually written.
 - `imgui/`: An implementation of an ImGui renderer for our GPU abstraction.
+- `math/`: An xr_linear based math library, with lots of extra routines sprinkled in. Taken from vrshit.

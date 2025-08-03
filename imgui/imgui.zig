@@ -3,6 +3,7 @@ const std = @import("std");
 pub const c = @import("c");
 pub const Io = c.ImGuiIO;
 pub const DrawData = c.ImDrawData;
+const GuiStyle = c.ImGuiStyle;
 const gpu_t = @import("gpu");
 const sdl3_t = @import("sdl3");
 
@@ -52,6 +53,10 @@ pub fn getDrawData() *DrawData {
 
 pub fn showDemoWindow(p_open: *bool) void {
     return c.igShowDemoWindow(p_open);
+}
+
+pub fn getStyle() *GuiStyle {
+    return c.igGetStyle();
 }
 
 pub const sdl3 = struct {

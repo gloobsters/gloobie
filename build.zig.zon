@@ -26,6 +26,10 @@
             .url = "git+https://github.com/ocornut/imgui#44aa9a4b3a6f27d09a4eb5770d095cbd376dfc4b",
             .hash = "N-V-__8AAMSpeAAjIlPRk36GN81oqHOrwAtfmTZdOcDg42BM",
         },
+        .mailbox = .{
+            .url = "git+https://github.com/Beyley/mailbox#8b89286b8f50206450dae482b28d3d80409893ed",
+            .hash = "mailbox-0.0.0-eJsHsPZCAAC1iCwMcGdjVQsaUTAQoOEQtBCXA3Nc5sok",
+        },
     },
     .paths = .{
         "client/",

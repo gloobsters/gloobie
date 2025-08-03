@@ -76,6 +76,7 @@ pub fn build(b: *std.Build) void {
 
         .c_sdl_preferred_linkage = .static,
     });
+    const sdl3_mod = sdl3_dep.module("sdl3");
 
     const upstream_sdl3_dep = sdl3_dep.builder.dependency("sdl", .{
         .target = target,
@@ -95,7 +96,10 @@ pub fn build(b: *std.Build) void {
         .registry = b.dependency("vulkan-headers", .{}).path("registry/vk.xml"),
     }).module("vulkan-zig");
 
-    const sdl3_mod = sdl3_dep.module("sdl3");
+    const mailbox_mod = b.dependency("mailbox", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("mailbox");
 
     // openxr wrapper
     const openxr_mod = create_openxr_mod: {
@@ -130,6 +134,23 @@ pub fn build(b: *std.Build) void {
         addPlatformDefines(openxr_mod, build_options, target);
 
         break :create_openxr_mod openxr_mod;
+    };
+
+    const math_mod = create_math_mod: {
+        const math_root = b.path("math/");
+
+        const math_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = math_root.path(b, "math.zig"),
+
+            .imports = &.{
+                .{ .name = "openxr", .module = openxr_mod },
+            },
+        });
+
+        break :create_math_mod math_mod;
     };
 
     const gpu_mod, const gpu_inc = create_gpu_mod: {
@@ -342,6 +363,8 @@ pub fn build(b: *std.Build) void {
             .{ .name = "zinterprocess", .module = zinterprocess_mod },
             .{ .name = "options", .module = options_module },
             .{ .name = "imgui", .module = imgui_mod },
+            .{ .name = "math", .module = math_mod },
+            .{ .name = "mailbox", .module = mailbox_mod },
         },
     });
 

@@ -3,6 +3,8 @@ const std = @import("std");
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const imgui_t = @import("imgui");
+const mailbox = @import("mailbox");
+const math = @import("math");
 const MessagingHost = @import("renderite").MessagingHost;
 const sdl3 = @import("sdl3");
 const xr_t = @import("xr");
@@ -36,11 +38,23 @@ const WindowData = struct {
     }
 };
 
+pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
+
+pub const ToRenderLetter = union(enum) {};
+
 const MessagingData = struct {
     host: MessagingHost,
 
+    to_render: ToRenderMailbox,
+    to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
+
+    letter_allocation_mutex: std.Thread.Mutex,
+
     pub fn deinit(self: MessagingData) void {
         self.host.deinit();
+
+        _ = self.to_render.close();
+        self.to_render_envelope_pool.deinit();
     }
 };
 
@@ -78,7 +92,12 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         };
         errdefer host.deinit();
 
-        break :create_messaging_data .{ .host = host };
+        break :create_messaging_data .{
+            .host = host,
+            .to_render = .{},
+            .to_render_envelope_pool = .init(gpa),
+            .letter_allocation_mutex = .{},
+        };
     };
 
     const xr_data: ?XrData = create_xr_data: {
@@ -143,8 +162,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
     try graphics_data.device.claimWindow(window_data.window);
 
-    // TODO: figure out if this is the correct composition mode
-    const composition_mode: gpu.SwapchainComposition = .sdr;
+    const composition_mode: gpu.SwapchainComposition = .sdr_linear;
     const present_mode_preference: []const gpu.PresentMode = &.{
         .mailbox,
         .immediate,
@@ -176,6 +194,17 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         errdefer context.destroy();
 
         context.setCurrent();
+
+        const style = imgui_t.getStyle();
+        // Go through every colour and convert it to linear
+        // This is because ImGui uses linear colours but we are using sRGB
+        // This is a simple approximation of the conversion
+        for (0..imgui_t.c.ImGuiCol_COUNT) |i| {
+            const col = &style.Colors[i];
+            col.x = math.srgbToLinear(f32, col.x);
+            col.y = math.srgbToLinear(f32, col.y);
+            col.z = math.srgbToLinear(f32, col.z);
+        }
 
         try imgui_t.sdl3.initForOther(window_data.window);
         errdefer imgui_t.sdl3.shutdown();
@@ -228,6 +257,42 @@ fn beginExit(self: *App) void {
     self.game.run_loop = false;
 }
 
+fn handleMessages(self: *App) !void {
+    while (true) {
+        const envelope = self.messaging.to_render.receive(0) catch |err| {
+            if (err == error.Timeout) {
+                break;
+            }
+
+            return err;
+        };
+
+        // destroy the sent envelope to allow the memory to be re-used
+        defer {
+            self.messaging.letter_allocation_mutex.lock();
+            defer self.messaging.letter_allocation_mutex.unlock();
+
+            self.messaging.to_render_envelope_pool.destroy(envelope);
+        }
+
+        // process the letter in the envelope
+        switch (envelope.letter) {}
+    }
+}
+
+/// Sends an envelope to the render thread
+pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
+    self.messaging.letter_allocation_mutex.lock();
+    defer self.messaging.letter_allocation_mutex.unlock();
+
+    const envelope = try self.messaging.to_render_envelope_pool.create();
+    errdefer self.messaging.to_render_envelope_pool.destroy(envelope);
+
+    envelope.* = .{ .letter = letter };
+
+    try self.messaging.to_render.send(envelope);
+}
+
 pub fn frameLoop(self: *App) !void {
     while (self.game.run_loop) {
         // Poll SDL3 events
@@ -256,6 +321,9 @@ pub fn frameLoop(self: *App) !void {
 
         var show_demo_window: bool = true;
         imgui_t.showDemoWindow(&show_demo_window);
+
+        // handle any messages from the queues, happens before processing most of the frame/rendering
+        try handleMessages(self);
 
         const command_buffer = try self.graphics.device.acquireCommandBuffer();
 
