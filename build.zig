@@ -37,6 +37,9 @@ fn addPlatformDefines(module: anytype, options: Options, target: std.Build.Resol
     }
 
     switch (target.result.os.tag) {
+        .ios, .macos => {
+            addMacro(module, "PLATFORM_APPLE", "1");
+        },
         .windows => {
             addMacro(module, "PLATFORM_WIN32", "1");
         },
@@ -209,6 +212,16 @@ pub fn build(b: *std.Build) !void {
 
                 translate_c.addIncludePath(openxr_headers_inc);
                 gpu_mod.addIncludePath(openxr_headers_inc);
+
+                gpu_mod.addCSourceFiles(.{
+                    .root = gpu_root.path(b, "xr"),
+                    .files = &.{
+                        "gpu_openxr.c",
+                        "gpu_openxrdyn.c",
+                    },
+                    .language = .c,
+                    .flags = c_flags,
+                });
             },
             else => |xr_backend| std.debug.panic("TODO: implement backend {s}", .{@tagName(xr_backend)}),
         }
