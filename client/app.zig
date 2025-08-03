@@ -3,11 +3,10 @@ const std = @import("std");
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const imgui_t = @import("imgui");
+const math = @import("math");
 const MessagingHost = @import("renderite").MessagingHost;
 const sdl3 = @import("sdl3");
 const xr_t = @import("xr");
-
-const math = @import("math.zig");
 
 const log = std.log.scoped(.app);
 
