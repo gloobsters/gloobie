@@ -4,8 +4,8 @@ const zinterprocess = @import("zinterprocess");
 const log = std.log.scoped(.messaging);
 
 pub const MessagingHost = struct {
-    primary: MessagingManager,
-    background: MessagingManager,
+    primary: QueueManager,
+    background: QueueManager,
 
     pub fn init(queue_name: []const u8, queue_length: u32, allocator: std.mem.Allocator) !MessagingHost {
         const queue_name_primary = try queueSuffix(queue_name, "Primary", allocator);
@@ -14,8 +14,8 @@ pub const MessagingHost = struct {
         const queue_name_background = try queueSuffix(queue_name, "Background", allocator);
         defer allocator.free(queue_name_background);
 
-        const primary = try MessagingManager.init(queue_name_primary, false, queue_length, allocator);
-        const background = try MessagingManager.init(queue_name_background, false, queue_length, allocator);
+        const primary = try QueueManager.init(queue_name_primary, false, queue_length, allocator);
+        const background = try QueueManager.init(queue_name_background, false, queue_length, allocator);
 
         return MessagingHost{
             .primary = primary,
@@ -60,17 +60,17 @@ pub const MessagingHost = struct {
     }
 };
 
-pub const MessagingManager = struct {
+pub const QueueManager = struct {
     publisher: zinterprocess.Queue,
     subscriber: zinterprocess.Queue,
 
-    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !MessagingManager {
+    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !QueueManager {
         const name_a = try queueSuffix(queue_name, 'A', allocator);
         const name_s = try queueSuffix(queue_name, 'S', allocator);
         defer allocator.free(name_a);
         defer allocator.free(name_s);
 
-        log.debug("Inititalizing MessagingManager with names {s} and {s} (size {d})", .{ name_a, name_s, capacity });
+        log.debug("Inititalizing QueueManager with names {s} and {s} (size {d})", .{ name_a, name_s, capacity });
 
         const publisher = try zinterprocess.Queue.init(.{
             .allocator = allocator,
@@ -88,13 +88,13 @@ pub const MessagingManager = struct {
             .destroy_on_deinit = is_authority,
         });
 
-        return MessagingManager{
+        return QueueManager{
             .publisher = publisher,
             .subscriber = subscriber,
         };
     }
 
-    pub fn deinit(self: MessagingManager) void {
+    pub fn deinit(self: QueueManager) void {
         self.publisher.deinit();
         self.subscriber.deinit();
     }
