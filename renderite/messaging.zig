@@ -68,10 +68,10 @@ pub const QueueManager = struct {
     thread: std.Thread = undefined,
 
     pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !QueueManager {
-        const name_a = try queueSuffix(queue_name, 'A', allocator);
-        defer allocator.free(name_a);
-        const name_s = try queueSuffix(queue_name, 'S', allocator);
-        defer allocator.free(name_s);
+        var name_a_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const name_a = try std.fmt.bufPrint(&name_a_buf, "{s}A", .{queue_name});
+        var name_s_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const name_s = try std.fmt.bufPrint(&name_s_buf, "{s}S", .{queue_name});
 
         log.debug("Inititalizing QueueManager with names {s} and {s} (size {d})", .{ name_a, name_s, capacity });
 
@@ -105,15 +105,6 @@ pub const QueueManager = struct {
     pub fn deinit(self: QueueManager) void {
         self.publisher.deinit();
         self.subscriber.deinit();
-    }
-
-    fn queueSuffix(queue_name: []const u8, comptime c: u8, allocator: std.mem.Allocator) ![]const u8 {
-        const name_authority = try allocator.alloc(u8, queue_name.len + 1);
-
-        @memcpy(name_authority[0..queue_name.len], queue_name);
-        name_authority[queue_name.len] = c;
-
-        return name_authority;
     }
 
     fn receiverLoop(self: QueueManager) !void {
