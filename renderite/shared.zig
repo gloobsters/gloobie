@@ -928,13 +928,13 @@ pub const MaterialPropertyIdResult = struct {
 
 	pub fn write(self: MaterialPropertyIdResult, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.requestId), self.requestId);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.propertyIDs), self.propertyIDs);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !MaterialPropertyIdResult {
 		var self: MaterialPropertyIdResult = undefined;
 		self.requestId = try ipc.read(@TypeOf(self.requestId));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
+		self.propertyIDs = try ipc.readList(@TypeOf(self.propertyIDs));
 		return self;
 	}
 };
@@ -955,13 +955,13 @@ pub const MaterialsUpdateBatch = struct {
 		try ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
 		try ipc.write(@TypeOf(self.materialRemovals), self.materialRemovals);
 		try ipc.write(@TypeOf(self.materialPropertyBlockRemovals), self.materialPropertyBlockRemovals);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.MaterialPropertyUpdate>>(System.Collections.Generic.List`1<T>)
-		try ipc.write(@TypeOf(self.materialUpdates), self.materialUpdates);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Int32>>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Single>>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderVector4>>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderMatrix4x4>>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.materialUpdates), self.materialUpdates);
 		try ipc.write(@TypeOf(self.materialUpdateCount), self.materialUpdateCount);
+		try ipc.writeList(@TypeOf(self.intBuffers), self.intBuffers);
+		try ipc.writeList(@TypeOf(self.floatBuffers), self.floatBuffers);
+		try ipc.writeList(@TypeOf(self.float4Buffers), self.float4Buffers);
+		try ipc.writeList(@TypeOf(self.matrixBuffers), self.matrixBuffers);
+		try ipc.write(@TypeOf(self.instanceChangedBuffer), self.instanceChangedBuffer);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !MaterialsUpdateBatch {
@@ -969,13 +969,13 @@ pub const MaterialsUpdateBatch = struct {
 		self.updateBatchId = try ipc.read(@TypeOf(self.updateBatchId));
 		self.materialRemovals = try ipc.read(@TypeOf(self.materialRemovals));
 		self.materialPropertyBlockRemovals = try ipc.read(@TypeOf(self.materialPropertyBlockRemovals));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.MaterialPropertyUpdate>>(System.Collections.Generic.List`1<T>&)
-		self.materialUpdates = try ipc.read(@TypeOf(self.materialUpdates));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Int32>>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Single>>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderVector4>>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderMatrix4x4>>(System.Collections.Generic.List`1<T>&)
+		self.materialUpdates = try ipc.readList(@TypeOf(self.materialUpdates));
 		self.materialUpdateCount = try ipc.read(@TypeOf(self.materialUpdateCount));
+		self.intBuffers = try ipc.readList(@TypeOf(self.intBuffers));
+		self.floatBuffers = try ipc.readList(@TypeOf(self.floatBuffers));
+		self.float4Buffers = try ipc.readList(@TypeOf(self.float4Buffers));
+		self.matrixBuffers = try ipc.readList(@TypeOf(self.matrixBuffers));
+		self.instanceChangedBuffer = try ipc.read(@TypeOf(self.instanceChangedBuffer));
 		return self;
 	}
 };
@@ -1030,11 +1030,11 @@ pub const MeshUploadData = struct {
 		try ipc.write(@TypeOf(self.boneWeightCount), self.boneWeightCount);
 		try ipc.write(@TypeOf(self.boneCount), self.boneCount);
 		try ipc.write(@TypeOf(self.indexBufferFormat), self.indexBufferFormat);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.VertexAttributeDescriptor>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SubmeshBufferDescriptor>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.BlendshapeBufferDescriptor>(System.Collections.Generic.List`1<T>)
-		try ipc.write(@TypeOf(self.vertexAttributes), self.vertexAttributes);
-		try ipc.write(@TypeOf(self.submeshes), self.submeshes);
+		try ipc.writeList(@TypeOf(self.vertexAttributes), self.vertexAttributes);
+		try ipc.writeList(@TypeOf(self.submeshes), self.submeshes);
+		try ipc.writeList(@TypeOf(self.blendshapeBuffers), self.blendshapeBuffers);
+		try ipc.write(@TypeOf(self.uploadHint), self.uploadHint);
+		try ipc.write(@TypeOf(self.bounds), self.bounds);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !MeshUploadData {
@@ -1046,11 +1046,11 @@ pub const MeshUploadData = struct {
 		self.boneWeightCount = try ipc.read(@TypeOf(self.boneWeightCount));
 		self.boneCount = try ipc.read(@TypeOf(self.boneCount));
 		self.indexBufferFormat = try ipc.read(@TypeOf(self.indexBufferFormat));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.VertexAttributeDescriptor>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SubmeshBufferDescriptor>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.BlendshapeBufferDescriptor>(System.Collections.Generic.List`1<T>&)
-		self.vertexAttributes = try ipc.read(@TypeOf(self.vertexAttributes));
-		self.submeshes = try ipc.read(@TypeOf(self.submeshes));
+		self.vertexAttributes = try ipc.readList(@TypeOf(self.vertexAttributes));
+		self.submeshes = try ipc.readList(@TypeOf(self.submeshes));
+		self.blendshapeBuffers = try ipc.readList(@TypeOf(self.blendshapeBuffers));
+		self.uploadHint = try ipc.read(@TypeOf(self.uploadHint));
+		self.bounds = try ipc.read(@TypeOf(self.bounds));
 		return self;
 	}
 };
@@ -1262,10 +1262,10 @@ pub const SetCubemapData = struct {
 		try ipc.write(@TypeOf(self.assetId), self.assetId);
 		try ipc.write(@TypeOf(self.data), self.data);
 		try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.mipMapSizes), self.mipMapSizes);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
-		try ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
 		try ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
+		try ipc.write(@TypeOf(self.flipY), self.flipY);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !SetCubemapData {
@@ -1273,10 +1273,10 @@ pub const SetCubemapData = struct {
 		self.assetId = try ipc.read(@TypeOf(self.assetId));
 		self.data = try ipc.read(@TypeOf(self.data));
 		self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>&)
+		self.mipMapSizes = try ipc.readList(@TypeOf(self.mipMapSizes));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
-		self.mipMapSizes = try ipc.read(@TypeOf(self.mipMapSizes));
 		self.mipStarts = try ipc.read(@TypeOf(self.mipStarts));
+		self.flipY = try ipc.read(@TypeOf(self.flipY));
 		return self;
 	}
 };
@@ -1495,11 +1495,11 @@ pub const SetTexture2DData = struct {
 		try ipc.write(@TypeOf(self.assetId), self.assetId);
 		try ipc.write(@TypeOf(self.data), self.data);
 		try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
-		try ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
-		try ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
+		try ipc.writeList(@TypeOf(self.mipMapSizes), self.mipMapSizes);
+		try ipc.writeList(@TypeOf(self.mipStarts), self.mipStarts);
 		try ipc.write(@TypeOf(self.flipY), self.flipY);
+		try ipc.write(@TypeOf(self.hint), self.hint);
+		try ipc.write(@TypeOf(self.highPriority), self.highPriority);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !SetTexture2DData {
@@ -1507,11 +1507,11 @@ pub const SetTexture2DData = struct {
 		self.assetId = try ipc.read(@TypeOf(self.assetId));
 		self.data = try ipc.read(@TypeOf(self.data));
 		self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
-		self.mipMapSizes = try ipc.read(@TypeOf(self.mipMapSizes));
-		self.mipStarts = try ipc.read(@TypeOf(self.mipStarts));
+		self.mipMapSizes = try ipc.readList(@TypeOf(self.mipMapSizes));
+		self.mipStarts = try ipc.readList(@TypeOf(self.mipStarts));
 		self.flipY = try ipc.read(@TypeOf(self.flipY));
+		self.hint = try ipc.read(@TypeOf(self.hint));
+		self.highPriority = try ipc.read(@TypeOf(self.highPriority));
 		return self;
 	}
 };
@@ -2086,8 +2086,8 @@ pub const CameraRenderTask = struct {
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.CameraRenderParameters>(T)
 		try ipc.write(@TypeOf(self.parameters), self.parameters);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.resultData), self.resultData);
+		try ipc.writeList(@TypeOf(self.onlyRenderList), self.onlyRenderList);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !CameraRenderTask {
@@ -2097,8 +2097,8 @@ pub const CameraRenderTask = struct {
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.CameraRenderParameters>(T&)
 		self.parameters = try ipc.read(@TypeOf(self.parameters));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
+		self.resultData = try ipc.readList(@TypeOf(self.resultData));
+		self.onlyRenderList = try ipc.readList(@TypeOf(self.onlyRenderList));
 		return self;
 	}
 };
@@ -2113,7 +2113,7 @@ pub const FrameStartData = struct {
 		try ipc.write(@TypeOf(self.lastFrameIndex), self.lastFrameIndex);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.PerformanceState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.InputState>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderableHandle>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.performance), self.performance);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !FrameStartData {
@@ -2121,7 +2121,7 @@ pub const FrameStartData = struct {
 		self.lastFrameIndex = try ipc.read(@TypeOf(self.lastFrameIndex));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.PerformanceState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.InputState>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderableHandle>(System.Collections.Generic.List`1<T>&)
+		self.performance = try ipc.readList(@TypeOf(self.performance));
 		return self;
 	}
 };
@@ -2268,7 +2268,7 @@ pub const ReflectionProbeRenderTask = struct {
 		try ipc.write(@TypeOf(self.hdr), self.hdr);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
 		try ipc.write(@TypeOf(self.mipOrigins), self.mipOrigins);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.resultData), self.resultData);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderTask {
@@ -2279,7 +2279,7 @@ pub const ReflectionProbeRenderTask = struct {
 		self.hdr = try ipc.read(@TypeOf(self.hdr));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
 		self.mipOrigins = try ipc.read(@TypeOf(self.mipOrigins));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
+		self.resultData = try ipc.readList(@TypeOf(self.resultData));
 		return self;
 	}
 };
@@ -2394,7 +2394,7 @@ pub const ViveHandState = struct {
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
 		try ipc.write(@TypeOf(self.pinchStrength), self.pinchStrength);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.points), self.points);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !ViveHandState {
@@ -2403,7 +2403,7 @@ pub const ViveHandState = struct {
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		self.pinchStrength = try ipc.read(@TypeOf(self.pinchStrength));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>&)
+		self.points = try ipc.readList(@TypeOf(self.points));
 		return self;
 	}
 };
@@ -2551,8 +2551,8 @@ pub const HandState = struct {
 		try ipc.write(@TypeOf(self.confidence), self.confidence);
 		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.wristPosition), self.wristPosition);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderQuaternion>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.wristRotation), self.wristRotation);
+		try ipc.writeList(@TypeOf(self.segmentPositions), self.segmentPositions);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !HandState {
@@ -2564,8 +2564,8 @@ pub const HandState = struct {
 		self.confidence = try ipc.read(@TypeOf(self.confidence));
 		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.wristPosition = try ipc.read(@TypeOf(self.wristPosition));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderQuaternion>(System.Collections.Generic.List`1<T>&)
+		self.wristRotation = try ipc.readList(@TypeOf(self.wristRotation));
+		self.segmentPositions = try ipc.readList(@TypeOf(self.segmentPositions));
 		return self;
 	}
 };
@@ -2612,13 +2612,13 @@ pub const KeyboardState = struct {
 
 	pub fn write(self: KeyboardState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.typeDelta), self.typeDelta);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.Key>(System.Collections.Generic.HashSet`1<T>)
+		try ipc.writeList(@TypeOf(self.heldKeys), self.heldKeys);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !KeyboardState {
 		var self: KeyboardState = undefined;
 		self.typeDelta = try ipc.read(@TypeOf(self.typeDelta));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.Key>(System.Collections.Generic.HashSet`1<T>&)
+		self.heldKeys = try ipc.readList(@TypeOf(self.heldKeys));
 		return self;
 	}
 };
@@ -3911,7 +3911,7 @@ pub const RendererInitResult = struct {
 		try ipc.write(@TypeOf(self.stereoRenderingMode), self.stereoRenderingMode);
 		try ipc.write(@TypeOf(self.maxTextureSize), self.maxTextureSize);
 		try ipc.write(@TypeOf(self.isGPUTexturePOTByteAligned), self.isGPUTexturePOTByteAligned);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.TextureFormat>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.supportedTextureFormats), self.supportedTextureFormats);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !RendererInitResult {
@@ -3920,7 +3920,7 @@ pub const RendererInitResult = struct {
 		self.stereoRenderingMode = try ipc.read(@TypeOf(self.stereoRenderingMode));
 		self.maxTextureSize = try ipc.read(@TypeOf(self.maxTextureSize));
 		self.isGPUTexturePOTByteAligned = try ipc.read(@TypeOf(self.isGPUTexturePOTByteAligned));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.TextureFormat>(System.Collections.Generic.List`1<T>&)
+		self.supportedTextureFormats = try ipc.readList(@TypeOf(self.supportedTextureFormats));
 		return self;
 	}
 };

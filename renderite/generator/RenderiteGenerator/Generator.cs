@@ -282,12 +282,30 @@ public class Generator : IDisposable
                     case "Read" when callRef.Parameters.All(p => p.ParameterType.Name == "Boolean&"):
                     {
                         List<string> paramsList = names.Select(n => "self." + n).ToList();
+                        // TODO: ceil to nearest multiple of 8
+                        // FE doesn't pack more than 1 byte at a time so its not particularly important
                         while (paramsList.Count < 8)
                         {
                             paramsList.Add("_");
                         }
                         this._writer.WriteLine($"\t\t{string.Join(", ", paramsList)} = try ipc.read{paramsList.Count}PackedBools();");
                         names.Clear();
+                        written = true;
+                        break;
+                    }
+                    // Write list
+                    case "WriteValueList":
+                    {
+                        string name = names.Dequeue();
+                        this._writer.WriteLine($"\t\ttry ipc.writeList(@TypeOf(self.{name}), self.{name});");
+                        written = true;
+                        break;
+                    }
+                    // Read list
+                    case "ReadValueList":
+                    {
+                        string name = names.Dequeue();
+                        this._writer.WriteLine($"\t\tself.{name} = try ipc.readList(@TypeOf(self.{name}));");
                         written = true;
                         break;
                     }
