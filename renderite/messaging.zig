@@ -236,11 +236,11 @@ pub const QueueManager = struct {
 
         const serializer = IpcSerializer.init(&writer);
 
-        _ = self;
+        // _ = self;
 
         switch (command) {
             inline else => |command_struct| {
-                try serializer.writeInt(i32, @intFromEnum(@field(shared.RendererCommandTypes, @typeName(@TypeOf(command_struct)))));
+                try serializer.writeInt(i32, @intFromEnum(std.meta.stringToEnum(shared.RendererCommandTypes, @tagName(command)).?));
 
                 // const info = @typeInfo().@"struct";
                 if (@hasDecl(@TypeOf(command_struct), "write")) {
@@ -250,5 +250,8 @@ pub const QueueManager = struct {
                 // Empty commands have no data
             },
         }
+
+        // TODO: get slice of written data instead of full buffer
+        try self.publisher.enqueue(data);
     }
 };

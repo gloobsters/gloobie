@@ -74,12 +74,48 @@ pub const IpcSerializer = struct {
         return .{ .writer = writer };
     }
 
+    pub fn write(self: IpcSerializer, comptime T: type, value: T) !void {
+        if (T == []const u16) {
+            return try self.writeString(value);
+        }
+
+        switch (@typeInfo(T)) {
+            // TODO: this needs work.
+            // ."struct" => return try self.writeStruct(T),
+            .int => return try self.writeInt(T, value),
+            .float => return try self.writeFloat(T, value),
+            // .pointer, .array => return try self.writeString(self.allocator),
+            // .@"struct" => return try self.writeStruct(T),
+            .bool => return try self.writeBool(value),
+            .@"enum" => return try self.writeEnum(T, value),
+            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for serialization", .{@typeName(T)})),
+            else => return error.TypeNotSupported,
+        }
+    }
+
     pub fn writeStruct(self: IpcSerializer, comptime T: type, value: T) !void {
         try self.writer.writeStruct(T, value, endian);
     }
 
     pub fn writeInt(self: IpcSerializer, comptime T: type, value: T) !void {
         try self.writer.writeInt(T, value, endian);
+    }
+
+    pub fn writeFloat(self: IpcSerializer, comptime T: type, value: T) !void {
+        try self.writer.writeAll(std.mem.asBytes(&value));
+    }
+
+    pub fn writeEnum(self: IpcSerializer, comptime T: type, value: T) !void {
+        try self.writeInt(@typeInfo(T).@"enum".tag_type, @intFromEnum(value));
+    }
+
+    pub fn writeBool(self: IpcSerializer, value: bool) !void {
+        try self.writeInt(u8, if (value) 1 else 0);
+    }
+
+    pub fn write8PackedBools(self: IpcSerializer, b0: bool, b1: bool, b2: bool, b3: bool, b4: bool, b5: bool, b6: bool, b7: bool) !void {
+        try self.writer.writeByte(@as(u8, @intFromBool(b0)) | @as(u8, @intFromBool(b1)) << 1 | @as(u8, @intFromBool(b2)) << 2 | @as(u8, @intFromBool(b3)) << 3 |
+            @as(u8, @intFromBool(b4)) << 4 | @as(u8, @intFromBool(b5)) << 5 | @as(u8, @intFromBool(b6)) << 6 | @as(u8, @intFromBool(b7)) << 7);
     }
 
     pub fn writeString(self: IpcSerializer, value: []const u16) !void {
