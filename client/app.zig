@@ -81,10 +81,21 @@ const ImGuiData = struct {
     }
 };
 
+const LoadState = enum(i32) {
+    awaiting_engine = 0,
+    processing_startup_commands = 1,
+    scanning_locales = 2,
+    loading_config_json = 3,
+    computing_compatibility_hash = 4,
+    initializing_frooxengine = 5,
+    initializing_input_interface = 6,
+};
+
 const GameData = struct {
     run_loop: bool,
     head_output_device: renderite.Shared.HeadOutputDevice,
     main_process_pid: ?i32,
+    load_state: LoadState,
 };
 
 gpa: std.mem.Allocator,
@@ -249,6 +260,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         .run_loop = true,
         .head_output_device = .UNKNOWN,
         .main_process_pid = null,
+        .load_state = .awaiting_engine,
     };
 
     app.* = .{
@@ -314,15 +326,25 @@ fn handleMessages(self: *App) !void {
                         var title_buf: [128]u8 = undefined;
                         const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
 
-                        log.info("Setting window title to {s}", .{title});
+                        log.debug("Setting window title to {s}", .{title});
 
                         try self.window.window.setTitle(title);
 
                         self.game.head_output_device = renderer_init_data.outputDevice;
                         self.game.main_process_pid = renderer_init_data.mainProcessId;
 
-                        log.info("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
-                        log.info("Main process PID {d}", .{renderer_init_data.mainProcessId});
+                        log.debug("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
+                        log.debug("Main process PID {d}", .{renderer_init_data.mainProcessId});
+                    },
+                    .RendererInitProgressUpdate => |renderer_init_progress_update| {
+                        self.game.load_state = @enumFromInt(renderer_init_progress_update.phaseIndex);
+
+                        log.debug("Renderer init progress update: force show: {}, phase: \"{f}\", phase index: {d}, sub phase: \"{f}\"", .{
+                            renderer_init_progress_update.forceShow,
+                            std.unicode.fmtUtf16Le(renderer_init_progress_update.phase),
+                            renderer_init_progress_update.phaseIndex,
+                            std.unicode.fmtUtf16Le(renderer_init_progress_update.subPhase),
+                        });
                     },
                     else => {
                         log.warn("Unhandled command type {s}", .{@tagName(command)});
