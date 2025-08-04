@@ -125,9 +125,10 @@ pub const QueueManager = struct {
                 self.allocator,
             );
 
-            const message_type = try deserializer.readInt(i32);
+            const message_type = try deserializer.readEnum(shared.RendererCommandTypes);
+            log.debug("Received message of type '{s}'", .{@tagName(message_type)});
 
-            if (message_type == 0) {
+            if (message_type == .RendererInitData) {
                 const init_data: shared.RendererInitData = try .read(deserializer);
 
                 log.debug("Received renderer init data: {any}", .{init_data});
