@@ -32,6 +32,17 @@ pub const IpcDeserializer = struct {
         }
     }
 
+    pub fn readList(self: IpcDeserializer, comptime T: type) !T {
+        const base_t = switch (@typeInfo(T)) {
+            .array => |array| array.child,
+            .pointer => |pointer| pointer.child,
+            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
+            else => return undefined, // TODO
+        };
+
+        return try self.readValueList(base_t, self.gpa);
+    }
+
     pub fn readStruct(self: IpcDeserializer, comptime T: type) !T {
         return try self.reader.takeStruct(T, endian);
     }
@@ -65,6 +76,14 @@ pub const IpcDeserializer = struct {
 
         return try self.reader.readSliceEndianAlloc(gpa, u16, @intCast(len), endian);
     }
+
+    pub fn readValueList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
+        const len = try self.reader.takeInt(i32, endian);
+        if (len == 0 or len == -1)
+            return &.{};
+
+        return try self.reader.readSliceEndianAlloc(gpa, T, @intCast(len), endian);
+    }
 };
 
 pub const IpcSerializer = struct {
@@ -91,6 +110,17 @@ pub const IpcSerializer = struct {
             // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for serialization", .{@typeName(T)})),
             else => return error.TypeNotSupported,
         }
+    }
+
+    pub fn writeList(self: IpcSerializer, comptime T: type, value: T) !void {
+        const base_t = switch (@typeInfo(T)) {
+            .array => |array| array.child,
+            .pointer => |pointer| pointer.child,
+            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
+            else => return,
+        };
+
+        try self.writeValueList(base_t, value);
     }
 
     pub fn writeStruct(self: IpcSerializer, comptime T: type, value: T) !void {
@@ -121,6 +151,11 @@ pub const IpcSerializer = struct {
     pub fn writeString(self: IpcSerializer, value: []const u16) !void {
         try self.writer.writeInt(i32, @intCast(value.len), endian);
         try self.writer.writeSliceEndian(u16, value, endian);
+    }
+
+    pub fn writeValueList(self: IpcSerializer, comptime T: type, value: []const T) !void {
+        try self.writer.writeInt(i32, @intCast(value.len), endian);
+        try self.writer.writeSliceEndian(T, value, endian);
     }
 };
 

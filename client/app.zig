@@ -343,7 +343,7 @@ fn handleMessages(self: *App) !void {
                                 .stereoRenderingMode = &.{},
                                 .isGPUTexturePOTByteAligned = false,
                                 .maxTextureSize = 1024,
-                                .supportedTextureFormats = &.{},
+                                .supportedTextureFormats = &.{.RGB565},
                             },
                         });
                     },
