@@ -122,7 +122,7 @@ public class Generator : IDisposable
         Console.WriteLine("Generating remaining structs...");
         while (this._typesToGenerate.TryDequeue(out Type? type))
         {
-            if(this._generatedTypes.Contains(type))
+            if(this._generatedTypes.Contains(type) || type.IsAbstract)
                 continue;
             
             this._generatedTypes.Add(type);
@@ -334,13 +334,23 @@ public class Generator : IDisposable
         MethodDefinition? ctor = typeDef.GetStaticConstructor();
         if (ctor == null)
             throw new Exception($"Couldn't find static constructor for {enumName}");
+
+        List<string> typeNames = [];
         
         foreach (Instruction instruction in ctor.Body.Instructions)
         {
-            if(instruction.OpCode.Code == Code.Ldtoken)
-                this._writer.WriteLine($"\t{((TypeDefinition)instruction.Operand).Name},");
+            if (instruction.OpCode.Code != Code.Ldtoken) continue;
+
+            string name = ((TypeDefinition)instruction.Operand).Name;
+            this._writer.WriteLine($"\t{name},");
+            typeNames.Add(name);
         }
         
+        this._writer.WriteLine($"}};\npub const {enumName} = union({enumName}Types) {{");
+        foreach (string name in typeNames)
+        {
+            this._writer.WriteLine($"\t{name}: {name},");
+        }
         this._writer.WriteLine("};\n");
     }
 

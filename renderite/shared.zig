@@ -19,6 +19,16 @@ pub const VR_ControllerStateTypes = enum(i32) {
 	ViveControllerState,
 	WindowsMR_ControllerState,
 };
+pub const VR_ControllerState = union(VR_ControllerStateTypes) {
+	CosmosControllerState: CosmosControllerState,
+	GenericControllerState: GenericControllerState,
+	HP_ReverbControllerState: HP_ReverbControllerState,
+	IndexControllerState: IndexControllerState,
+	PicoNeo2ControllerState: PicoNeo2ControllerState,
+	TouchControllerState: TouchControllerState,
+	ViveControllerState: ViveControllerState,
+	WindowsMR_ControllerState: WindowsMR_ControllerState,
+};
 
 pub const RendererCommandTypes = enum(i32) {
 	RendererInitData,
@@ -86,6 +96,73 @@ pub const RendererCommandTypes = enum(i32) {
 	VideoTextureProperties,
 	VideoTextureStartAudioTrack,
 	UnloadVideoTexture,
+};
+pub const RendererCommand = union(RendererCommandTypes) {
+	RendererInitData: RendererInitData,
+	RendererInitResult: RendererInitResult,
+	RendererInitProgressUpdate: RendererInitProgressUpdate,
+	RendererInitFinalizeData: RendererInitFinalizeData,
+	RendererShutdownRequest: RendererShutdownRequest,
+	RendererShutdown: RendererShutdown,
+	KeepAlive: KeepAlive,
+	FrameStartData: FrameStartData,
+	FrameSubmitData: FrameSubmitData,
+	PostProcessingConfig: PostProcessingConfig,
+	QualityConfig: QualityConfig,
+	ResolutionConfig: ResolutionConfig,
+	DesktopConfig: DesktopConfig,
+	GaussianSplatConfig: GaussianSplatConfig,
+	MeshUploadData: MeshUploadData,
+	MeshUnload: MeshUnload,
+	MeshUploadResult: MeshUploadResult,
+	ShaderUpload: ShaderUpload,
+	ShaderUnload: ShaderUnload,
+	ShaderUploadResult: ShaderUploadResult,
+	MaterialPropertyIdRequest: MaterialPropertyIdRequest,
+	MaterialPropertyIdResult: MaterialPropertyIdResult,
+	MaterialsUpdateBatch: MaterialsUpdateBatch,
+	MaterialsUpdateBatchResult: MaterialsUpdateBatchResult,
+	SetTexture2DFormat: SetTexture2DFormat,
+	SetTexture2DProperties: SetTexture2DProperties,
+	SetTexture2DData: SetTexture2DData,
+	SetTexture2DResult: SetTexture2DResult,
+	UnloadTexture2D: UnloadTexture2D,
+	SetTexture3DFormat: SetTexture3DFormat,
+	SetTexture3DProperties: SetTexture3DProperties,
+	SetTexture3DData: SetTexture3DData,
+	SetTexture3DResult: SetTexture3DResult,
+	UnloadTexture3D: UnloadTexture3D,
+	SetCubemapFormat: SetCubemapFormat,
+	SetCubemapProperties: SetCubemapProperties,
+	SetCubemapData: SetCubemapData,
+	SetCubemapResult: SetCubemapResult,
+	UnloadCubemap: UnloadCubemap,
+	SetRenderTextureFormat: SetRenderTextureFormat,
+	RenderTextureResult: RenderTextureResult,
+	UnloadRenderTexture: UnloadRenderTexture,
+	SetDesktopTextureProperties: SetDesktopTextureProperties,
+	DesktopTexturePropertiesUpdate: DesktopTexturePropertiesUpdate,
+	UnloadDesktopTexture: UnloadDesktopTexture,
+	PointRenderBufferUpload: PointRenderBufferUpload,
+	PointRenderBufferConsumed: PointRenderBufferConsumed,
+	PointRenderBufferUnload: PointRenderBufferUnload,
+	TrailRenderBufferUpload: TrailRenderBufferUpload,
+	TrailRenderBufferConsumed: TrailRenderBufferConsumed,
+	TrailRenderBufferUnload: TrailRenderBufferUnload,
+	GaussianSplatUploadRaw: GaussianSplatUploadRaw,
+	GaussianSplatUploadEncoded: GaussianSplatUploadEncoded,
+	GaussianSplatResult: GaussianSplatResult,
+	UnloadGaussianSplat: UnloadGaussianSplat,
+	LightsBufferRendererSubmission: LightsBufferRendererSubmission,
+	LightsBufferRendererConsumed: LightsBufferRendererConsumed,
+	ReflectionProbeRenderResult: ReflectionProbeRenderResult,
+	VideoTextureLoad: VideoTextureLoad,
+	VideoTextureUpdate: VideoTextureUpdate,
+	VideoTextureReady: VideoTextureReady,
+	VideoTextureChanged: VideoTextureChanged,
+	VideoTextureProperties: VideoTextureProperties,
+	VideoTextureStartAudioTrack: VideoTextureStartAudioTrack,
+	UnloadVideoTexture: UnloadVideoTexture,
 };
 
 // Generated Enums
@@ -3889,52 +3966,6 @@ pub const RenderSH2 = struct {
 	sh6: @Vector(3, f32),
 	sh7: @Vector(3, f32),
 	sh8: @Vector(3, f32),
-};
-
-pub const VR_ControllerState = struct {
-	deviceID: []const u16,
-	deviceModel: []const u16,
-	side: Chirality,
-	bodyNode: BodyNode,
-	isDeviceActive: bool,
-	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
-	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
-	batteryLevel: f32,
-	batteryCharging: bool,
-
-	pub fn write(self: VR_ControllerState, ipc: IpcSerializer) !void {
-		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		try ipc.write(@TypeOf(self.side), self.side);
-		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		try ipc.write(@TypeOf(self.position), self.position);
-		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
-	}
-
-	pub fn read(ipc: IpcDeserializer) !VR_ControllerState {
-		var self: VR_ControllerState = undefined;
-		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
-		self.side = try ipc.read(@TypeOf(self.side));
-		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
-		self.position = try ipc.read(@TypeOf(self.position));
-		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
-		return self;
-	}
 };
 
 pub const HapticPointState = struct {
