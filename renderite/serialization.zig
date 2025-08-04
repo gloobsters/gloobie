@@ -8,9 +8,22 @@ const endian = builtin.cpu.arch.endian();
 
 pub const IpcDeserializer = struct {
     reader: *Reader,
+    allocator: std.mem.Allocator,
 
-    pub fn init(reader: *Reader) IpcDeserializer {
-        return .{ .reader = reader };
+    pub fn init(reader: *Reader, allocator: std.mem.Allocator) IpcDeserializer {
+        return .{ .reader = reader, .allocator = allocator };
+    }
+
+    pub fn read(self: IpcDeserializer, comptime T: type) !T {
+        switch (@typeInfo(T)) {
+            // ."struct" => return try self.readStruct(T),
+            .int => return try self.readInt(T),
+            .pointer, .array => return try self.readString(self.allocator),
+            .@"struct" => return try self.readStruct(T),
+            .bool => return try self.readBool(),
+            .@"enum" => return try self.readEnum(T),
+            else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
+        }
     }
 
     pub fn readStruct(self: IpcDeserializer, comptime T: type) !T {
@@ -19,6 +32,15 @@ pub const IpcDeserializer = struct {
 
     pub fn readInt(self: IpcDeserializer, comptime T: type) !T {
         return try self.reader.takeInt(T, endian);
+    }
+
+    pub fn readEnum(self: IpcDeserializer, comptime T: type) !T {
+        return @enumFromInt(try self.reader.takeInt(@typeInfo(T).@"enum".tag_type, endian));
+    }
+
+    pub fn readBool(self: IpcDeserializer) !bool {
+        const value: u8 = try self.reader.takeByte();
+        return value != 0;
     }
 
     pub fn readString(self: IpcDeserializer, allocator: std.mem.Allocator) ![]const u16 {

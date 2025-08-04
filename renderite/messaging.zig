@@ -1,6 +1,10 @@
 const std = @import("std");
 
 const zinterprocess = @import("zinterprocess");
+const serialization = @import("serialization.zig");
+const shared = @import("shared.zig");
+const IpcDeserializer = serialization.IpcDeserializer;
+const IpcSerializer = serialization.IpcSerializer;
 
 const log = std.log.scoped(.messaging);
 
@@ -115,10 +119,24 @@ pub const QueueManager = struct {
             const data = try self.subscriber.dequeue();
             defer self.allocator.free(data);
 
-            log.debug("Received message: {s}", .{data});
-            for (data) |byte| {
-                std.debug.print("{X:0>2}", .{byte});
+            var reader: std.io.Reader = std.io.Reader.fixed(data);
+            const deserializer = IpcDeserializer.init(
+                &reader,
+                self.allocator,
+            );
+
+            const message_type = try deserializer.readInt(i32);
+
+            if (message_type == 0) {
+                const init_data: shared.RendererInitData = try .read(deserializer);
+
+                log.debug("Received renderer init data: {any}", .{init_data});
             }
+
+            // log.debug("Received message (type {d}): {s}", .{ message_type, data });
+            // for (data) |byte| {
+            //     std.debug.print("{X:0>2}", .{byte});
+            // }
         }
     }
 };
