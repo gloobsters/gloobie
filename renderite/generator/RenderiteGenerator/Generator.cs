@@ -88,6 +88,20 @@ public class Generator : IDisposable
         this._writer.WriteLine("const IpcDeserializer = serialization.IpcDeserializer;");
         this._writer.WriteLine("const IpcSerializer = serialization.IpcSerializer;");
         this._writer.WriteLine();
+        
+        Console.WriteLine("Generating polymorphic entity enums...");
+        this._writer.WriteLine("// Polymorphic entity enums (PolymorphicMemoryPackableEntity<T>)");
+        Type polymorphicType = this._types.First(t => t.Name == "PolymorphicMemoryPackableEntity`1").GetGenericTypeDefinition();
+        foreach (Type type in this._types.Where(t =>
+                 {
+                     if (t.BaseType is not { IsGenericType: true })
+                         return false;
+                     
+                     return t.BaseType.GetGenericTypeDefinition() == polymorphicType;
+                 }))
+        {
+            this.WritePolymorphicEnum(type);
+        }
 
         Console.WriteLine("Generating enums...");
         this._writer.WriteLine("// Generated Enums");
@@ -304,6 +318,30 @@ public class Generator : IDisposable
             this._writer.WriteLine("\t\t_ = &self; // FIXME: Type not generating any members");
 
         this._writer.WriteLine("\t\t_ = ipc;");
+    }
+    
+    private void WritePolymorphicEnum(Type type)
+    {
+        if(this._verbose)
+            Console.WriteLine($"\tWriting polymorphic enum {type.FullName}");
+
+        string enumName = type.Name;
+
+        
+        this._writer.WriteLine($"pub const {enumName}Types = enum(i32) {{");
+
+        TypeDefinition typeDef = this._cecilAssembly.MainModule.GetType(type.FullName);
+        MethodDefinition? ctor = typeDef.GetStaticConstructor();
+        if (ctor == null)
+            throw new Exception($"Couldn't find static constructor for {enumName}");
+        
+        foreach (Instruction instruction in ctor.Body.Instructions)
+        {
+            if(instruction.OpCode.Code == Code.Ldtoken)
+                this._writer.WriteLine($"\t{((TypeDefinition)instruction.Operand).Name},");
+        }
+        
+        this._writer.WriteLine("};\n");
     }
 
     private string MapToZigType(Type type)
