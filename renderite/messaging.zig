@@ -8,22 +8,22 @@ const IpcSerializer = serialization.IpcSerializer;
 
 const log = std.log.scoped(.messaging);
 
-pub const ReceiveCallback = fn (shared.RendererCommand) void;
+pub const ReceiveCallback = fn (ctx: *anyopaque, shared.RendererCommand) void;
 // *const ReceiveCallback
 
 pub const MessagingHost = struct {
     primary: QueueManager,
     background: QueueManager,
 
-    pub fn init(queue_name: []const u8, queue_length: u32, allocator: std.mem.Allocator) !MessagingHost {
+    pub fn init(queue_name: []const u8, queue_length: u32, comptime receive_callback: *const ReceiveCallback, receive_ctx: *anyopaque, allocator: std.mem.Allocator) !MessagingHost {
         const queue_name_primary = try queueSuffix(queue_name, "Primary", allocator);
         defer allocator.free(queue_name_primary);
 
         const queue_name_background = try queueSuffix(queue_name, "Background", allocator);
         defer allocator.free(queue_name_background);
 
-        const primary = try QueueManager.init(queue_name_primary, false, queue_length, &emptyCallback, allocator);
-        const background = try QueueManager.init(queue_name_background, false, queue_length, &emptyCallback, allocator);
+        const primary = try QueueManager.init(queue_name_primary, false, queue_length, receive_callback, receive_ctx, allocator);
+        const background = try QueueManager.init(queue_name_background, false, queue_length, receive_callback, receive_ctx, allocator);
 
         return MessagingHost{
             .primary = primary,
@@ -31,7 +31,7 @@ pub const MessagingHost = struct {
         };
     }
 
-    pub fn initFromArgs(allocator: std.mem.Allocator) !MessagingHost {
+    pub fn initFromArgs(comptime receive_callback: *const ReceiveCallback, receive_ctx: *anyopaque, allocator: std.mem.Allocator) !MessagingHost {
         const args = try std.process.argsAlloc(allocator);
         defer std.process.argsFree(allocator, args);
 
@@ -50,7 +50,7 @@ pub const MessagingHost = struct {
 
         const queue_length = try std.fmt.parseInt(u32, args[4], 10);
 
-        return try MessagingHost.init(queue_name, queue_length, allocator);
+        return try MessagingHost.init(queue_name, queue_length, receive_callback, receive_ctx, allocator);
     }
 
     fn queueSuffix(queue_name: []const u8, comptime suffix: []const u8, allocator: std.mem.Allocator) ![]const u8 {
@@ -79,8 +79,9 @@ pub const QueueManager = struct {
 
     thread: std.Thread = undefined,
     receive_callback: *const ReceiveCallback,
+    receive_ctx: *anyopaque,
 
-    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, comptime receive_callback: *const ReceiveCallback, allocator: std.mem.Allocator) !QueueManager {
+    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, comptime receive_callback: *const ReceiveCallback, receive_ctx: *anyopaque, allocator: std.mem.Allocator) !QueueManager {
         var name_a_buf: [std.fs.max_path_bytes]u8 = undefined;
         const name_a = try std.fmt.bufPrint(&name_a_buf, "{s}A", .{queue_name});
         var name_s_buf: [std.fs.max_path_bytes]u8 = undefined;
@@ -111,6 +112,7 @@ pub const QueueManager = struct {
             .publisher = publisher,
             .subscriber = subscriber,
             .receive_callback = receive_callback,
+            .receive_ctx = receive_ctx,
         };
 
         queue.thread = try std.Thread.spawn(.{}, QueueManager.receiverLoop, .{queue});
@@ -160,7 +162,7 @@ pub const QueueManager = struct {
                     command = @unionInit(shared.RendererCommand, @tagName(comptime_type), .{});
                 }
 
-                self.receive_callback(command);
+                self.receive_callback(self.receive_ctx, command);
             },
         }
     }

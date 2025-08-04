@@ -5,7 +5,7 @@ const gpu = @import("gpu");
 const imgui_t = @import("imgui");
 const mailbox = @import("mailbox");
 const math = @import("math");
-const MessagingHost = @import("renderite").MessagingHost;
+const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr_t = @import("xr");
@@ -44,7 +44,7 @@ pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
 pub const ToRenderLetter = union(enum) {};
 
 const MessagingData = struct {
-    host: MessagingHost,
+    host: renderite.MessagingHost,
 
     to_render: ToRenderMailbox,
     to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
@@ -87,9 +87,9 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     errdefer gpa.destroy(app);
 
     const messaging_data: MessagingData = create_messaging_data: {
-        const host = MessagingHost.initFromArgs(gpa) catch |err| debug_queue: {
+        const host = renderite.MessagingHost.initFromArgs(messagingCallback, app, gpa) catch |err| debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
-            break :debug_queue try MessagingHost.init("gloopie", 8388608, gpa);
+            break :debug_queue try renderite.MessagingHost.init("gloopie", 8388608, messagingCallback, app, gpa);
         };
         errdefer host.deinit();
 
@@ -286,6 +286,16 @@ fn handleMessages(self: *App) !void {
         // process the letter in the envelope
         switch (envelope.letter) {}
     }
+}
+
+fn messagingCallback(ctx: *anyopaque, message: renderite.Shared.RendererCommand) void {
+    const self: *App = @ptrCast(@alignCast(ctx));
+    // switch (message) {
+    //     inline else => |value| {
+    //         log.debug("Callback got command {s}", .{@typeName(@TypeOf(value))});
+    //     },
+    // }
+    _ = self;
 }
 
 /// Sends an envelope to the render thread

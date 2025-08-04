@@ -20,6 +20,7 @@ pub const IpcDeserializer = struct {
         }
 
         switch (@typeInfo(T)) {
+            // TODO: this needs work.
             // ."struct" => return try self.readStruct(T),
             .int => return try self.readInt(T),
             .float => return try self.readFloat(T),
