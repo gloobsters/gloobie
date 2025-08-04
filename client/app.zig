@@ -52,6 +52,7 @@ const MessagingData = struct {
     letter_allocation_mutex: std.Thread.Mutex,
 
     pub fn deinit(self: *MessagingData) void {
+        self.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {};
         self.host.deinit();
 
         var envelopes = self.to_render.close();
@@ -355,6 +356,10 @@ fn handleMessages(self: *App) !void {
                             renderer_init_progress_update.phaseIndex,
                             std.unicode.fmtUtf16Le(renderer_init_progress_update.subPhase),
                         });
+                    },
+                    .RendererShutdown => |_| {
+                        log.debug("Engine is requesting that we shut down, beginning exit", .{});
+                        self.beginExit();
                     },
                     else => {
                         log.warn("Unhandled command type {s}", .{@tagName(command)});

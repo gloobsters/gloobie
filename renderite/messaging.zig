@@ -241,6 +241,7 @@ pub const QueueManager = struct {
         switch (command) {
             inline else => |command_struct| {
                 try serializer.writeInt(i32, @intFromEnum(std.meta.stringToEnum(shared.RendererCommandTypes, @tagName(command)).?));
+                log.debug("Sending message {s}", .{@tagName(command)});
 
                 // const info = @typeInfo().@"struct";
                 if (@hasDecl(@TypeOf(command_struct), "write")) {
@@ -252,6 +253,6 @@ pub const QueueManager = struct {
         }
 
         // TODO: get slice of written data instead of full buffer
-        try self.publisher.enqueue(data);
+        try self.publisher.enqueue(data[0..1024]);
     }
 };
