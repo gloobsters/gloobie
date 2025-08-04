@@ -41,7 +41,7 @@ const WindowData = struct {
 
 pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
 
-pub const ToRenderLetter = union(enum) { renderer_command: renderite.Shared.RendererCommand };
+pub const ToRenderLetter = union(enum) { renderer_command: renderite.ParsedCommand };
 
 const MessagingData = struct {
     host: renderite.MessagingHost,
@@ -51,10 +51,20 @@ const MessagingData = struct {
 
     letter_allocation_mutex: std.Thread.Mutex,
 
-    pub fn deinit(self: MessagingData) void {
+    pub fn deinit(self: *MessagingData) void {
+        var envelopes = self.to_render.close();
+        while (envelopes) |envelope| {
+            switch (envelope.letter) {
+                .renderer_command => |renderer_command| {
+                    renderer_command.arena.deinit();
+                },
+            }
+
+            envelopes = envelope.next;
+        }
+
         self.host.deinit();
 
-        _ = self.to_render.close();
         self.to_render_envelope_pool.deinit();
     }
 };
@@ -89,7 +99,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     const messaging_data: MessagingData = create_messaging_data: {
         const host = renderite.MessagingHost.initFromArgs(messagingCallback, app, gpa) catch |err| debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
-            break :debug_queue try renderite.MessagingHost.init("gloopie", 8388608, messagingCallback, app, gpa);
+            break :debug_queue try renderite.MessagingHost.init("gloopie", 8388608, messagingCallback, app);
         };
         errdefer host.deinit();
 
@@ -249,6 +259,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 }
 
 pub fn deinit(self: *App) void {
+    self.messaging.deinit();
     if (self.imgui) |imgui| imgui.deinit();
     if (self.xr) |xr| xr.deinit(self.gpa);
     self.graphics.deinit();
@@ -285,12 +296,16 @@ fn handleMessages(self: *App) !void {
 
         // process the letter in the envelope
         switch (envelope.letter) {
-            else => {},
+            .renderer_command => |renderer_command| {
+                defer renderer_command.arena.deinit();
+
+                log.debug("Recieved command {s}", .{@tagName(renderer_command.command)});
+            },
         }
     }
 }
 
-fn messagingCallback(ctx: *anyopaque, message: renderite.Shared.RendererCommand) void {
+fn messagingCallback(ctx: *anyopaque, message: renderite.ParsedCommand) void {
     const self: *App = @ptrCast(@alignCast(ctx));
     self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
 }
@@ -309,7 +324,8 @@ pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
 }
 
 pub fn frameLoop(self: *App) !void {
-    try self.messaging.host.start();
+    try self.messaging.host.start(self.gpa);
+
     while (self.game.run_loop) {
         tracy.frameMark();
 
