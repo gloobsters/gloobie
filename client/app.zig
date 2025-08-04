@@ -10,6 +10,8 @@ const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr_t = @import("xr");
 
+const Texture = @import("Texture.zig");
+
 const log = std.log.scoped(.app);
 
 const App = @This();
@@ -24,6 +26,8 @@ const XrData = struct {
 
 const GraphicsData = struct {
     device: gpu.Device,
+    sampler_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
+    cubemap_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
 
     pub fn deinit(self: GraphicsData) void {
         self.device.deinit();
@@ -165,29 +169,49 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     errdefer window_data.deinit();
 
     const graphics_data: GraphicsData = create_graphics_data: {
-        if (xr_data) |xr| {
-            const gpu_device = xr.backend.getGpuDevice();
+        const gpu_device = if (xr_data) |xr| xr.backend.getGpuDevice() else try gpu.Device.initWithProperties(.{
+            .debug_mode = build_options.safety,
+            // TODO: Once we get the ability to transpile to other shader types, specify them here!
+            .shaders_spirv = true,
+        });
+        errdefer if (xr_data == null) gpu_device.deinit();
 
-            log.info("Acquired OpenXR GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
+        var sampler_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
+        var cubemap_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
+        for (std.enums.values(renderite.Shared.TextureFormat)) |renderite_format| {
+            const gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format) orelse continue;
 
-            break :create_graphics_data .{
-                .device = gpu_device,
-            };
-        } else {
-            const gpu_device = try gpu.Device.initWithProperties(.{
-                .debug_mode = build_options.safety,
-                // TODO: Once we get the ability to transpile to other shader types, specify them here!
-                .shaders_spirv = true,
-            });
-            errdefer gpu_device.deinit();
+            if (gpu_device.textureSupportsFormat(
+                gpu_format,
+                .two_dimensional,
+                .{ .sampler = true },
+            )) {
+                sampler_supported_formats.insert(renderite_format);
+                log.debug("GPU supports {s} for samplers", .{@tagName(gpu_format)});
+            } else {
+                log.debug("GPU does not support {s} for samplers", .{@tagName(gpu_format)});
+            }
 
-            // SAFETY: this call never fails if we pass a valid GPU device handle, which we should always have
-            log.info("Created GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
-
-            break :create_graphics_data .{
-                .device = gpu_device,
-            };
+            if (gpu_device.textureSupportsFormat(
+                gpu_format,
+                .cube,
+                .{ .sampler = true },
+            )) {
+                cubemap_supported_formats.insert(renderite_format);
+                log.debug("GPU supports {s} for cubemaps", .{@tagName(gpu_format)});
+            } else {
+                log.debug("GPU does not support {s} for cubemaps", .{@tagName(gpu_format)});
+            }
         }
+
+        // SAFETY: this call never fails if we pass a valid GPU device handle, which we should always have
+        log.info("Acquired OpenXR GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
+
+        break :create_graphics_data .{
+            .device = gpu_device,
+            .sampler_supported_formats = sampler_supported_formats,
+            .cubemap_supported_formats = cubemap_supported_formats,
+        };
     };
     errdefer graphics_data.deinit();
 
