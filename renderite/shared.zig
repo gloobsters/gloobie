@@ -907,7 +907,7 @@ pub const UnloadGaussianSplat = struct {
 
 pub const MaterialPropertyIdRequest = struct {
 	requestId: i32,
-	propertyNames: [][]const u16,
+	propertyNames: []const []const u16,
 
 	pub fn write(self: MaterialPropertyIdRequest, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.requestId), self.requestId);
@@ -924,7 +924,7 @@ pub const MaterialPropertyIdRequest = struct {
 
 pub const MaterialPropertyIdResult = struct {
 	requestId: i32,
-	propertyIDs: []i32,
+	propertyIDs: []const i32,
 
 	pub fn write(self: MaterialPropertyIdResult, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.requestId), self.requestId);
@@ -943,12 +943,12 @@ pub const MaterialsUpdateBatch = struct {
 	updateBatchId: i32,
 	materialRemovals: SharedMemoryBufferDescriptor,
 	materialPropertyBlockRemovals: SharedMemoryBufferDescriptor,
-	materialUpdates: []SharedMemoryBufferDescriptor,
+	materialUpdates: []const SharedMemoryBufferDescriptor,
 	materialUpdateCount: i32,
-	intBuffers: []SharedMemoryBufferDescriptor,
-	floatBuffers: []SharedMemoryBufferDescriptor,
-	float4Buffers: []SharedMemoryBufferDescriptor,
-	matrixBuffers: []SharedMemoryBufferDescriptor,
+	intBuffers: []const SharedMemoryBufferDescriptor,
+	floatBuffers: []const SharedMemoryBufferDescriptor,
+	float4Buffers: []const SharedMemoryBufferDescriptor,
+	matrixBuffers: []const SharedMemoryBufferDescriptor,
 	instanceChangedBuffer: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: MaterialsUpdateBatch, ipc: IpcSerializer) !void {
@@ -1015,9 +1015,9 @@ pub const MeshUploadData = struct {
 	boneWeightCount: i32,
 	boneCount: i32,
 	indexBufferFormat: IndexBufferFormat,
-	vertexAttributes: []VertexAttributeDescriptor,
-	submeshes: []SubmeshBufferDescriptor,
-	blendshapeBuffers: []BlendshapeBufferDescriptor,
+	vertexAttributes: []const VertexAttributeDescriptor,
+	submeshes: []const SubmeshBufferDescriptor,
+	blendshapeBuffers: []const BlendshapeBufferDescriptor,
 	uploadHint: MeshUploadHint,
 	bounds: RenderBoundingBox,
 	assetId: i32,
@@ -1252,8 +1252,8 @@ pub const ShaderUploadResult = struct {
 pub const SetCubemapData = struct {
 	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
-	mipMapSizes: []@Vector(2, i32),
-	mipStarts: [][]i32,
+	mipMapSizes: []const @Vector(2, i32),
+	mipStarts: []const []const i32,
 	flipY: bool,
 	highPriority: bool,
 	assetId: i32,
@@ -1484,8 +1484,8 @@ pub const UnloadRenderTexture = struct {
 pub const SetTexture2DData = struct {
 	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
-	mipMapSizes: []@Vector(2, i32),
-	mipStarts: []i32,
+	mipMapSizes: []const @Vector(2, i32),
+	mipStarts: []const i32,
 	flipY: bool,
 	hint: TextureUploadHint,
 	highPriority: bool,
@@ -1851,7 +1851,7 @@ pub const VideoTextureReady = struct {
 	hasAlpha: bool,
 	playbackEngine: []const u16,
 	instanceChanged: bool,
-	audioTracks: []VideoAudioTrack,
+	audioTracks: []const VideoAudioTrack,
 	assetId: i32,
 
 	pub fn write(self: VideoTextureReady, ipc: IpcSerializer) !void {
@@ -2077,8 +2077,8 @@ pub const CameraRenderTask = struct {
 	rotation: @Vector(4, f32),
 	parameters: CameraRenderParameters,
 	resultData: SharedMemoryBufferDescriptor,
-	onlyRenderList: []i32,
-	excludeRenderList: []i32,
+	onlyRenderList: []const i32,
+	excludeRenderList: []const i32,
 
 	pub fn write(self: CameraRenderTask, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.renderSpaceId), self.renderSpaceId);
@@ -2107,7 +2107,7 @@ pub const FrameStartData = struct {
 	lastFrameIndex: i32,
 	performance: PerformanceState,
 	inputs: InputState,
-	renderedReflectionProbes: []RenderableHandle,
+	renderedReflectionProbes: []const RenderableHandle,
 
 	pub fn write(self: FrameStartData, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.lastFrameIndex), self.lastFrameIndex);
@@ -2134,8 +2134,8 @@ pub const FrameSubmitData = struct {
 	farClip: f32,
 	desktopFOV: f32,
 	outputState: OutputState,
-	renderSpaces: []RenderSpaceUpdate,
-	renderTasks: []CameraRenderTask,
+	renderSpaces: []const RenderSpaceUpdate,
+	renderTasks: []const CameraRenderTask,
 
 	pub fn write(self: FrameSubmitData, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.frameIndex), self.frameIndex);
@@ -2257,9 +2257,9 @@ pub const ReflectionProbeRenderTask = struct {
 	renderTaskId: i32,
 	size: i32,
 	hdr: bool,
-	mipOrigins: [][]i32,
+	mipOrigins: []const []const i32,
 	resultData: SharedMemoryBufferDescriptor,
-	excludeTransformIds: []i32,
+	excludeTransformIds: []const i32,
 
 	pub fn write(self: ReflectionProbeRenderTask, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
@@ -2313,7 +2313,7 @@ pub const RenderSpaceUpdate = struct {
 	blitToDisplaysUpdate: BlitToDisplayRenderablesUpdate,
 	lodGroupUpdate: LODGroupRenderablesUpdate,
 	gaussianSplatRenderersUpdate: GaussianSplatRenderablesUpdate,
-	reflectionProbeRenderTasks: []ReflectionProbeRenderTask,
+	reflectionProbeRenderTasks: []const ReflectionProbeRenderTask,
 
 	pub fn write(self: RenderSpaceUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.id), self.id);
@@ -2387,7 +2387,7 @@ pub const ViveHandState = struct {
 	position: @Vector(3, f32),
 	rotation: @Vector(4, f32),
 	pinchStrength: f32,
-	points: []@Vector(3, f32),
+	points: []const @Vector(3, f32),
 
 	pub fn write(self: ViveHandState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.confidence), self.confidence);
@@ -2461,7 +2461,7 @@ pub const DisplayState = struct {
 };
 
 pub const DragAndDropEvent = struct {
-	paths: [][]const u16,
+	paths: []const []const u16,
 	dropPoint: @Vector(2, i32),
 
 	pub fn write(self: DragAndDropEvent, ipc: IpcSerializer) !void {
@@ -2540,8 +2540,8 @@ pub const HandState = struct {
 	confidence: f32,
 	wristPosition: @Vector(3, f32),
 	wristRotation: @Vector(4, f32),
-	segmentPositions: []@Vector(3, f32),
-	segmentRotations: []@Vector(4, f32),
+	segmentPositions: []const @Vector(3, f32),
+	segmentRotations: []const @Vector(4, f32),
 
 	pub fn write(self: HandState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
@@ -2575,9 +2575,9 @@ pub const InputState = struct {
 	keyboard: KeyboardState,
 	window: WindowState,
 	vr: VR_InputsState,
-	gamepads: []GamepadState,
-	touches: []TouchState,
-	displays: []DisplayState,
+	gamepads: []const GamepadState,
+	touches: []const TouchState,
+	displays: []const DisplayState,
 
 	pub fn write(self: InputState, ipc: IpcSerializer) !void {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.MouseState>(T)
@@ -2608,7 +2608,7 @@ pub const InputState = struct {
 
 pub const KeyboardState = struct {
 	typeDelta: []const u16,
-	heldKeys: []Key,
+	heldKeys: []const Key,
 
 	pub fn write(self: KeyboardState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.typeDelta), self.typeDelta);
@@ -3290,10 +3290,10 @@ pub const VR_InputsState = struct {
 	userPresentInHeadset: bool,
 	dashboardOpen: bool,
 	headsetState: HeadsetState,
-	controllers: []VR_ControllerState,
-	trackers: []TrackerState,
-	trackingReferences: []TrackingReferenceState,
-	hands: []HandState,
+	controllers: []const VR_ControllerState,
+	trackers: []const TrackerState,
+	trackingReferences: []const TrackingReferenceState,
+	hands: []const HandState,
 	viveHandTracking: ViveHandTrackingInputState,
 
 	pub fn write(self: VR_InputsState, ipc: IpcSerializer) !void {
@@ -3904,7 +3904,7 @@ pub const RendererInitResult = struct {
 	stereoRenderingMode: []const u16,
 	maxTextureSize: i32,
 	isGPUTexturePOTByteAligned: bool,
-	supportedTextureFormats: []TextureFormat,
+	supportedTextureFormats: []const TextureFormat,
 
 	pub fn write(self: RendererInitResult, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.actualOutputDevice), self.actualOutputDevice);

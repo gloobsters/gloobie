@@ -434,7 +434,7 @@ public class Generator : IDisposable
         }
 
         if (typeof(IEnumerable).IsAssignableFrom(type))
-            return $"[]{MapToZigType(type.GenericTypeArguments.First())}";
+            return $"[]const {MapToZigType(type.GenericTypeArguments.First())}";
         
         if(type.Name == "Nullable`1")
             return $"?{MapToZigType(type.GenericTypeArguments.First())}";
