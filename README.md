@@ -5,7 +5,9 @@ A cross-platform experimental renderer for Resonite.
 ## TODO
 
 - [x] ImGui initialization and rendering
-- [ ] Begin communicating with FE
+- [x] Begin reading from FE
+- [ ] Begin writing to FE
+- [ ] Finish struct generator
 - [x] Desktop mode graphics initialization
 - [ ] Desktop mode frame loop
 - [x] OpenXR graphics init
@@ -32,8 +34,9 @@ A cross-platform experimental renderer for Resonite.
   - `xr/openxr/`: The OpenXR backend. Primary target.
   - `xr/openvr/`: The OpenVR backend. Secondary target.
 - `openxr/`: The OpenXR wrapper.
-- `renderite/generator/`: Generates type definitions from the Renderite DLL file.
-- `renderite/`: Types from the Renderite DLL file. Should stay in sync with engine updates. Some parts auto-generated, some manually written.
+- `renderite/`: Code and types concerning communication with FrooxEngine.
+  - `renderite/generator/`: Generates type definitions and (de)serialization code from the Renderite DLL file.
+  - `renderite/shared.zig` Automatically generated types from the Renderite DLL file. This should stay in sync with engine updates.
 - `imgui/`: An implementation of an ImGui renderer for our GPU abstraction.
 - `math/`: An xr_linear based math library, with lots of extra routines sprinkled in. Taken from vrshit.
 - `build/`: Misc build scripts.
