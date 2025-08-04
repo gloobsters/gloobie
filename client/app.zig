@@ -335,6 +335,16 @@ fn handleMessages(self: *App) !void {
 
                         log.debug("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
                         log.debug("Main process PID {d}", .{renderer_init_data.mainProcessId});
+
+                        try self.messaging.host.primary.send(.{
+                            .RendererInitResult = .{
+                                .actualOutputDevice = .Screen,
+                                .stereoRenderingMode = &.{},
+                                .isGPUTexturePOTByteAligned = false,
+                                .maxTextureSize = 1024,
+                                .supportedTextureFormats = &.{},
+                            },
+                        });
                     },
                     .RendererInitProgressUpdate => |renderer_init_progress_update| {
                         self.game.load_state = @enumFromInt(renderer_init_progress_update.phaseIndex);

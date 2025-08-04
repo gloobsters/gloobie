@@ -226,4 +226,29 @@ pub const QueueManager = struct {
         }
         errdefer @compileError("cannot error after send else memory will be freed too soon");
     }
+
+    pub fn send(self: QueueManager, command: shared.RendererCommand) !void {
+        const trace = tracy.traceNamed(@src(), "Send Data");
+        defer trace.end();
+
+        var data: [1024]u8 = undefined;
+        var writer: std.io.Writer = std.io.Writer.fixed(&data);
+
+        const serializer = IpcSerializer.init(&writer);
+
+        _ = self;
+
+        switch (command) {
+            inline else => |command_struct| {
+                try serializer.writeInt(i32, @intFromEnum(@field(shared.RendererCommandTypes, @typeName(@TypeOf(command_struct)))));
+
+                // const info = @typeInfo().@"struct";
+                if (@hasDecl(@TypeOf(command_struct), "write")) {
+                    // Commands that support reading
+                    try command_struct.write(serializer);
+                }
+                // Empty commands have no data
+            },
+        }
+    }
 };
