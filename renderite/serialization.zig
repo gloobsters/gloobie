@@ -15,14 +15,20 @@ pub const IpcDeserializer = struct {
     }
 
     pub fn read(self: IpcDeserializer, comptime T: type) !T {
+        if (T == []const u16) {
+            return try self.readString(self.allocator);
+        }
+
         switch (@typeInfo(T)) {
             // ."struct" => return try self.readStruct(T),
             .int => return try self.readInt(T),
-            .pointer, .array => return try self.readString(self.allocator),
-            .@"struct" => return try self.readStruct(T),
+            .float => return try self.readFloat(T),
+            // .pointer, .array => return try self.readString(self.allocator),
+            // .@"struct" => return try self.readStruct(T),
             .bool => return try self.readBool(),
             .@"enum" => return try self.readEnum(T),
-            else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
+            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
+            else => return error.TypeNotSupported,
         }
     }
 
@@ -34,6 +40,10 @@ pub const IpcDeserializer = struct {
         return try self.reader.takeInt(T, endian);
     }
 
+    pub fn readFloat(self: IpcDeserializer, comptime T: type) !T {
+        return std.mem.bytesAsValue(T, try self.reader.take(@sizeOf(T))).*;
+    }
+
     pub fn readEnum(self: IpcDeserializer, comptime T: type) !T {
         return @enumFromInt(try self.reader.takeInt(@typeInfo(T).@"enum".tag_type, endian));
     }
@@ -43,8 +53,16 @@ pub const IpcDeserializer = struct {
         return value != 0;
     }
 
+    pub fn read8PackedBools(self: IpcDeserializer) !std.meta.Tuple(&.{ bool, bool, bool, bool, bool, bool, bool, bool }) {
+        const value: u8 = try self.reader.takeByte();
+        return .{ (value & 1) > 0, (value & 2) > 0, (value & 4) > 0, (value & 8) > 0, (value & 16) > 0, (value & 32) > 0, (value & 64) > 0, (value & 128) > 0 };
+    }
+
     pub fn readString(self: IpcDeserializer, allocator: std.mem.Allocator) ![]const u16 {
         const len = try self.reader.takeInt(i32, endian);
+        if (len == 0 or len == -1)
+            return &.{};
+
         return try self.reader.readSliceEndianAlloc(allocator, u16, @intCast(len), endian);
     }
 };
