@@ -8,7 +8,7 @@ const IpcSerializer = serialization.IpcSerializer;
 
 const log = std.log.scoped(.messaging);
 
-pub const ReceiveCallback = fn (shared.RendererCommand) bool;
+pub const ReceiveCallback = fn (shared.RendererCommand) void;
 // *const ReceiveCallback
 
 pub const MessagingHost = struct {
@@ -62,9 +62,8 @@ pub const MessagingHost = struct {
         return suffixed_name;
     }
 
-    fn emptyCallback(command: shared.RendererCommand) bool {
+    fn emptyCallback(command: shared.RendererCommand) void {
         _ = command;
-        return false;
     }
 
     pub fn deinit(self: MessagingHost) void {
@@ -81,7 +80,7 @@ pub const QueueManager = struct {
     thread: std.Thread = undefined,
     receive_callback: *const ReceiveCallback,
 
-    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, receive_callback: *const ReceiveCallback, allocator: std.mem.Allocator) !QueueManager {
+    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, comptime receive_callback: *const ReceiveCallback, allocator: std.mem.Allocator) !QueueManager {
         var name_a_buf: [std.fs.max_path_bytes]u8 = undefined;
         const name_a = try std.fmt.bufPrint(&name_a_buf, "{s}A", .{queue_name});
         var name_s_buf: [std.fs.max_path_bytes]u8 = undefined;
@@ -148,13 +147,20 @@ pub const QueueManager = struct {
         log.debug("Received message of type '{s}'", .{@tagName(message_type)});
 
         // make RendererCommand from enum value
+
+        const info = @typeInfo(shared.RendererCommand).@"union";
         switch (message_type) {
             inline else => |comptime_type| {
-                // TODO: handle empty types
-                if (@hasDecl(shared.RendererCommand, @tagName(comptime_type))) {
-                    const command = @unionInit(shared.RendererCommand, @tagName(comptime_type), try .read(deserializer));
-                    self.receive_callback(command);
+                var command: shared.RendererCommand = undefined;
+                if (@hasDecl(info.fields[@intFromEnum(comptime_type)].type, "read")) {
+                    // Commands that support reading
+                    command = @unionInit(shared.RendererCommand, @tagName(comptime_type), try .read(deserializer));
+                } else {
+                    // Empty commands
+                    command = @unionInit(shared.RendererCommand, @tagName(comptime_type), .{});
                 }
+
+                self.receive_callback(command);
             },
         }
     }
