@@ -414,6 +414,9 @@ public class Generator : IDisposable
         if(type.Name == "Nullable`1")
             return $"?{MapToZigType(type.GenericTypeArguments.First())}";
 
+        if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
+            return "SharedMemoryBufferDescriptor";
+
         if (type.IsGenericType)
             return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(MapToZigType))})";
 

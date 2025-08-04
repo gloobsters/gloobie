@@ -803,14 +803,14 @@ pub const GaussianSplatUploadEncoded = struct {
 	texture2DtextureAssetId: i32,
 	shIndexesOffset: i32,
 	chunkCount: i32,
-	shBuffer: SharedMemoryBufferDescriptor(u8),
-	chunksBuffer: SharedMemoryBufferDescriptor(u8),
+	shBuffer: SharedMemoryBufferDescriptor,
+	chunksBuffer: SharedMemoryBufferDescriptor,
 	splatCount: i32,
 	bounds: RenderBoundingBox,
-	positionsBuffer: SharedMemoryBufferDescriptor(u8),
-	rotationsBuffer: SharedMemoryBufferDescriptor(u8),
-	scalesBuffer: SharedMemoryBufferDescriptor(u8),
-	colorsBuffer: SharedMemoryBufferDescriptor(u8),
+	positionsBuffer: SharedMemoryBufferDescriptor,
+	rotationsBuffer: SharedMemoryBufferDescriptor,
+	scalesBuffer: SharedMemoryBufferDescriptor,
+	colorsBuffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: GaussianSplatUploadEncoded, ipc: IpcSerializer) !void {
@@ -857,13 +857,13 @@ pub const GaussianSplatUploadEncoded = struct {
 };
 
 pub const GaussianSplatUploadRaw = struct {
-	alphasBuffer: SharedMemoryBufferDescriptor(u8),
+	alphasBuffer: SharedMemoryBufferDescriptor,
 	splatCount: i32,
 	bounds: RenderBoundingBox,
-	positionsBuffer: SharedMemoryBufferDescriptor(u8),
-	rotationsBuffer: SharedMemoryBufferDescriptor(u8),
-	scalesBuffer: SharedMemoryBufferDescriptor(u8),
-	colorsBuffer: SharedMemoryBufferDescriptor(u8),
+	positionsBuffer: SharedMemoryBufferDescriptor,
+	rotationsBuffer: SharedMemoryBufferDescriptor,
+	scalesBuffer: SharedMemoryBufferDescriptor,
+	colorsBuffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: GaussianSplatUploadRaw, ipc: IpcSerializer) !void {
@@ -941,15 +941,15 @@ pub const MaterialPropertyIdResult = struct {
 
 pub const MaterialsUpdateBatch = struct {
 	updateBatchId: i32,
-	materialRemovals: SharedMemoryBufferDescriptor(i32),
-	materialPropertyBlockRemovals: SharedMemoryBufferDescriptor(i32),
-	materialUpdates: []SharedMemoryBufferDescriptor(MaterialPropertyUpdate),
+	materialRemovals: SharedMemoryBufferDescriptor,
+	materialPropertyBlockRemovals: SharedMemoryBufferDescriptor,
+	materialUpdates: []SharedMemoryBufferDescriptor,
 	materialUpdateCount: i32,
-	intBuffers: []SharedMemoryBufferDescriptor(i32),
-	floatBuffers: []SharedMemoryBufferDescriptor(f32),
-	float4Buffers: []SharedMemoryBufferDescriptor(@Vector(4, f32)),
-	matrixBuffers: []SharedMemoryBufferDescriptor(RenderMatrix4x4),
-	instanceChangedBuffer: SharedMemoryBufferDescriptor(u32),
+	intBuffers: []SharedMemoryBufferDescriptor,
+	floatBuffers: []SharedMemoryBufferDescriptor,
+	float4Buffers: []SharedMemoryBufferDescriptor,
+	matrixBuffers: []SharedMemoryBufferDescriptor,
+	instanceChangedBuffer: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: MaterialsUpdateBatch, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
@@ -1010,7 +1010,7 @@ pub const MeshUnload = struct {
 
 pub const MeshUploadData = struct {
 	highPriority: bool,
-	buffer: SharedMemoryBufferDescriptor(u8),
+	buffer: SharedMemoryBufferDescriptor,
 	vertexCount: i32,
 	boneWeightCount: i32,
 	boneCount: i32,
@@ -1108,7 +1108,7 @@ pub const PointRenderBufferUpload = struct {
 	colorsOffset: i32,
 	frameIndexesOffset: i32,
 	frameGridSize: @Vector(2, i32),
-	buffer: SharedMemoryBufferDescriptor(u8),
+	buffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: PointRenderBufferUpload, ipc: IpcSerializer) !void {
@@ -1173,7 +1173,7 @@ pub const TrailRenderBufferUpload = struct {
 	positionsOffset: i32,
 	colorsOffset: i32,
 	sizesOffset: i32,
-	buffer: SharedMemoryBufferDescriptor(u8),
+	buffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: TrailRenderBufferUpload, ipc: IpcSerializer) !void {
@@ -1250,7 +1250,7 @@ pub const ShaderUploadResult = struct {
 };
 
 pub const SetCubemapData = struct {
-	data: SharedMemoryBufferDescriptor(u8),
+	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
 	mipMapSizes: []@Vector(2, i32),
 	mipStarts: [][]i32,
@@ -1482,7 +1482,7 @@ pub const UnloadRenderTexture = struct {
 };
 
 pub const SetTexture2DData = struct {
-	data: SharedMemoryBufferDescriptor(u8),
+	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
 	mipMapSizes: []@Vector(2, i32),
 	mipStarts: []i32,
@@ -1613,7 +1613,7 @@ pub const UnloadTexture2D = struct {
 };
 
 pub const SetTexture3DData = struct {
-	data: SharedMemoryBufferDescriptor(u8),
+	data: SharedMemoryBufferDescriptor,
 	hint: Texture3DUploadHint,
 	highPriority: bool,
 	assetId: i32,
@@ -2076,7 +2076,7 @@ pub const CameraRenderTask = struct {
 	position: @Vector(3, f32),
 	rotation: @Vector(4, f32),
 	parameters: CameraRenderParameters,
-	resultData: SharedMemoryBufferDescriptor(u8),
+	resultData: SharedMemoryBufferDescriptor,
 	onlyRenderList: []i32,
 	excludeRenderList: []i32,
 
@@ -2258,7 +2258,7 @@ pub const ReflectionProbeRenderTask = struct {
 	size: i32,
 	hdr: bool,
 	mipOrigins: [][]i32,
-	resultData: SharedMemoryBufferDescriptor(u8),
+	resultData: SharedMemoryBufferDescriptor,
 	excludeTransformIds: []i32,
 
 	pub fn write(self: ReflectionProbeRenderTask, ipc: IpcSerializer) !void {
@@ -3361,9 +3361,9 @@ pub const VR_OutputState = struct {
 };
 
 pub const BillboardRenderBufferUpdate = struct {
-	states: SharedMemoryBufferDescriptor(BillboardRenderBufferState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: BillboardRenderBufferUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3381,9 +3381,9 @@ pub const BillboardRenderBufferUpdate = struct {
 };
 
 pub const BlitToDisplayRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(BlitToDisplayState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: BlitToDisplayRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3401,9 +3401,9 @@ pub const BlitToDisplayRenderablesUpdate = struct {
 };
 
 pub const CameraPortalsRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(CameraPortalState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: CameraPortalsRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3421,10 +3421,10 @@ pub const CameraPortalsRenderablesUpdate = struct {
 };
 
 pub const CameraRenderablesUpdate = struct {
-	transformIds: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(CameraState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	transformIds: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: CameraRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3444,10 +3444,10 @@ pub const CameraRenderablesUpdate = struct {
 };
 
 pub const RenderMaterialOverridesUpdate = struct {
-	materialOverrideStates: SharedMemoryBufferDescriptor(MaterialOverrideState),
-	states: SharedMemoryBufferDescriptor(RenderMaterialOverrideState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	materialOverrideStates: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: RenderMaterialOverridesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3467,10 +3467,10 @@ pub const RenderMaterialOverridesUpdate = struct {
 };
 
 pub const RenderTransformOverridesUpdate = struct {
-	skinnedMeshRenderersIndexes: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(RenderTransformOverrideState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	skinnedMeshRenderersIndexes: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: RenderTransformOverridesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3490,9 +3490,9 @@ pub const RenderTransformOverridesUpdate = struct {
 };
 
 pub const GaussianSplatRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(GaussianSplatRendererState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: GaussianSplatRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3510,9 +3510,9 @@ pub const GaussianSplatRenderablesUpdate = struct {
 };
 
 pub const LayerUpdate = struct {
-	layerAssignments: SharedMemoryBufferDescriptor(LayerType),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	layerAssignments: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LayerUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3546,7 +3546,7 @@ pub const LightsBufferRendererConsumed = struct {
 pub const LightsBufferRendererSubmission = struct {
 	lightsBufferUniqueId: i32,
 	lightsCount: i32,
-	lights: SharedMemoryBufferDescriptor(LightData),
+	lights: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LightsBufferRendererSubmission, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.lightsBufferUniqueId), self.lightsBufferUniqueId);
@@ -3564,9 +3564,9 @@ pub const LightsBufferRendererSubmission = struct {
 };
 
 pub const LightsBufferRendererUpdate = struct {
-	states: SharedMemoryBufferDescriptor(LightsBufferRendererState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LightsBufferRendererUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3584,9 +3584,9 @@ pub const LightsBufferRendererUpdate = struct {
 };
 
 pub const LightRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(LightState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LightRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3604,11 +3604,11 @@ pub const LightRenderablesUpdate = struct {
 };
 
 pub const LODGroupRenderablesUpdate = struct {
-	lodStates: SharedMemoryBufferDescriptor(LODState),
-	packedMeshRendererIds: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(LODGroupState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	lodStates: SharedMemoryBufferDescriptor,
+	packedMeshRendererIds: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LODGroupRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3630,9 +3630,9 @@ pub const LODGroupRenderablesUpdate = struct {
 };
 
 pub const MeshRenderBufferUpdate = struct {
-	states: SharedMemoryBufferDescriptor(MeshRenderBufferState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: MeshRenderBufferUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3650,10 +3650,10 @@ pub const MeshRenderBufferUpdate = struct {
 };
 
 pub const MeshRenderablesUpdate = struct {
-	meshStates: SharedMemoryBufferDescriptor(MeshRendererState),
-	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor(i32),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	meshStates: SharedMemoryBufferDescriptor,
+	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: MeshRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3673,10 +3673,10 @@ pub const MeshRenderablesUpdate = struct {
 };
 
 pub const ReflectionProbeRenderablesUpdate = struct {
-	changedProbesToRender: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(ReflectionProbeState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	changedProbesToRender: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: ReflectionProbeRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3696,16 +3696,16 @@ pub const ReflectionProbeRenderablesUpdate = struct {
 };
 
 pub const SkinnedMeshRenderablesUpdate = struct {
-	boundsUpdates: SharedMemoryBufferDescriptor(SkinnedMeshBoundsUpdate),
-	realtimeBoundsUpdates: SharedMemoryBufferDescriptor(SkinnedMeshRealtimeBoundsUpdate),
-	boneAssignments: SharedMemoryBufferDescriptor(BoneAssignment),
-	boneTransformIndexes: SharedMemoryBufferDescriptor(i32),
-	blendshapeUpdateBatches: SharedMemoryBufferDescriptor(BlendshapeUpdateBatch),
-	blendshapeUpdates: SharedMemoryBufferDescriptor(BlendshapeUpdate),
-	meshStates: SharedMemoryBufferDescriptor(MeshRendererState),
-	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor(i32),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	boundsUpdates: SharedMemoryBufferDescriptor,
+	realtimeBoundsUpdates: SharedMemoryBufferDescriptor,
+	boneAssignments: SharedMemoryBufferDescriptor,
+	boneTransformIndexes: SharedMemoryBufferDescriptor,
+	blendshapeUpdateBatches: SharedMemoryBufferDescriptor,
+	blendshapeUpdates: SharedMemoryBufferDescriptor,
+	meshStates: SharedMemoryBufferDescriptor,
+	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: SkinnedMeshRenderablesUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3737,9 +3737,9 @@ pub const SkinnedMeshRenderablesUpdate = struct {
 };
 
 pub const ReflectionProbeSH2Tasks = struct {
-	tasks: SharedMemoryBufferDescriptor(ReflectionProbeSH2Task),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	tasks: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: ReflectionProbeSH2Tasks, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3757,9 +3757,9 @@ pub const ReflectionProbeSH2Tasks = struct {
 };
 
 pub const TrailsRendererUpdate = struct {
-	states: SharedMemoryBufferDescriptor(TrailsRendererState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: TrailsRendererUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.removals), self.removals);
@@ -3778,9 +3778,9 @@ pub const TrailsRendererUpdate = struct {
 
 pub const TransformsUpdate = struct {
 	targetTransformCount: i32,
-	removals: SharedMemoryBufferDescriptor(i32),
-	parentUpdates: SharedMemoryBufferDescriptor(TransformParentUpdate),
-	poseUpdates: SharedMemoryBufferDescriptor(TransformPoseUpdate),
+	removals: SharedMemoryBufferDescriptor,
+	parentUpdates: SharedMemoryBufferDescriptor,
+	poseUpdates: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: TransformsUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.targetTransformCount), self.targetTransformCount);
@@ -3888,30 +3888,6 @@ pub const RenderBoundingBox = struct {
 	extents: @Vector(3, f32),
 };
 
-pub const MaterialPropertyUpdate = struct {
-	propertyID: i32,
-	updateType: MaterialPropertyUpdateType,
-};
-
-pub const RenderMatrix4x4 = struct {
-	m00: f32,
-	m10: f32,
-	m20: f32,
-	m30: f32,
-	m01: f32,
-	m11: f32,
-	m21: f32,
-	m31: f32,
-	m02: f32,
-	m12: f32,
-	m22: f32,
-	m32: f32,
-	m03: f32,
-	m13: f32,
-	m23: f32,
-	m33: f32,
-};
-
 pub const VertexAttributeDescriptor = struct {
 	attribute: VertexAttributeType,
 	format: VertexAttributeFormat,
@@ -3975,230 +3951,10 @@ pub const HapticPointState = struct {
 	vibration: f32,
 };
 
-pub const BillboardRenderBufferState = struct {
-	renderableIndex: i32,
-	pointRenderBufferAssetId: i32,
-	materialAssetId: i32,
-	minBillboardScreenSize: f32,
-	maxBillboardScreenSize: f32,
-	alignment: BillboardAlignment,
-	motionVectorMode: MotionVectorMode,
-};
-
-pub const BlitToDisplayState = struct {
-	renderableIndex: i32,
-	textureId: i32,
-	backgroundColor: @Vector(4, f32),
-	displayIndex: i16,
-};
-
-pub const CameraPortalState = struct {
-	renderableIndex: i32,
-	meshRendererIndex: i32,
-	planeNormal: @Vector(3, f32),
-	planeOffset: f32,
-	renderTextureId: i32,
-	portalTransform: RenderMatrix4x4,
-	portalPlanePosition: @Vector(3, f32),
-	portalPlaneNormal: @Vector(3, f32),
-};
-
-pub const CameraState = struct {
-	renderableIndex: i32,
-	fieldOfView: f32,
-	orthographicSize: f32,
-	nearClip: f32,
-	farClip: f32,
-	backgroundColor: @Vector(4, f32),
-	viewport: RenderRect,
-	depth: f32,
-	renderTextureAssetId: i32,
-	selectiveRenderCount: i32,
-	excludeRenderCount: i32,
-	clearMode: CameraClearMode,
-	projection: CameraProjection,
-};
-
-pub const MaterialOverrideState = struct {
-	materialSlotIndex: i32,
-	materialAssetId: i32,
-};
-
-pub const RenderMaterialOverrideState = struct {
-	renderableIndex: i32,
-	packedMeshRendererIndex: i32,
-	materrialOverrideCount: i16,
-	context: RenderingContext,
-};
-
-pub const RenderTransformOverrideState = struct {
-	renderableIndex: i32,
-	positionOverride: @Vector(3, f32),
-	rotationOverride: @Vector(4, f32),
-	scaleOverride: @Vector(3, f32),
-	skinnedMeshRendererCount: i32,
-	context: RenderingContext,
-	overrideFlags: u8,
-};
-
-pub const GaussianSplatRendererState = struct {
-	renderableIndex: i32,
-	gaussianSplatAssetId: i32,
-	sizeScale: f32,
-	opacityScale: f32,
-	maxSHOrder: i32,
-	sphericalHamornicsOnly: bool,
-};
-
-pub const LightData = struct {
-	point: @Vector(3, f32),
-	orientation: @Vector(4, f32),
-	color: @Vector(3, f32),
-	intensity: f32,
-	range: f32,
-	angle: f32,
-};
-
-pub const LightsBufferRendererState = struct {
-	renderableIndex: i32,
-	globalUniqueId: i32,
-	shadowStrength: f32,
-	shadowNearPlane: f32,
-	shadowMapResolution: i32,
-	shadowBias: f32,
-	shadowNormalBias: f32,
-	cookieTextureAssetId: i32,
-	lightType: LightType,
-	shadowType: ShadowType,
-};
-
-pub const LightState = struct {
-	renderableIndex: i32,
-	intensity: f32,
-	range: f32,
-	spotAngle: f32,
-	color: @Vector(4, f32),
-	shadowStrength: f32,
-	shadowNearPlane: f32,
-	shadowMapResolutionOverride: i32,
-	shadowBias: f32,
-	shadowNormalBias: f32,
-	cookieTextureAssetId: i32,
-	type: LightType,
-	shadowType: ShadowType,
-};
-
-pub const LODState = struct {
-	screenRelativeTransitionHeight: f32,
-	fadeTransitionWidth: f32,
-	rendererCount: i32,
-};
-
-pub const LODGroupState = struct {
-	renderableIndex: i32,
-	lodCount: i32,
-	crossFade: bool,
-	animateCrossFading: bool,
-};
-
-pub const MeshRenderBufferState = struct {
-	renderableIndex: i32,
-	pointRenderBufferAssetId: i32,
-	materialAssetId: i32,
-	meshAssetId: i32,
-	alignment: MeshAlignment,
-};
-
-pub const MeshRendererState = struct {
-	renderableIndex: i32,
-	meshAssetId: i32,
-	materialCount: i32,
-	materialPropertyBlockCount: i32,
-	sortingOrder: i32,
-	shadowCastMode: ShadowCastMode,
-	motionVectorMode: MotionVectorMode,
-};
-
-pub const ReflectionProbeState = struct {
-	renderableIndex: i32,
-	importance: i32,
-	intensity: f32,
-	blendDistance: f32,
-	boxSize: @Vector(3, f32),
-	cubemapAssetId: i32,
-	resolution: i32,
-	shadowDistance: f32,
-	backgroundColor: @Vector(4, f32),
-	nearClip: f32,
-	farClip: f32,
-	type: ReflectionProbeType,
-	clearFlags: ReflectionProbeClear,
-	timeSlicingMode: ReflectionProbeTimeSlicingMode,
-};
-
-pub const SkinnedMeshBoundsUpdate = struct {
-	renderableIndex: i32,
-	localBounds: RenderBoundingBox,
-};
-
-pub const SkinnedMeshRealtimeBoundsUpdate = struct {
-	renderableIndex: i32,
-	computedGlobalBounds: RenderBoundingBox,
-};
-
-pub const BoneAssignment = struct {
-	renderableIndex: i32,
-	rootBoneTransformId: i32,
-	boneCount: i32,
-};
-
-pub const BlendshapeUpdateBatch = struct {
-	renderableIndex: i32,
-	blendshapeUpdateCount: i32,
-};
-
-pub const BlendshapeUpdate = struct {
-	blendshapeIndex: i32,
-	weight: f32,
-};
-
-pub const ReflectionProbeSH2Task = struct {
-	renderableIndex: i32,
-	reflectionProbeRenderableIndex: i32,
-	result: ComputeResult,
-	resultData: RenderSH2,
-};
-
-pub const TrailsRendererState = struct {
-	renderableIndex: i32,
-	trailsRenderBufferAssetId: i32,
-	materialAssetId: i32,
-	textureMode: TrailTextureMode,
-	motionVectorMode: MotionVectorMode,
-	generateLightingData: bool,
-};
-
-pub const TransformParentUpdate = struct {
-	transformId: i32,
-	newParentId: i32,
-};
-
-pub const TransformPoseUpdate = struct {
-	transformId: i32,
-	pose: RenderTransform,
-};
-
 pub const RenderIntRect = struct {
 	x: i32,
 	y: i32,
 	width: i32,
 	height: i32,
-};
-
-pub const RenderRect = struct {
-	x: f32,
-	y: f32,
-	width: f32,
-	height: f32,
 };
 
