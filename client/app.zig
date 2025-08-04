@@ -309,6 +309,7 @@ pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
 }
 
 pub fn frameLoop(self: *App) !void {
+    try self.messaging.host.start();
     while (self.game.run_loop) {
         tracy.frameMark();
 

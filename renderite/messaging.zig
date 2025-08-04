@@ -66,6 +66,11 @@ pub const MessagingHost = struct {
         _ = command;
     }
 
+    pub fn start(self: *MessagingHost) !void {
+        try self.primary.start();
+        try self.background.start();
+    }
+
     pub fn deinit(self: MessagingHost) void {
         self.primary.deinit();
         self.background.deinit();
@@ -77,7 +82,7 @@ pub const QueueManager = struct {
     publisher: zinterprocess.Queue,
     subscriber: zinterprocess.Queue,
 
-    thread: std.Thread = undefined,
+    thread: ?std.Thread = undefined,
     receive_callback: *const ReceiveCallback,
     receive_ctx: *anyopaque,
 
@@ -107,7 +112,7 @@ pub const QueueManager = struct {
         });
         errdefer subscriber.deinit();
 
-        var queue = QueueManager{
+        const queue = QueueManager{
             .allocator = allocator,
             .publisher = publisher,
             .subscriber = subscriber,
@@ -115,9 +120,11 @@ pub const QueueManager = struct {
             .receive_ctx = receive_ctx,
         };
 
-        queue.thread = try std.Thread.spawn(.{}, QueueManager.receiverLoop, .{queue});
-
         return queue;
+    }
+
+    pub fn start(self: *QueueManager) !void {
+        self.thread = try std.Thread.spawn(.{}, QueueManager.receiverLoop, .{self.*});
     }
 
     pub fn deinit(self: QueueManager) void {
