@@ -89,7 +89,7 @@ pub const MessagingHost = struct {
         try self.background.start(gpa);
     }
 
-    pub fn deinit(self: MessagingHost) void {
+    pub fn deinit(self: *MessagingHost) void {
         self.primary.deinit();
         self.background.deinit();
     }
@@ -102,6 +102,8 @@ pub const QueueManager = struct {
     thread: ?std.Thread = undefined,
     receive_callback: *const ReceiveCallback,
     receive_ctx: *anyopaque,
+
+    run: bool,
 
     pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, comptime receive_callback: *const ReceiveCallback, receive_ctx: *anyopaque) !QueueManager {
         var name_a_buf: [std.fs.max_path_bytes]u8 = undefined;
@@ -132,22 +134,31 @@ pub const QueueManager = struct {
             .subscriber = subscriber,
             .receive_callback = receive_callback,
             .receive_ctx = receive_ctx,
+            .run = true,
         };
 
         return queue;
     }
 
     pub fn start(self: *QueueManager, gpa: std.mem.Allocator) !void {
-        self.thread = try std.Thread.spawn(.{}, QueueManager.receiverLoop, .{ self.*, gpa });
+        self.thread = try std.Thread.spawn(.{}, QueueManager.receiverLoop, .{ self, gpa });
     }
 
-    pub fn deinit(self: QueueManager) void {
+    pub fn deinit(self: *QueueManager) void {
+        self.run = false;
+
+        // wait for thread to exit
+        if (self.thread) |thread| {
+            log.debug("Waiting for exit...", .{});
+            thread.join();
+        }
+
+        log.debug("deinitting queues", .{});
         self.publisher.deinit();
         self.subscriber.deinit();
-        // todo: stop receiver thread
     }
 
-    fn receiverLoop(self: QueueManager, gpa: std.mem.Allocator) void {
+    fn receiverLoop(self: *QueueManager, gpa: std.mem.Allocator) void {
         var receive_arena_impl: std.heap.ArenaAllocator = .init(gpa);
         defer receive_arena_impl.deinit();
 
@@ -156,12 +167,18 @@ pub const QueueManager = struct {
         var contents_allocator_impl: std.heap.ThreadSafeAllocator = .{ .child_allocator = gpa };
 
         // log.debug("Starting receiver loop", .{});
-        while (true) {
+        while (self.run) {
             tracy.frameMarkNamed("Receiver Loop");
 
             defer _ = receive_arena_impl.reset(.{ .retain_with_limit = 1024 * 1024 * 1024 });
 
             self.receiveOnce(contents_allocator_impl.allocator(), receive_arena) catch |err| {
+                if (err == zinterprocess.Queue.Error.QueueEmpty) {
+                    // SAFETY: we dont care if it fails
+                    std.Thread.yield() catch {};
+                    continue;
+                }
+
                 log.err("Error while receiving: {any}", .{err});
             };
         }
@@ -171,7 +188,7 @@ pub const QueueManager = struct {
         const trace = tracy.traceNamed(@src(), "Receive Once");
         defer trace.end();
 
-        const data = try self.subscriber.dequeue(arena);
+        const data = try self.subscriber.dequeueOnce(arena);
         defer arena.free(data);
 
         var contents_arena_impl: std.heap.ArenaAllocator = .init(contents_allocator);

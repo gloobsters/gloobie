@@ -52,6 +52,8 @@ const MessagingData = struct {
     letter_allocation_mutex: std.Thread.Mutex,
 
     pub fn deinit(self: *MessagingData) void {
+        self.host.deinit();
+
         var envelopes = self.to_render.close();
         while (envelopes) |envelope| {
             switch (envelope.letter) {
@@ -63,9 +65,9 @@ const MessagingData = struct {
             envelopes = envelope.next;
         }
 
-        self.host.deinit();
-
         self.to_render_envelope_pool.deinit();
+
+        log.debug("messaging data deinit", .{});
     }
 };
 
