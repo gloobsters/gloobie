@@ -348,7 +348,7 @@ fn handleMessages(self: *App) !void {
                         });
                     },
                     .RendererInitProgressUpdate => |renderer_init_progress_update| {
-                        self.game.load_state = @enumFromInt(renderer_init_progress_update.phaseIndex);
+                        // self.game.load_state = @enumFromInt(renderer_init_progress_update.phaseIndex);
 
                         log.debug("Renderer init progress update: force show: {}, phase: \"{f}\", phase index: {d}, sub phase: \"{f}\"", .{
                             renderer_init_progress_update.forceShow,
