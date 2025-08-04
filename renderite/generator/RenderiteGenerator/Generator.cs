@@ -249,58 +249,65 @@ public class Generator : IDisposable
 
             if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodReference callRef)
             {
-                string typeName = callRef.DeclaringType.FullName;
-
-                if (callRef.Name == "Write" && callRef.Parameters.Count == 1)
+                switch (callRef.Name)
                 {
-                    string name = names.Dequeue();
-                    this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
-                    written = true;
-                }
-                else if (callRef.Name == "Write" &&
-                         callRef.Parameters.All(p => p.ParameterType.Name == "Boolean"))
-                {
-                    List<string> paramsList = names.Select(n => "self." + n).ToList();
-                    while (paramsList.Count < 8)
+                    // Write single value or packed boolean
+                    case "Write" when callRef.Parameters.Count == 1:
                     {
-                        paramsList.Add("false");
-                    }
-                    this._writer.WriteLine($"\t\ttry ipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
-                    names.Clear();
-                    written = true;
-                }
-                else if (callRef.Name == "Read" && callRef.Parameters.Count == 1)
-                {
-                    string name = names.Dequeue();
-                    this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
-                    written = true;
-                }
-                else if (callRef.Name == "Read" &&
-                         callRef.Parameters.All(p => p.ParameterType.Name == "Boolean&"))
-                {
-                    List<string> paramsList = names.Select(n => "self." + n).ToList();
-                    while (paramsList.Count < 8)
-                    {
-                        paramsList.Add("_");
-                    }
-                    this._writer.WriteLine($"\t\t{string.Join(", ", paramsList)} = try ipc.read{paramsList.Count}PackedBools();");
-                    names.Clear();
-                    written = true;
-                }
-                else if (callRef.Name is "Pack" or "Unpack")
-                {
-                    // Debug.Assert(typeName == type.BaseType!.FullName, $"{typeName} != {type.BaseType.Name}");
-                    MethodInfo? subMethod = type.BaseType?.GetMethod(method.Name);
-                    if (subMethod == null)
-                    {
-                        this._writer.WriteLine($"\t\t// FIXME: Could not find {method.Name} on {type.BaseType}");
+                        string name = names.Dequeue();
+                        this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
                         written = true;
-                        continue;
+                        break;
                     }
-                    written |= WritePackFunction(type.BaseType!, subMethod);
+                    case "Write" when callRef.Parameters.All(p => p.ParameterType.Name == "Boolean"):
+                    {
+                        List<string> paramsList = names.Select(n => "self." + n).ToList();
+                        while (paramsList.Count < 8)
+                        {
+                            paramsList.Add("false");
+                        }
+                        this._writer.WriteLine($"\t\ttry ipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
+                        names.Clear();
+                        written = true;
+                        break;
+                    }
+                    // Read single value or packed boolean
+                    case "Read" when callRef.Parameters.Count == 1:
+                    {
+                        string name = names.Dequeue();
+                        this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
+                        written = true;
+                        break;
+                    }
+                    case "Read" when callRef.Parameters.All(p => p.ParameterType.Name == "Boolean&"):
+                    {
+                        List<string> paramsList = names.Select(n => "self." + n).ToList();
+                        while (paramsList.Count < 8)
+                        {
+                            paramsList.Add("_");
+                        }
+                        this._writer.WriteLine($"\t\t{string.Join(", ", paramsList)} = try ipc.read{paramsList.Count}PackedBools();");
+                        names.Clear();
+                        written = true;
+                        break;
+                    }
+                    // Packing methods
+                    case "Pack" or "Unpack":
+                    {
+                        MethodInfo? subMethod = type.BaseType?.GetMethod(method.Name);
+                        if (subMethod == null)
+                        {
+                            this._writer.WriteLine($"\t\t// FIXME: Could not find {method.Name} on {type.BaseType}");
+                            written = true;
+                            continue;
+                        }
+                        written |= WritePackFunction(type.BaseType!, subMethod);
+                        break;
+                    }
+                    default:
+                        this._writer.WriteLine($"\t\t// FIXME: Unknown {callRef.GetType().Name} {callRef}");
+                        break;
                 }
-                else
-                    this._writer.WriteLine($"\t\t// FIXME: Unknown {callRef.GetType().Name} {callRef}");
             }
         }
 
