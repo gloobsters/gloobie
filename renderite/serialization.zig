@@ -1,16 +1,35 @@
 const std = @import("std");
-const builtin = @import("builtin");
-
 const Reader = std.io.Reader;
 const Writer = std.io.Writer;
+const builtin = @import("builtin");
 
 const endian = builtin.cpu.arch.endian();
 
 pub const IpcDeserializer = struct {
     reader: *Reader,
+    gpa: std.mem.Allocator,
 
-    pub fn init(reader: *Reader) IpcDeserializer {
-        return .{ .reader = reader };
+    pub fn init(reader: *Reader, gpa: std.mem.Allocator) IpcDeserializer {
+        return .{ .reader = reader, .gpa = gpa };
+    }
+
+    pub fn read(self: IpcDeserializer, comptime T: type) !T {
+        if (T == []const u16) {
+            return try self.readString(self.gpa);
+        }
+
+        switch (@typeInfo(T)) {
+            // TODO: this needs work.
+            // ."struct" => return try self.readStruct(T),
+            .int => return try self.readInt(T),
+            .float => return try self.readFloat(T),
+            // .pointer, .array => return try self.readString(self.allocator),
+            // .@"struct" => return try self.readStruct(T),
+            .bool => return try self.readBool(),
+            .@"enum" => return try self.readEnum(T),
+            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
+            else => return error.TypeNotSupported,
+        }
     }
 
     pub fn readStruct(self: IpcDeserializer, comptime T: type) !T {
@@ -21,9 +40,30 @@ pub const IpcDeserializer = struct {
         return try self.reader.takeInt(T, endian);
     }
 
-    pub fn readString(self: IpcDeserializer, allocator: std.mem.Allocator) ![]const u16 {
+    pub fn readFloat(self: IpcDeserializer, comptime T: type) !T {
+        return std.mem.bytesAsValue(T, try self.reader.take(@sizeOf(T))).*;
+    }
+
+    pub fn readEnum(self: IpcDeserializer, comptime T: type) !T {
+        return @enumFromInt(try self.reader.takeInt(@typeInfo(T).@"enum".tag_type, endian));
+    }
+
+    pub fn readBool(self: IpcDeserializer) !bool {
+        const value: u8 = try self.reader.takeByte();
+        return value != 0;
+    }
+
+    pub fn read8PackedBools(self: IpcDeserializer) !std.meta.Tuple(&.{ bool, bool, bool, bool, bool, bool, bool, bool }) {
+        const value: u8 = try self.reader.takeByte();
+        return .{ (value & 1) > 0, (value & 2) > 0, (value & 4) > 0, (value & 8) > 0, (value & 16) > 0, (value & 32) > 0, (value & 64) > 0, (value & 128) > 0 };
+    }
+
+    pub fn readString(self: IpcDeserializer, gpa: std.mem.Allocator) ![]const u16 {
         const len = try self.reader.takeInt(i32, endian);
-        return try self.reader.readSliceEndianAlloc(allocator, u16, @intCast(len), endian);
+        if (len == 0 or len == -1)
+            return &.{};
+
+        return try self.reader.readSliceEndianAlloc(gpa, u16, @intCast(len), endian);
     }
 };
 
@@ -60,17 +100,17 @@ test {
 }
 
 test {
-    const allocator = std.testing.allocator;
+    const gpa = std.testing.allocator;
     const buf = [_]u8{ 5, 0, 0, 0, 't', 0, 'e', 0, 's', 0, 't', 0, '\n', 0 };
 
     var reader: Reader = std.io.Reader.fixed(&buf);
     var deserializer = IpcDeserializer.init(&reader);
 
-    const value: []const u16 = try deserializer.readString(allocator);
-    defer allocator.free(value);
+    const value: []const u16 = try deserializer.readString(gpa);
+    defer gpa.free(value);
 
-    const test_str = try std.unicode.utf8ToUtf16LeAlloc(allocator, "test\n");
-    defer allocator.free(test_str);
+    const test_str = try std.unicode.utf8ToUtf16LeAlloc(gpa, "test\n");
+    defer gpa.free(test_str);
 
     try std.testing.expectEqualSlices(u16, test_str, value);
 }

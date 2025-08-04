@@ -88,6 +88,20 @@ public class Generator : IDisposable
         this._writer.WriteLine("const IpcDeserializer = serialization.IpcDeserializer;");
         this._writer.WriteLine("const IpcSerializer = serialization.IpcSerializer;");
         this._writer.WriteLine();
+        
+        Console.WriteLine("Generating polymorphic entity enums...");
+        this._writer.WriteLine("// Polymorphic entity enums (PolymorphicMemoryPackableEntity<T>)");
+        Type polymorphicType = this._types.First(t => t.Name == "PolymorphicMemoryPackableEntity`1").GetGenericTypeDefinition();
+        foreach (Type type in this._types.Where(t =>
+                 {
+                     if (t.BaseType is not { IsGenericType: true })
+                         return false;
+                     
+                     return t.BaseType.GetGenericTypeDefinition() == polymorphicType;
+                 }))
+        {
+            this.WritePolymorphicEnum(type);
+        }
 
         Console.WriteLine("Generating enums...");
         this._writer.WriteLine("// Generated Enums");
@@ -108,7 +122,7 @@ public class Generator : IDisposable
         Console.WriteLine("Generating remaining structs...");
         while (this._typesToGenerate.TryDequeue(out Type? type))
         {
-            if(this._generatedTypes.Contains(type))
+            if(this._generatedTypes.Contains(type) || type.IsAbstract)
                 continue;
             
             this._generatedTypes.Add(type);
@@ -166,12 +180,13 @@ public class Generator : IDisposable
         string structName = type.Name;
         
         this._writer.WriteLine($"pub const {structName} = struct {{");
-        foreach (FieldInfo field in type.GetFields())
+        FieldInfo[] fields = type.GetFields();
+        foreach (FieldInfo field in fields)
         {
             this._writer.WriteLine($"\t{field.Name}: {MapToZigType(field.FieldType)},");
         }
 
-        if (isPackable)
+        if (isPackable && fields.Length > 0)
         {
             this._writer.WriteLine();
             this._writer.WriteLine($"\tpub fn write(self: {structName}, ipc: IpcSerializer) !void {{");
@@ -179,9 +194,11 @@ public class Generator : IDisposable
             if(!generated) WritePackDiscard();
             this._writer.WriteLine("\t}\n");
             
-            this._writer.WriteLine($"\tpub fn read(self: {structName}, ipc: IpcDeserializer) !void {{");
+            this._writer.WriteLine($"\tpub fn read(ipc: IpcDeserializer) !{structName} {{");
+            this._writer.WriteLine($"\t\tvar self: {structName} = undefined;");
             generated = WritePackFunction(type, type.GetMethod("Unpack")!);
-            if(!generated) WritePackDiscard();
+            if(!generated) WritePackDiscard(false);
+            this._writer.WriteLine("\t\treturn self;");
             this._writer.WriteLine("\t}");
         }
         
@@ -237,7 +254,7 @@ public class Generator : IDisposable
                 if (callRef.Name == "Write" && callRef.Parameters.Count == 1)
                 {
                     string name = names.Dequeue();
-                    this._writer.WriteLine($"\t\tipc.write(@TypeOf(self.{name}), self.{name});");
+                    this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
                     written = true;
                 }
                 else if (callRef.Name == "Write" &&
@@ -248,7 +265,7 @@ public class Generator : IDisposable
                     {
                         paramsList.Add("false");
                     }
-                    this._writer.WriteLine($"\t\tipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
+                    this._writer.WriteLine($"\t\ttry ipc.write{paramsList.Count}PackedBools({string.Join(", ", paramsList)});");
                     names.Clear();
                     written = true;
                 }
@@ -293,10 +310,48 @@ public class Generator : IDisposable
         return written;
     }
 
-    private void WritePackDiscard()
+    private void WritePackDiscard(bool self = true)
     {
-        this._writer.WriteLine("\t\t_ = self;");
+        if (self)
+            this._writer.WriteLine("\t\t_ = self;");
+        else
+            this._writer.WriteLine("\t\t_ = &self; // FIXME: Type not generating any members");
+
         this._writer.WriteLine("\t\t_ = ipc;");
+    }
+    
+    private void WritePolymorphicEnum(Type type)
+    {
+        if(this._verbose)
+            Console.WriteLine($"\tWriting polymorphic enum {type.FullName}");
+
+        string enumName = type.Name;
+
+        
+        this._writer.WriteLine($"pub const {enumName}Types = enum(i32) {{");
+
+        TypeDefinition typeDef = this._cecilAssembly.MainModule.GetType(type.FullName);
+        MethodDefinition? ctor = typeDef.GetStaticConstructor();
+        if (ctor == null)
+            throw new Exception($"Couldn't find static constructor for {enumName}");
+
+        List<string> typeNames = [];
+        
+        foreach (Instruction instruction in ctor.Body.Instructions)
+        {
+            if (instruction.OpCode.Code != Code.Ldtoken) continue;
+
+            string name = ((TypeDefinition)instruction.Operand).Name;
+            this._writer.WriteLine($"\t{name},");
+            typeNames.Add(name);
+        }
+        
+        this._writer.WriteLine($"}};\npub const {enumName} = union({enumName}Types) {{");
+        foreach (string name in typeNames)
+        {
+            this._writer.WriteLine($"\t{name}: {name},");
+        }
+        this._writer.WriteLine("};\n");
     }
 
     private string MapToZigType(Type type)
@@ -358,6 +413,9 @@ public class Generator : IDisposable
         
         if(type.Name == "Nullable`1")
             return $"?{MapToZigType(type.GenericTypeArguments.First())}";
+
+        if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
+            return "SharedMemoryBufferDescriptor";
 
         if (type.IsGenericType)
             return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(MapToZigType))})";

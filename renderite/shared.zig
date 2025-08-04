@@ -8,6 +8,163 @@ const serialization = @import("serialization.zig");
 const IpcDeserializer = serialization.IpcDeserializer;
 const IpcSerializer = serialization.IpcSerializer;
 
+// Polymorphic entity enums (PolymorphicMemoryPackableEntity<T>)
+pub const VR_ControllerStateTypes = enum(i32) {
+	CosmosControllerState,
+	GenericControllerState,
+	HP_ReverbControllerState,
+	IndexControllerState,
+	PicoNeo2ControllerState,
+	TouchControllerState,
+	ViveControllerState,
+	WindowsMR_ControllerState,
+};
+pub const VR_ControllerState = union(VR_ControllerStateTypes) {
+	CosmosControllerState: CosmosControllerState,
+	GenericControllerState: GenericControllerState,
+	HP_ReverbControllerState: HP_ReverbControllerState,
+	IndexControllerState: IndexControllerState,
+	PicoNeo2ControllerState: PicoNeo2ControllerState,
+	TouchControllerState: TouchControllerState,
+	ViveControllerState: ViveControllerState,
+	WindowsMR_ControllerState: WindowsMR_ControllerState,
+};
+
+pub const RendererCommandTypes = enum(i32) {
+	RendererInitData,
+	RendererInitResult,
+	RendererInitProgressUpdate,
+	RendererInitFinalizeData,
+	RendererShutdownRequest,
+	RendererShutdown,
+	KeepAlive,
+	FrameStartData,
+	FrameSubmitData,
+	PostProcessingConfig,
+	QualityConfig,
+	ResolutionConfig,
+	DesktopConfig,
+	GaussianSplatConfig,
+	MeshUploadData,
+	MeshUnload,
+	MeshUploadResult,
+	ShaderUpload,
+	ShaderUnload,
+	ShaderUploadResult,
+	MaterialPropertyIdRequest,
+	MaterialPropertyIdResult,
+	MaterialsUpdateBatch,
+	MaterialsUpdateBatchResult,
+	SetTexture2DFormat,
+	SetTexture2DProperties,
+	SetTexture2DData,
+	SetTexture2DResult,
+	UnloadTexture2D,
+	SetTexture3DFormat,
+	SetTexture3DProperties,
+	SetTexture3DData,
+	SetTexture3DResult,
+	UnloadTexture3D,
+	SetCubemapFormat,
+	SetCubemapProperties,
+	SetCubemapData,
+	SetCubemapResult,
+	UnloadCubemap,
+	SetRenderTextureFormat,
+	RenderTextureResult,
+	UnloadRenderTexture,
+	SetDesktopTextureProperties,
+	DesktopTexturePropertiesUpdate,
+	UnloadDesktopTexture,
+	PointRenderBufferUpload,
+	PointRenderBufferConsumed,
+	PointRenderBufferUnload,
+	TrailRenderBufferUpload,
+	TrailRenderBufferConsumed,
+	TrailRenderBufferUnload,
+	GaussianSplatUploadRaw,
+	GaussianSplatUploadEncoded,
+	GaussianSplatResult,
+	UnloadGaussianSplat,
+	LightsBufferRendererSubmission,
+	LightsBufferRendererConsumed,
+	ReflectionProbeRenderResult,
+	VideoTextureLoad,
+	VideoTextureUpdate,
+	VideoTextureReady,
+	VideoTextureChanged,
+	VideoTextureProperties,
+	VideoTextureStartAudioTrack,
+	UnloadVideoTexture,
+};
+pub const RendererCommand = union(RendererCommandTypes) {
+	RendererInitData: RendererInitData,
+	RendererInitResult: RendererInitResult,
+	RendererInitProgressUpdate: RendererInitProgressUpdate,
+	RendererInitFinalizeData: RendererInitFinalizeData,
+	RendererShutdownRequest: RendererShutdownRequest,
+	RendererShutdown: RendererShutdown,
+	KeepAlive: KeepAlive,
+	FrameStartData: FrameStartData,
+	FrameSubmitData: FrameSubmitData,
+	PostProcessingConfig: PostProcessingConfig,
+	QualityConfig: QualityConfig,
+	ResolutionConfig: ResolutionConfig,
+	DesktopConfig: DesktopConfig,
+	GaussianSplatConfig: GaussianSplatConfig,
+	MeshUploadData: MeshUploadData,
+	MeshUnload: MeshUnload,
+	MeshUploadResult: MeshUploadResult,
+	ShaderUpload: ShaderUpload,
+	ShaderUnload: ShaderUnload,
+	ShaderUploadResult: ShaderUploadResult,
+	MaterialPropertyIdRequest: MaterialPropertyIdRequest,
+	MaterialPropertyIdResult: MaterialPropertyIdResult,
+	MaterialsUpdateBatch: MaterialsUpdateBatch,
+	MaterialsUpdateBatchResult: MaterialsUpdateBatchResult,
+	SetTexture2DFormat: SetTexture2DFormat,
+	SetTexture2DProperties: SetTexture2DProperties,
+	SetTexture2DData: SetTexture2DData,
+	SetTexture2DResult: SetTexture2DResult,
+	UnloadTexture2D: UnloadTexture2D,
+	SetTexture3DFormat: SetTexture3DFormat,
+	SetTexture3DProperties: SetTexture3DProperties,
+	SetTexture3DData: SetTexture3DData,
+	SetTexture3DResult: SetTexture3DResult,
+	UnloadTexture3D: UnloadTexture3D,
+	SetCubemapFormat: SetCubemapFormat,
+	SetCubemapProperties: SetCubemapProperties,
+	SetCubemapData: SetCubemapData,
+	SetCubemapResult: SetCubemapResult,
+	UnloadCubemap: UnloadCubemap,
+	SetRenderTextureFormat: SetRenderTextureFormat,
+	RenderTextureResult: RenderTextureResult,
+	UnloadRenderTexture: UnloadRenderTexture,
+	SetDesktopTextureProperties: SetDesktopTextureProperties,
+	DesktopTexturePropertiesUpdate: DesktopTexturePropertiesUpdate,
+	UnloadDesktopTexture: UnloadDesktopTexture,
+	PointRenderBufferUpload: PointRenderBufferUpload,
+	PointRenderBufferConsumed: PointRenderBufferConsumed,
+	PointRenderBufferUnload: PointRenderBufferUnload,
+	TrailRenderBufferUpload: TrailRenderBufferUpload,
+	TrailRenderBufferConsumed: TrailRenderBufferConsumed,
+	TrailRenderBufferUnload: TrailRenderBufferUnload,
+	GaussianSplatUploadRaw: GaussianSplatUploadRaw,
+	GaussianSplatUploadEncoded: GaussianSplatUploadEncoded,
+	GaussianSplatResult: GaussianSplatResult,
+	UnloadGaussianSplat: UnloadGaussianSplat,
+	LightsBufferRendererSubmission: LightsBufferRendererSubmission,
+	LightsBufferRendererConsumed: LightsBufferRendererConsumed,
+	ReflectionProbeRenderResult: ReflectionProbeRenderResult,
+	VideoTextureLoad: VideoTextureLoad,
+	VideoTextureUpdate: VideoTextureUpdate,
+	VideoTextureReady: VideoTextureReady,
+	VideoTextureChanged: VideoTextureChanged,
+	VideoTextureProperties: VideoTextureProperties,
+	VideoTextureStartAudioTrack: VideoTextureStartAudioTrack,
+	UnloadVideoTexture: UnloadVideoTexture,
+};
+
 // Generated Enums
 pub const ColorProfile = enum(i32) {
 	Linear = 0,
@@ -625,13 +782,15 @@ pub const GaussianSplatResult = struct {
 	assetId: i32,
 
 	pub fn write(self: GaussianSplatResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 	}
 
-	pub fn read(self: GaussianSplatResult, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !GaussianSplatResult {
+		var self: GaussianSplatResult = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+		return self;
 	}
 };
 
@@ -644,87 +803,91 @@ pub const GaussianSplatUploadEncoded = struct {
 	texture2DtextureAssetId: i32,
 	shIndexesOffset: i32,
 	chunkCount: i32,
-	shBuffer: SharedMemoryBufferDescriptor(u8),
-	chunksBuffer: SharedMemoryBufferDescriptor(u8),
+	shBuffer: SharedMemoryBufferDescriptor,
+	chunksBuffer: SharedMemoryBufferDescriptor,
 	splatCount: i32,
 	bounds: RenderBoundingBox,
-	positionsBuffer: SharedMemoryBufferDescriptor(u8),
-	rotationsBuffer: SharedMemoryBufferDescriptor(u8),
-	scalesBuffer: SharedMemoryBufferDescriptor(u8),
-	colorsBuffer: SharedMemoryBufferDescriptor(u8),
+	positionsBuffer: SharedMemoryBufferDescriptor,
+	rotationsBuffer: SharedMemoryBufferDescriptor,
+	scalesBuffer: SharedMemoryBufferDescriptor,
+	colorsBuffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: GaussianSplatUploadEncoded, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.splatCount), self.splatCount);
-		ipc.write(@TypeOf(self.bounds), self.bounds);
-		ipc.write(@TypeOf(self.positionsBuffer), self.positionsBuffer);
-		ipc.write(@TypeOf(self.rotationsBuffer), self.rotationsBuffer);
-		ipc.write(@TypeOf(self.scalesBuffer), self.scalesBuffer);
-		ipc.write(@TypeOf(self.colorsBuffer), self.colorsBuffer);
-		ipc.write(@TypeOf(self.positionsFormat), self.positionsFormat);
-		ipc.write(@TypeOf(self.rotationsFormat), self.rotationsFormat);
-		ipc.write(@TypeOf(self.scalesFormat), self.scalesFormat);
-		ipc.write(@TypeOf(self.colorsFormat), self.colorsFormat);
-		ipc.write(@TypeOf(self.shFormat), self.shFormat);
-		ipc.write(@TypeOf(self.texture2DtextureAssetId), self.texture2DtextureAssetId);
-		ipc.write(@TypeOf(self.shIndexesOffset), self.shIndexesOffset);
-		ipc.write(@TypeOf(self.chunkCount), self.chunkCount);
-		ipc.write(@TypeOf(self.shBuffer), self.shBuffer);
-		ipc.write(@TypeOf(self.chunksBuffer), self.chunksBuffer);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.splatCount), self.splatCount);
+		try ipc.write(@TypeOf(self.bounds), self.bounds);
+		try ipc.write(@TypeOf(self.positionsBuffer), self.positionsBuffer);
+		try ipc.write(@TypeOf(self.rotationsBuffer), self.rotationsBuffer);
+		try ipc.write(@TypeOf(self.scalesBuffer), self.scalesBuffer);
+		try ipc.write(@TypeOf(self.colorsBuffer), self.colorsBuffer);
+		try ipc.write(@TypeOf(self.positionsFormat), self.positionsFormat);
+		try ipc.write(@TypeOf(self.rotationsFormat), self.rotationsFormat);
+		try ipc.write(@TypeOf(self.scalesFormat), self.scalesFormat);
+		try ipc.write(@TypeOf(self.colorsFormat), self.colorsFormat);
+		try ipc.write(@TypeOf(self.shFormat), self.shFormat);
+		try ipc.write(@TypeOf(self.texture2DtextureAssetId), self.texture2DtextureAssetId);
+		try ipc.write(@TypeOf(self.shIndexesOffset), self.shIndexesOffset);
+		try ipc.write(@TypeOf(self.chunkCount), self.chunkCount);
+		try ipc.write(@TypeOf(self.shBuffer), self.shBuffer);
+		try ipc.write(@TypeOf(self.chunksBuffer), self.chunksBuffer);
 	}
 
-	pub fn read(self: GaussianSplatUploadEncoded, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.splatCount = ipc.read(@TypeOf(self.splatCount));
-		self.bounds = ipc.read(@TypeOf(self.bounds));
-		self.positionsBuffer = ipc.read(@TypeOf(self.positionsBuffer));
-		self.rotationsBuffer = ipc.read(@TypeOf(self.rotationsBuffer));
-		self.scalesBuffer = ipc.read(@TypeOf(self.scalesBuffer));
-		self.colorsBuffer = ipc.read(@TypeOf(self.colorsBuffer));
-		self.positionsFormat = ipc.read(@TypeOf(self.positionsFormat));
-		self.rotationsFormat = ipc.read(@TypeOf(self.rotationsFormat));
-		self.scalesFormat = ipc.read(@TypeOf(self.scalesFormat));
-		self.colorsFormat = ipc.read(@TypeOf(self.colorsFormat));
-		self.shFormat = ipc.read(@TypeOf(self.shFormat));
-		self.texture2DtextureAssetId = ipc.read(@TypeOf(self.texture2DtextureAssetId));
-		self.shIndexesOffset = ipc.read(@TypeOf(self.shIndexesOffset));
-		self.chunkCount = ipc.read(@TypeOf(self.chunkCount));
-		self.shBuffer = ipc.read(@TypeOf(self.shBuffer));
-		self.chunksBuffer = ipc.read(@TypeOf(self.chunksBuffer));
+	pub fn read(ipc: IpcDeserializer) !GaussianSplatUploadEncoded {
+		var self: GaussianSplatUploadEncoded = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.splatCount = try ipc.read(@TypeOf(self.splatCount));
+		self.bounds = try ipc.read(@TypeOf(self.bounds));
+		self.positionsBuffer = try ipc.read(@TypeOf(self.positionsBuffer));
+		self.rotationsBuffer = try ipc.read(@TypeOf(self.rotationsBuffer));
+		self.scalesBuffer = try ipc.read(@TypeOf(self.scalesBuffer));
+		self.colorsBuffer = try ipc.read(@TypeOf(self.colorsBuffer));
+		self.positionsFormat = try ipc.read(@TypeOf(self.positionsFormat));
+		self.rotationsFormat = try ipc.read(@TypeOf(self.rotationsFormat));
+		self.scalesFormat = try ipc.read(@TypeOf(self.scalesFormat));
+		self.colorsFormat = try ipc.read(@TypeOf(self.colorsFormat));
+		self.shFormat = try ipc.read(@TypeOf(self.shFormat));
+		self.texture2DtextureAssetId = try ipc.read(@TypeOf(self.texture2DtextureAssetId));
+		self.shIndexesOffset = try ipc.read(@TypeOf(self.shIndexesOffset));
+		self.chunkCount = try ipc.read(@TypeOf(self.chunkCount));
+		self.shBuffer = try ipc.read(@TypeOf(self.shBuffer));
+		self.chunksBuffer = try ipc.read(@TypeOf(self.chunksBuffer));
+		return self;
 	}
 };
 
 pub const GaussianSplatUploadRaw = struct {
-	alphasBuffer: SharedMemoryBufferDescriptor(u8),
+	alphasBuffer: SharedMemoryBufferDescriptor,
 	splatCount: i32,
 	bounds: RenderBoundingBox,
-	positionsBuffer: SharedMemoryBufferDescriptor(u8),
-	rotationsBuffer: SharedMemoryBufferDescriptor(u8),
-	scalesBuffer: SharedMemoryBufferDescriptor(u8),
-	colorsBuffer: SharedMemoryBufferDescriptor(u8),
+	positionsBuffer: SharedMemoryBufferDescriptor,
+	rotationsBuffer: SharedMemoryBufferDescriptor,
+	scalesBuffer: SharedMemoryBufferDescriptor,
+	colorsBuffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: GaussianSplatUploadRaw, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.splatCount), self.splatCount);
-		ipc.write(@TypeOf(self.bounds), self.bounds);
-		ipc.write(@TypeOf(self.positionsBuffer), self.positionsBuffer);
-		ipc.write(@TypeOf(self.rotationsBuffer), self.rotationsBuffer);
-		ipc.write(@TypeOf(self.scalesBuffer), self.scalesBuffer);
-		ipc.write(@TypeOf(self.colorsBuffer), self.colorsBuffer);
-		ipc.write(@TypeOf(self.alphasBuffer), self.alphasBuffer);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.splatCount), self.splatCount);
+		try ipc.write(@TypeOf(self.bounds), self.bounds);
+		try ipc.write(@TypeOf(self.positionsBuffer), self.positionsBuffer);
+		try ipc.write(@TypeOf(self.rotationsBuffer), self.rotationsBuffer);
+		try ipc.write(@TypeOf(self.scalesBuffer), self.scalesBuffer);
+		try ipc.write(@TypeOf(self.colorsBuffer), self.colorsBuffer);
+		try ipc.write(@TypeOf(self.alphasBuffer), self.alphasBuffer);
 	}
 
-	pub fn read(self: GaussianSplatUploadRaw, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.splatCount = ipc.read(@TypeOf(self.splatCount));
-		self.bounds = ipc.read(@TypeOf(self.bounds));
-		self.positionsBuffer = ipc.read(@TypeOf(self.positionsBuffer));
-		self.rotationsBuffer = ipc.read(@TypeOf(self.rotationsBuffer));
-		self.scalesBuffer = ipc.read(@TypeOf(self.scalesBuffer));
-		self.colorsBuffer = ipc.read(@TypeOf(self.colorsBuffer));
-		self.alphasBuffer = ipc.read(@TypeOf(self.alphasBuffer));
+	pub fn read(ipc: IpcDeserializer) !GaussianSplatUploadRaw {
+		var self: GaussianSplatUploadRaw = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.splatCount = try ipc.read(@TypeOf(self.splatCount));
+		self.bounds = try ipc.read(@TypeOf(self.bounds));
+		self.positionsBuffer = try ipc.read(@TypeOf(self.positionsBuffer));
+		self.rotationsBuffer = try ipc.read(@TypeOf(self.rotationsBuffer));
+		self.scalesBuffer = try ipc.read(@TypeOf(self.scalesBuffer));
+		self.colorsBuffer = try ipc.read(@TypeOf(self.colorsBuffer));
+		self.alphasBuffer = try ipc.read(@TypeOf(self.alphasBuffer));
+		return self;
 	}
 };
 
@@ -732,11 +895,13 @@ pub const UnloadGaussianSplat = struct {
 	assetId: i32,
 
 	pub fn write(self: UnloadGaussianSplat, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: UnloadGaussianSplat, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !UnloadGaussianSplat {
+		var self: UnloadGaussianSplat = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -745,13 +910,15 @@ pub const MaterialPropertyIdRequest = struct {
 	propertyNames: [][]const u16,
 
 	pub fn write(self: MaterialPropertyIdRequest, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.requestId), self.requestId);
+		try ipc.write(@TypeOf(self.requestId), self.requestId);
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::WriteStringList(System.Collections.Generic.List`1<System.String>)
 	}
 
-	pub fn read(self: MaterialPropertyIdRequest, ipc: IpcDeserializer) !void {
-		self.requestId = ipc.read(@TypeOf(self.requestId));
+	pub fn read(ipc: IpcDeserializer) !MaterialPropertyIdRequest {
+		var self: MaterialPropertyIdRequest = undefined;
+		self.requestId = try ipc.read(@TypeOf(self.requestId));
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::ReadStringList(System.Collections.Generic.List`1<System.String>&)
+		return self;
 	}
 };
 
@@ -760,52 +927,56 @@ pub const MaterialPropertyIdResult = struct {
 	propertyIDs: []i32,
 
 	pub fn write(self: MaterialPropertyIdResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.requestId), self.requestId);
+		try ipc.write(@TypeOf(self.requestId), self.requestId);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: MaterialPropertyIdResult, ipc: IpcDeserializer) !void {
-		self.requestId = ipc.read(@TypeOf(self.requestId));
+	pub fn read(ipc: IpcDeserializer) !MaterialPropertyIdResult {
+		var self: MaterialPropertyIdResult = undefined;
+		self.requestId = try ipc.read(@TypeOf(self.requestId));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
 pub const MaterialsUpdateBatch = struct {
 	updateBatchId: i32,
-	materialRemovals: SharedMemoryBufferDescriptor(i32),
-	materialPropertyBlockRemovals: SharedMemoryBufferDescriptor(i32),
-	materialUpdates: []SharedMemoryBufferDescriptor(MaterialPropertyUpdate),
+	materialRemovals: SharedMemoryBufferDescriptor,
+	materialPropertyBlockRemovals: SharedMemoryBufferDescriptor,
+	materialUpdates: []SharedMemoryBufferDescriptor,
 	materialUpdateCount: i32,
-	intBuffers: []SharedMemoryBufferDescriptor(i32),
-	floatBuffers: []SharedMemoryBufferDescriptor(f32),
-	float4Buffers: []SharedMemoryBufferDescriptor(@Vector(4, f32)),
-	matrixBuffers: []SharedMemoryBufferDescriptor(RenderMatrix4x4),
-	instanceChangedBuffer: SharedMemoryBufferDescriptor(u32),
+	intBuffers: []SharedMemoryBufferDescriptor,
+	floatBuffers: []SharedMemoryBufferDescriptor,
+	float4Buffers: []SharedMemoryBufferDescriptor,
+	matrixBuffers: []SharedMemoryBufferDescriptor,
+	instanceChangedBuffer: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: MaterialsUpdateBatch, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
-		ipc.write(@TypeOf(self.materialRemovals), self.materialRemovals);
-		ipc.write(@TypeOf(self.materialPropertyBlockRemovals), self.materialPropertyBlockRemovals);
+		try ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
+		try ipc.write(@TypeOf(self.materialRemovals), self.materialRemovals);
+		try ipc.write(@TypeOf(self.materialPropertyBlockRemovals), self.materialPropertyBlockRemovals);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.MaterialPropertyUpdate>>(System.Collections.Generic.List`1<T>)
-		ipc.write(@TypeOf(self.materialUpdates), self.materialUpdates);
+		try ipc.write(@TypeOf(self.materialUpdates), self.materialUpdates);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Int32>>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Single>>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderVector4>>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderMatrix4x4>>(System.Collections.Generic.List`1<T>)
-		ipc.write(@TypeOf(self.materialUpdateCount), self.materialUpdateCount);
+		try ipc.write(@TypeOf(self.materialUpdateCount), self.materialUpdateCount);
 	}
 
-	pub fn read(self: MaterialsUpdateBatch, ipc: IpcDeserializer) !void {
-		self.updateBatchId = ipc.read(@TypeOf(self.updateBatchId));
-		self.materialRemovals = ipc.read(@TypeOf(self.materialRemovals));
-		self.materialPropertyBlockRemovals = ipc.read(@TypeOf(self.materialPropertyBlockRemovals));
+	pub fn read(ipc: IpcDeserializer) !MaterialsUpdateBatch {
+		var self: MaterialsUpdateBatch = undefined;
+		self.updateBatchId = try ipc.read(@TypeOf(self.updateBatchId));
+		self.materialRemovals = try ipc.read(@TypeOf(self.materialRemovals));
+		self.materialPropertyBlockRemovals = try ipc.read(@TypeOf(self.materialPropertyBlockRemovals));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.MaterialPropertyUpdate>>(System.Collections.Generic.List`1<T>&)
-		self.materialUpdates = ipc.read(@TypeOf(self.materialUpdates));
+		self.materialUpdates = try ipc.read(@TypeOf(self.materialUpdates));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Int32>>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<System.Single>>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderVector4>>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SharedMemoryBufferDescriptor`1<Renderite.Shared.RenderMatrix4x4>>(System.Collections.Generic.List`1<T>&)
-		self.materialUpdateCount = ipc.read(@TypeOf(self.materialUpdateCount));
+		self.materialUpdateCount = try ipc.read(@TypeOf(self.materialUpdateCount));
+		return self;
 	}
 };
 
@@ -813,11 +984,13 @@ pub const MaterialsUpdateBatchResult = struct {
 	updateBatchId: i32,
 
 	pub fn write(self: MaterialsUpdateBatchResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
+		try ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
 	}
 
-	pub fn read(self: MaterialsUpdateBatchResult, ipc: IpcDeserializer) !void {
-		self.updateBatchId = ipc.read(@TypeOf(self.updateBatchId));
+	pub fn read(ipc: IpcDeserializer) !MaterialsUpdateBatchResult {
+		var self: MaterialsUpdateBatchResult = undefined;
+		self.updateBatchId = try ipc.read(@TypeOf(self.updateBatchId));
+		return self;
 	}
 };
 
@@ -825,17 +998,19 @@ pub const MeshUnload = struct {
 	assetId: i32,
 
 	pub fn write(self: MeshUnload, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: MeshUnload, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !MeshUnload {
+		var self: MeshUnload = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
 pub const MeshUploadData = struct {
 	highPriority: bool,
-	buffer: SharedMemoryBufferDescriptor(u8),
+	buffer: SharedMemoryBufferDescriptor,
 	vertexCount: i32,
 	boneWeightCount: i32,
 	boneCount: i32,
@@ -848,33 +1023,35 @@ pub const MeshUploadData = struct {
 	assetId: i32,
 
 	pub fn write(self: MeshUploadData, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.highPriority), self.highPriority);
-		ipc.write(@TypeOf(self.buffer), self.buffer);
-		ipc.write(@TypeOf(self.vertexCount), self.vertexCount);
-		ipc.write(@TypeOf(self.boneWeightCount), self.boneWeightCount);
-		ipc.write(@TypeOf(self.boneCount), self.boneCount);
-		ipc.write(@TypeOf(self.indexBufferFormat), self.indexBufferFormat);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.highPriority), self.highPriority);
+		try ipc.write(@TypeOf(self.buffer), self.buffer);
+		try ipc.write(@TypeOf(self.vertexCount), self.vertexCount);
+		try ipc.write(@TypeOf(self.boneWeightCount), self.boneWeightCount);
+		try ipc.write(@TypeOf(self.boneCount), self.boneCount);
+		try ipc.write(@TypeOf(self.indexBufferFormat), self.indexBufferFormat);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.VertexAttributeDescriptor>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.SubmeshBufferDescriptor>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.BlendshapeBufferDescriptor>(System.Collections.Generic.List`1<T>)
-		ipc.write(@TypeOf(self.vertexAttributes), self.vertexAttributes);
-		ipc.write(@TypeOf(self.submeshes), self.submeshes);
+		try ipc.write(@TypeOf(self.vertexAttributes), self.vertexAttributes);
+		try ipc.write(@TypeOf(self.submeshes), self.submeshes);
 	}
 
-	pub fn read(self: MeshUploadData, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.highPriority = ipc.read(@TypeOf(self.highPriority));
-		self.buffer = ipc.read(@TypeOf(self.buffer));
-		self.vertexCount = ipc.read(@TypeOf(self.vertexCount));
-		self.boneWeightCount = ipc.read(@TypeOf(self.boneWeightCount));
-		self.boneCount = ipc.read(@TypeOf(self.boneCount));
-		self.indexBufferFormat = ipc.read(@TypeOf(self.indexBufferFormat));
+	pub fn read(ipc: IpcDeserializer) !MeshUploadData {
+		var self: MeshUploadData = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.highPriority = try ipc.read(@TypeOf(self.highPriority));
+		self.buffer = try ipc.read(@TypeOf(self.buffer));
+		self.vertexCount = try ipc.read(@TypeOf(self.vertexCount));
+		self.boneWeightCount = try ipc.read(@TypeOf(self.boneWeightCount));
+		self.boneCount = try ipc.read(@TypeOf(self.boneCount));
+		self.indexBufferFormat = try ipc.read(@TypeOf(self.indexBufferFormat));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.VertexAttributeDescriptor>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.SubmeshBufferDescriptor>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.BlendshapeBufferDescriptor>(System.Collections.Generic.List`1<T>&)
-		self.vertexAttributes = ipc.read(@TypeOf(self.vertexAttributes));
-		self.submeshes = ipc.read(@TypeOf(self.submeshes));
+		self.vertexAttributes = try ipc.read(@TypeOf(self.vertexAttributes));
+		self.submeshes = try ipc.read(@TypeOf(self.submeshes));
+		return self;
 	}
 };
 
@@ -883,13 +1060,15 @@ pub const MeshUploadResult = struct {
 	assetId: i32,
 
 	pub fn write(self: MeshUploadResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 	}
 
-	pub fn read(self: MeshUploadResult, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !MeshUploadResult {
+		var self: MeshUploadResult = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+		return self;
 	}
 };
 
@@ -897,11 +1076,13 @@ pub const PointRenderBufferConsumed = struct {
 	assetId: i32,
 
 	pub fn write(self: PointRenderBufferConsumed, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: PointRenderBufferConsumed, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !PointRenderBufferConsumed {
+		var self: PointRenderBufferConsumed = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -909,11 +1090,13 @@ pub const PointRenderBufferUnload = struct {
 	assetId: i32,
 
 	pub fn write(self: PointRenderBufferUnload, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: PointRenderBufferUnload, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !PointRenderBufferUnload {
+		var self: PointRenderBufferUnload = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -925,31 +1108,33 @@ pub const PointRenderBufferUpload = struct {
 	colorsOffset: i32,
 	frameIndexesOffset: i32,
 	frameGridSize: @Vector(2, i32),
-	buffer: SharedMemoryBufferDescriptor(u8),
+	buffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: PointRenderBufferUpload, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.buffer), self.buffer);
-		ipc.write(@TypeOf(self.count), self.count);
-		ipc.write(@TypeOf(self.positionsOffset), self.positionsOffset);
-		ipc.write(@TypeOf(self.rotationsOffset), self.rotationsOffset);
-		ipc.write(@TypeOf(self.sizesOffset), self.sizesOffset);
-		ipc.write(@TypeOf(self.colorsOffset), self.colorsOffset);
-		ipc.write(@TypeOf(self.frameIndexesOffset), self.frameIndexesOffset);
-		ipc.write(@TypeOf(self.frameGridSize), self.frameGridSize);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.buffer), self.buffer);
+		try ipc.write(@TypeOf(self.count), self.count);
+		try ipc.write(@TypeOf(self.positionsOffset), self.positionsOffset);
+		try ipc.write(@TypeOf(self.rotationsOffset), self.rotationsOffset);
+		try ipc.write(@TypeOf(self.sizesOffset), self.sizesOffset);
+		try ipc.write(@TypeOf(self.colorsOffset), self.colorsOffset);
+		try ipc.write(@TypeOf(self.frameIndexesOffset), self.frameIndexesOffset);
+		try ipc.write(@TypeOf(self.frameGridSize), self.frameGridSize);
 	}
 
-	pub fn read(self: PointRenderBufferUpload, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.buffer = ipc.read(@TypeOf(self.buffer));
-		self.count = ipc.read(@TypeOf(self.count));
-		self.positionsOffset = ipc.read(@TypeOf(self.positionsOffset));
-		self.rotationsOffset = ipc.read(@TypeOf(self.rotationsOffset));
-		self.sizesOffset = ipc.read(@TypeOf(self.sizesOffset));
-		self.colorsOffset = ipc.read(@TypeOf(self.colorsOffset));
-		self.frameIndexesOffset = ipc.read(@TypeOf(self.frameIndexesOffset));
-		self.frameGridSize = ipc.read(@TypeOf(self.frameGridSize));
+	pub fn read(ipc: IpcDeserializer) !PointRenderBufferUpload {
+		var self: PointRenderBufferUpload = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.buffer = try ipc.read(@TypeOf(self.buffer));
+		self.count = try ipc.read(@TypeOf(self.count));
+		self.positionsOffset = try ipc.read(@TypeOf(self.positionsOffset));
+		self.rotationsOffset = try ipc.read(@TypeOf(self.rotationsOffset));
+		self.sizesOffset = try ipc.read(@TypeOf(self.sizesOffset));
+		self.colorsOffset = try ipc.read(@TypeOf(self.colorsOffset));
+		self.frameIndexesOffset = try ipc.read(@TypeOf(self.frameIndexesOffset));
+		self.frameGridSize = try ipc.read(@TypeOf(self.frameGridSize));
+		return self;
 	}
 };
 
@@ -957,11 +1142,13 @@ pub const TrailRenderBufferConsumed = struct {
 	assetId: i32,
 
 	pub fn write(self: TrailRenderBufferConsumed, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: TrailRenderBufferConsumed, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !TrailRenderBufferConsumed {
+		var self: TrailRenderBufferConsumed = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -969,11 +1156,13 @@ pub const TrailRenderBufferUnload = struct {
 	assetId: i32,
 
 	pub fn write(self: TrailRenderBufferUnload, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: TrailRenderBufferUnload, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !TrailRenderBufferUnload {
+		var self: TrailRenderBufferUnload = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -984,29 +1173,31 @@ pub const TrailRenderBufferUpload = struct {
 	positionsOffset: i32,
 	colorsOffset: i32,
 	sizesOffset: i32,
-	buffer: SharedMemoryBufferDescriptor(u8),
+	buffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
 	pub fn write(self: TrailRenderBufferUpload, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.buffer), self.buffer);
-		ipc.write(@TypeOf(self.trailsCount), self.trailsCount);
-		ipc.write(@TypeOf(self.trailPointCount), self.trailPointCount);
-		ipc.write(@TypeOf(self.trailsOffset), self.trailsOffset);
-		ipc.write(@TypeOf(self.positionsOffset), self.positionsOffset);
-		ipc.write(@TypeOf(self.colorsOffset), self.colorsOffset);
-		ipc.write(@TypeOf(self.sizesOffset), self.sizesOffset);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.buffer), self.buffer);
+		try ipc.write(@TypeOf(self.trailsCount), self.trailsCount);
+		try ipc.write(@TypeOf(self.trailPointCount), self.trailPointCount);
+		try ipc.write(@TypeOf(self.trailsOffset), self.trailsOffset);
+		try ipc.write(@TypeOf(self.positionsOffset), self.positionsOffset);
+		try ipc.write(@TypeOf(self.colorsOffset), self.colorsOffset);
+		try ipc.write(@TypeOf(self.sizesOffset), self.sizesOffset);
 	}
 
-	pub fn read(self: TrailRenderBufferUpload, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.buffer = ipc.read(@TypeOf(self.buffer));
-		self.trailsCount = ipc.read(@TypeOf(self.trailsCount));
-		self.trailPointCount = ipc.read(@TypeOf(self.trailPointCount));
-		self.trailsOffset = ipc.read(@TypeOf(self.trailsOffset));
-		self.positionsOffset = ipc.read(@TypeOf(self.positionsOffset));
-		self.colorsOffset = ipc.read(@TypeOf(self.colorsOffset));
-		self.sizesOffset = ipc.read(@TypeOf(self.sizesOffset));
+	pub fn read(ipc: IpcDeserializer) !TrailRenderBufferUpload {
+		var self: TrailRenderBufferUpload = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.buffer = try ipc.read(@TypeOf(self.buffer));
+		self.trailsCount = try ipc.read(@TypeOf(self.trailsCount));
+		self.trailPointCount = try ipc.read(@TypeOf(self.trailPointCount));
+		self.trailsOffset = try ipc.read(@TypeOf(self.trailsOffset));
+		self.positionsOffset = try ipc.read(@TypeOf(self.positionsOffset));
+		self.colorsOffset = try ipc.read(@TypeOf(self.colorsOffset));
+		self.sizesOffset = try ipc.read(@TypeOf(self.sizesOffset));
+		return self;
 	}
 };
 
@@ -1014,11 +1205,13 @@ pub const ShaderUnload = struct {
 	assetId: i32,
 
 	pub fn write(self: ShaderUnload, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: ShaderUnload, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !ShaderUnload {
+		var self: ShaderUnload = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -1027,13 +1220,15 @@ pub const ShaderUpload = struct {
 	assetId: i32,
 
 	pub fn write(self: ShaderUpload, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.file), self.file);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.file), self.file);
 	}
 
-	pub fn read(self: ShaderUpload, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.file = ipc.read(@TypeOf(self.file));
+	pub fn read(ipc: IpcDeserializer) !ShaderUpload {
+		var self: ShaderUpload = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.file = try ipc.read(@TypeOf(self.file));
+		return self;
 	}
 };
 
@@ -1042,18 +1237,20 @@ pub const ShaderUploadResult = struct {
 	assetId: i32,
 
 	pub fn write(self: ShaderUploadResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 	}
 
-	pub fn read(self: ShaderUploadResult, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !ShaderUploadResult {
+		var self: ShaderUploadResult = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+		return self;
 	}
 };
 
 pub const SetCubemapData = struct {
-	data: SharedMemoryBufferDescriptor(u8),
+	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
 	mipMapSizes: []@Vector(2, i32),
 	mipStarts: [][]i32,
@@ -1062,23 +1259,25 @@ pub const SetCubemapData = struct {
 	assetId: i32,
 
 	pub fn write(self: SetCubemapData, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.data), self.data);
-		ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.data), self.data);
+		try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
-		ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
-		ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
+		try ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
+		try ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
 	}
 
-	pub fn read(self: SetCubemapData, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.data = ipc.read(@TypeOf(self.data));
-		self.startMipLevel = ipc.read(@TypeOf(self.startMipLevel));
+	pub fn read(ipc: IpcDeserializer) !SetCubemapData {
+		var self: SetCubemapData = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.data = try ipc.read(@TypeOf(self.data));
+		self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
-		self.mipMapSizes = ipc.read(@TypeOf(self.mipMapSizes));
-		self.mipStarts = ipc.read(@TypeOf(self.mipStarts));
+		self.mipMapSizes = try ipc.read(@TypeOf(self.mipMapSizes));
+		self.mipStarts = try ipc.read(@TypeOf(self.mipStarts));
+		return self;
 	}
 };
 
@@ -1090,19 +1289,21 @@ pub const SetCubemapFormat = struct {
 	assetId: i32,
 
 	pub fn write(self: SetCubemapFormat, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.size), self.size);
-		ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
-		ipc.write(@TypeOf(self.format), self.format);
-		ipc.write(@TypeOf(self.profile), self.profile);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.size), self.size);
+		try ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
+		try ipc.write(@TypeOf(self.format), self.format);
+		try ipc.write(@TypeOf(self.profile), self.profile);
 	}
 
-	pub fn read(self: SetCubemapFormat, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.size = ipc.read(@TypeOf(self.size));
-		self.mipmapCount = ipc.read(@TypeOf(self.mipmapCount));
-		self.format = ipc.read(@TypeOf(self.format));
-		self.profile = ipc.read(@TypeOf(self.profile));
+	pub fn read(ipc: IpcDeserializer) !SetCubemapFormat {
+		var self: SetCubemapFormat = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.size = try ipc.read(@TypeOf(self.size));
+		self.mipmapCount = try ipc.read(@TypeOf(self.mipmapCount));
+		self.format = try ipc.read(@TypeOf(self.format));
+		self.profile = try ipc.read(@TypeOf(self.profile));
+		return self;
 	}
 };
 
@@ -1115,21 +1316,23 @@ pub const SetCubemapProperties = struct {
 	assetId: i32,
 
 	pub fn write(self: SetCubemapProperties, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.filterMode), self.filterMode);
-		ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
-		ipc.write(@TypeOf(self.mipmapBias), self.mipmapBias);
-		ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
-		ipc.write(@TypeOf(self.highPriority), self.highPriority);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+		try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+		try ipc.write(@TypeOf(self.mipmapBias), self.mipmapBias);
+		try ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
+		try ipc.write(@TypeOf(self.highPriority), self.highPriority);
 	}
 
-	pub fn read(self: SetCubemapProperties, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.filterMode = ipc.read(@TypeOf(self.filterMode));
-		self.anisoLevel = ipc.read(@TypeOf(self.anisoLevel));
-		self.mipmapBias = ipc.read(@TypeOf(self.mipmapBias));
-		self.applyImmediatelly = ipc.read(@TypeOf(self.applyImmediatelly));
-		self.highPriority = ipc.read(@TypeOf(self.highPriority));
+	pub fn read(ipc: IpcDeserializer) !SetCubemapProperties {
+		var self: SetCubemapProperties = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+		self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+		self.mipmapBias = try ipc.read(@TypeOf(self.mipmapBias));
+		self.applyImmediatelly = try ipc.read(@TypeOf(self.applyImmediatelly));
+		self.highPriority = try ipc.read(@TypeOf(self.highPriority));
+		return self;
 	}
 };
 
@@ -1139,15 +1342,17 @@ pub const SetCubemapResult = struct {
 	assetId: i32,
 
 	pub fn write(self: SetCubemapResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.type), self.type);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.type), self.type);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 	}
 
-	pub fn read(self: SetCubemapResult, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.type = ipc.read(@TypeOf(self.type));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !SetCubemapResult {
+		var self: SetCubemapResult = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.type = try ipc.read(@TypeOf(self.type));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+		return self;
 	}
 };
 
@@ -1155,11 +1360,13 @@ pub const UnloadCubemap = struct {
 	assetId: i32,
 
 	pub fn write(self: UnloadCubemap, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: UnloadCubemap, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !UnloadCubemap {
+		var self: UnloadCubemap = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -1168,13 +1375,15 @@ pub const DesktopTexturePropertiesUpdate = struct {
 	assetId: i32,
 
 	pub fn write(self: DesktopTexturePropertiesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.size), self.size);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.size), self.size);
 	}
 
-	pub fn read(self: DesktopTexturePropertiesUpdate, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.size = ipc.read(@TypeOf(self.size));
+	pub fn read(ipc: IpcDeserializer) !DesktopTexturePropertiesUpdate {
+		var self: DesktopTexturePropertiesUpdate = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.size = try ipc.read(@TypeOf(self.size));
+		return self;
 	}
 };
 
@@ -1183,13 +1392,15 @@ pub const SetDesktopTextureProperties = struct {
 	assetId: i32,
 
 	pub fn write(self: SetDesktopTextureProperties, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.displayIndex), self.displayIndex);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.displayIndex), self.displayIndex);
 	}
 
-	pub fn read(self: SetDesktopTextureProperties, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.displayIndex = ipc.read(@TypeOf(self.displayIndex));
+	pub fn read(ipc: IpcDeserializer) !SetDesktopTextureProperties {
+		var self: SetDesktopTextureProperties = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.displayIndex = try ipc.read(@TypeOf(self.displayIndex));
+		return self;
 	}
 };
 
@@ -1197,11 +1408,13 @@ pub const UnloadDesktopTexture = struct {
 	assetId: i32,
 
 	pub fn write(self: UnloadDesktopTexture, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: UnloadDesktopTexture, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !UnloadDesktopTexture {
+		var self: UnloadDesktopTexture = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -1210,13 +1423,15 @@ pub const RenderTextureResult = struct {
 	assetId: i32,
 
 	pub fn write(self: RenderTextureResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 	}
 
-	pub fn read(self: RenderTextureResult, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !RenderTextureResult {
+		var self: RenderTextureResult = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+		return self;
 	}
 };
 
@@ -1230,23 +1445,25 @@ pub const SetRenderTextureFormat = struct {
 	assetId: i32,
 
 	pub fn write(self: SetRenderTextureFormat, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.size), self.size);
-		ipc.write(@TypeOf(self.depth), self.depth);
-		ipc.write(@TypeOf(self.filterMode), self.filterMode);
-		ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
-		ipc.write(@TypeOf(self.wrapU), self.wrapU);
-		ipc.write(@TypeOf(self.wrapV), self.wrapV);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.size), self.size);
+		try ipc.write(@TypeOf(self.depth), self.depth);
+		try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+		try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+		try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+		try ipc.write(@TypeOf(self.wrapV), self.wrapV);
 	}
 
-	pub fn read(self: SetRenderTextureFormat, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.size = ipc.read(@TypeOf(self.size));
-		self.depth = ipc.read(@TypeOf(self.depth));
-		self.filterMode = ipc.read(@TypeOf(self.filterMode));
-		self.anisoLevel = ipc.read(@TypeOf(self.anisoLevel));
-		self.wrapU = ipc.read(@TypeOf(self.wrapU));
-		self.wrapV = ipc.read(@TypeOf(self.wrapV));
+	pub fn read(ipc: IpcDeserializer) !SetRenderTextureFormat {
+		var self: SetRenderTextureFormat = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.size = try ipc.read(@TypeOf(self.size));
+		self.depth = try ipc.read(@TypeOf(self.depth));
+		self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+		self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+		self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+		self.wrapV = try ipc.read(@TypeOf(self.wrapV));
+		return self;
 	}
 };
 
@@ -1254,16 +1471,18 @@ pub const UnloadRenderTexture = struct {
 	assetId: i32,
 
 	pub fn write(self: UnloadRenderTexture, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: UnloadRenderTexture, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !UnloadRenderTexture {
+		var self: UnloadRenderTexture = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
 pub const SetTexture2DData = struct {
-	data: SharedMemoryBufferDescriptor(u8),
+	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
 	mipMapSizes: []@Vector(2, i32),
 	mipStarts: []i32,
@@ -1273,25 +1492,27 @@ pub const SetTexture2DData = struct {
 	assetId: i32,
 
 	pub fn write(self: SetTexture2DData, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.data), self.data);
-		ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.data), self.data);
+		try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
-		ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
-		ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
-		ipc.write(@TypeOf(self.flipY), self.flipY);
+		try ipc.write(@TypeOf(self.mipMapSizes), self.mipMapSizes);
+		try ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
+		try ipc.write(@TypeOf(self.flipY), self.flipY);
 	}
 
-	pub fn read(self: SetTexture2DData, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.data = ipc.read(@TypeOf(self.data));
-		self.startMipLevel = ipc.read(@TypeOf(self.startMipLevel));
+	pub fn read(ipc: IpcDeserializer) !SetTexture2DData {
+		var self: SetTexture2DData = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.data = try ipc.read(@TypeOf(self.data));
+		self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector2i>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
-		self.mipMapSizes = ipc.read(@TypeOf(self.mipMapSizes));
-		self.mipStarts = ipc.read(@TypeOf(self.mipStarts));
-		self.flipY = ipc.read(@TypeOf(self.flipY));
+		self.mipMapSizes = try ipc.read(@TypeOf(self.mipMapSizes));
+		self.mipStarts = try ipc.read(@TypeOf(self.mipStarts));
+		self.flipY = try ipc.read(@TypeOf(self.flipY));
+		return self;
 	}
 };
 
@@ -1304,21 +1525,23 @@ pub const SetTexture2DFormat = struct {
 	assetId: i32,
 
 	pub fn write(self: SetTexture2DFormat, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.width), self.width);
-		ipc.write(@TypeOf(self.height), self.height);
-		ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
-		ipc.write(@TypeOf(self.format), self.format);
-		ipc.write(@TypeOf(self.profile), self.profile);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.width), self.width);
+		try ipc.write(@TypeOf(self.height), self.height);
+		try ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
+		try ipc.write(@TypeOf(self.format), self.format);
+		try ipc.write(@TypeOf(self.profile), self.profile);
 	}
 
-	pub fn read(self: SetTexture2DFormat, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.width = ipc.read(@TypeOf(self.width));
-		self.height = ipc.read(@TypeOf(self.height));
-		self.mipmapCount = ipc.read(@TypeOf(self.mipmapCount));
-		self.format = ipc.read(@TypeOf(self.format));
-		self.profile = ipc.read(@TypeOf(self.profile));
+	pub fn read(ipc: IpcDeserializer) !SetTexture2DFormat {
+		var self: SetTexture2DFormat = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.width = try ipc.read(@TypeOf(self.width));
+		self.height = try ipc.read(@TypeOf(self.height));
+		self.mipmapCount = try ipc.read(@TypeOf(self.mipmapCount));
+		self.format = try ipc.read(@TypeOf(self.format));
+		self.profile = try ipc.read(@TypeOf(self.profile));
+		return self;
 	}
 };
 
@@ -1333,23 +1556,25 @@ pub const SetTexture2DProperties = struct {
 	assetId: i32,
 
 	pub fn write(self: SetTexture2DProperties, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.filterMode), self.filterMode);
-		ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
-		ipc.write(@TypeOf(self.wrapU), self.wrapU);
-		ipc.write(@TypeOf(self.wrapV), self.wrapV);
-		ipc.write(@TypeOf(self.mipmapBias), self.mipmapBias);
-		ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+		try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+		try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+		try ipc.write(@TypeOf(self.wrapV), self.wrapV);
+		try ipc.write(@TypeOf(self.mipmapBias), self.mipmapBias);
+		try ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
 	}
 
-	pub fn read(self: SetTexture2DProperties, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.filterMode = ipc.read(@TypeOf(self.filterMode));
-		self.anisoLevel = ipc.read(@TypeOf(self.anisoLevel));
-		self.wrapU = ipc.read(@TypeOf(self.wrapU));
-		self.wrapV = ipc.read(@TypeOf(self.wrapV));
-		self.mipmapBias = ipc.read(@TypeOf(self.mipmapBias));
-		self.applyImmediatelly = ipc.read(@TypeOf(self.applyImmediatelly));
+	pub fn read(ipc: IpcDeserializer) !SetTexture2DProperties {
+		var self: SetTexture2DProperties = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+		self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+		self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+		self.wrapV = try ipc.read(@TypeOf(self.wrapV));
+		self.mipmapBias = try ipc.read(@TypeOf(self.mipmapBias));
+		self.applyImmediatelly = try ipc.read(@TypeOf(self.applyImmediatelly));
+		return self;
 	}
 };
 
@@ -1359,15 +1584,17 @@ pub const SetTexture2DResult = struct {
 	assetId: i32,
 
 	pub fn write(self: SetTexture2DResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.type), self.type);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.type), self.type);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 	}
 
-	pub fn read(self: SetTexture2DResult, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.type = ipc.read(@TypeOf(self.type));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !SetTexture2DResult {
+		var self: SetTexture2DResult = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.type = try ipc.read(@TypeOf(self.type));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+		return self;
 	}
 };
 
@@ -1375,32 +1602,36 @@ pub const UnloadTexture2D = struct {
 	assetId: i32,
 
 	pub fn write(self: UnloadTexture2D, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: UnloadTexture2D, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !UnloadTexture2D {
+		var self: UnloadTexture2D = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
 pub const SetTexture3DData = struct {
-	data: SharedMemoryBufferDescriptor(u8),
+	data: SharedMemoryBufferDescriptor,
 	hint: Texture3DUploadHint,
 	highPriority: bool,
 	assetId: i32,
 
 	pub fn write(self: SetTexture3DData, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.data), self.data);
-		ipc.write(@TypeOf(self.hint), self.hint);
-		ipc.write(@TypeOf(self.highPriority), self.highPriority);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.data), self.data);
+		try ipc.write(@TypeOf(self.hint), self.hint);
+		try ipc.write(@TypeOf(self.highPriority), self.highPriority);
 	}
 
-	pub fn read(self: SetTexture3DData, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.data = ipc.read(@TypeOf(self.data));
-		self.hint = ipc.read(@TypeOf(self.hint));
-		self.highPriority = ipc.read(@TypeOf(self.highPriority));
+	pub fn read(ipc: IpcDeserializer) !SetTexture3DData {
+		var self: SetTexture3DData = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.data = try ipc.read(@TypeOf(self.data));
+		self.hint = try ipc.read(@TypeOf(self.hint));
+		self.highPriority = try ipc.read(@TypeOf(self.highPriority));
+		return self;
 	}
 };
 
@@ -1414,23 +1645,25 @@ pub const SetTexture3DFormat = struct {
 	assetId: i32,
 
 	pub fn write(self: SetTexture3DFormat, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.width), self.width);
-		ipc.write(@TypeOf(self.height), self.height);
-		ipc.write(@TypeOf(self.depth), self.depth);
-		ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
-		ipc.write(@TypeOf(self.format), self.format);
-		ipc.write(@TypeOf(self.profile), self.profile);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.width), self.width);
+		try ipc.write(@TypeOf(self.height), self.height);
+		try ipc.write(@TypeOf(self.depth), self.depth);
+		try ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
+		try ipc.write(@TypeOf(self.format), self.format);
+		try ipc.write(@TypeOf(self.profile), self.profile);
 	}
 
-	pub fn read(self: SetTexture3DFormat, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.width = ipc.read(@TypeOf(self.width));
-		self.height = ipc.read(@TypeOf(self.height));
-		self.depth = ipc.read(@TypeOf(self.depth));
-		self.mipmapCount = ipc.read(@TypeOf(self.mipmapCount));
-		self.format = ipc.read(@TypeOf(self.format));
-		self.profile = ipc.read(@TypeOf(self.profile));
+	pub fn read(ipc: IpcDeserializer) !SetTexture3DFormat {
+		var self: SetTexture3DFormat = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.width = try ipc.read(@TypeOf(self.width));
+		self.height = try ipc.read(@TypeOf(self.height));
+		self.depth = try ipc.read(@TypeOf(self.depth));
+		self.mipmapCount = try ipc.read(@TypeOf(self.mipmapCount));
+		self.format = try ipc.read(@TypeOf(self.format));
+		self.profile = try ipc.read(@TypeOf(self.profile));
+		return self;
 	}
 };
 
@@ -1445,25 +1678,27 @@ pub const SetTexture3DProperties = struct {
 	assetId: i32,
 
 	pub fn write(self: SetTexture3DProperties, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.filterMode), self.filterMode);
-		ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
-		ipc.write(@TypeOf(self.wrapU), self.wrapU);
-		ipc.write(@TypeOf(self.wrapV), self.wrapV);
-		ipc.write(@TypeOf(self.wrapW), self.wrapW);
-		ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
-		ipc.write(@TypeOf(self.highPriority), self.highPriority);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+		try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+		try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+		try ipc.write(@TypeOf(self.wrapV), self.wrapV);
+		try ipc.write(@TypeOf(self.wrapW), self.wrapW);
+		try ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
+		try ipc.write(@TypeOf(self.highPriority), self.highPriority);
 	}
 
-	pub fn read(self: SetTexture3DProperties, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.filterMode = ipc.read(@TypeOf(self.filterMode));
-		self.anisoLevel = ipc.read(@TypeOf(self.anisoLevel));
-		self.wrapU = ipc.read(@TypeOf(self.wrapU));
-		self.wrapV = ipc.read(@TypeOf(self.wrapV));
-		self.wrapW = ipc.read(@TypeOf(self.wrapW));
-		self.applyImmediatelly = ipc.read(@TypeOf(self.applyImmediatelly));
-		self.highPriority = ipc.read(@TypeOf(self.highPriority));
+	pub fn read(ipc: IpcDeserializer) !SetTexture3DProperties {
+		var self: SetTexture3DProperties = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+		self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+		self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+		self.wrapV = try ipc.read(@TypeOf(self.wrapV));
+		self.wrapW = try ipc.read(@TypeOf(self.wrapW));
+		self.applyImmediatelly = try ipc.read(@TypeOf(self.applyImmediatelly));
+		self.highPriority = try ipc.read(@TypeOf(self.highPriority));
+		return self;
 	}
 };
 
@@ -1473,15 +1708,17 @@ pub const SetTexture3DResult = struct {
 	assetId: i32,
 
 	pub fn write(self: SetTexture3DResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.type), self.type);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.type), self.type);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 	}
 
-	pub fn read(self: SetTexture3DResult, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.type = ipc.read(@TypeOf(self.type));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !SetTexture3DResult {
+		var self: SetTexture3DResult = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.type = try ipc.read(@TypeOf(self.type));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+		return self;
 	}
 };
 
@@ -1489,11 +1726,13 @@ pub const UnloadTexture3D = struct {
 	assetId: i32,
 
 	pub fn write(self: UnloadTexture3D, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: UnloadTexture3D, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !UnloadTexture3D {
+		var self: UnloadTexture3D = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -1501,11 +1740,13 @@ pub const UnloadVideoTexture = struct {
 	assetId: i32,
 
 	pub fn write(self: UnloadVideoTexture, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: UnloadVideoTexture, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !UnloadVideoTexture {
+		var self: UnloadVideoTexture = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -1517,19 +1758,21 @@ pub const VideoAudioTrack = struct {
 	languageCode: []const u16,
 
 	pub fn write(self: VideoAudioTrack, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.index), self.index);
-		ipc.write(@TypeOf(self.channelCount), self.channelCount);
-		ipc.write(@TypeOf(self.sampleRate), self.sampleRate);
-		ipc.write(@TypeOf(self.name), self.name);
-		ipc.write(@TypeOf(self.languageCode), self.languageCode);
+		try ipc.write(@TypeOf(self.index), self.index);
+		try ipc.write(@TypeOf(self.channelCount), self.channelCount);
+		try ipc.write(@TypeOf(self.sampleRate), self.sampleRate);
+		try ipc.write(@TypeOf(self.name), self.name);
+		try ipc.write(@TypeOf(self.languageCode), self.languageCode);
 	}
 
-	pub fn read(self: VideoAudioTrack, ipc: IpcDeserializer) !void {
-		self.index = ipc.read(@TypeOf(self.index));
-		self.channelCount = ipc.read(@TypeOf(self.channelCount));
-		self.sampleRate = ipc.read(@TypeOf(self.sampleRate));
-		self.name = ipc.read(@TypeOf(self.name));
-		self.languageCode = ipc.read(@TypeOf(self.languageCode));
+	pub fn read(ipc: IpcDeserializer) !VideoAudioTrack {
+		var self: VideoAudioTrack = undefined;
+		self.index = try ipc.read(@TypeOf(self.index));
+		self.channelCount = try ipc.read(@TypeOf(self.channelCount));
+		self.sampleRate = try ipc.read(@TypeOf(self.sampleRate));
+		self.name = try ipc.read(@TypeOf(self.name));
+		self.languageCode = try ipc.read(@TypeOf(self.languageCode));
+		return self;
 	}
 };
 
@@ -1537,11 +1780,13 @@ pub const VideoTextureChanged = struct {
 	assetId: i32,
 
 	pub fn write(self: VideoTextureChanged, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
 	}
 
-	pub fn read(self: VideoTextureChanged, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
+	pub fn read(ipc: IpcDeserializer) !VideoTextureChanged {
+		var self: VideoTextureChanged = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		return self;
 	}
 };
 
@@ -1554,21 +1799,23 @@ pub const VideoTextureLoad = struct {
 	assetId: i32,
 
 	pub fn write(self: VideoTextureLoad, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.source), self.source);
-		ipc.write(@TypeOf(self.overrideEngine), self.overrideEngine);
-		ipc.write(@TypeOf(self.mimeType), self.mimeType);
-		ipc.write(@TypeOf(self.isStream), self.isStream);
-		ipc.write(@TypeOf(self.audioSystemSampleRate), self.audioSystemSampleRate);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.source), self.source);
+		try ipc.write(@TypeOf(self.overrideEngine), self.overrideEngine);
+		try ipc.write(@TypeOf(self.mimeType), self.mimeType);
+		try ipc.write(@TypeOf(self.isStream), self.isStream);
+		try ipc.write(@TypeOf(self.audioSystemSampleRate), self.audioSystemSampleRate);
 	}
 
-	pub fn read(self: VideoTextureLoad, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.source = ipc.read(@TypeOf(self.source));
-		self.overrideEngine = ipc.read(@TypeOf(self.overrideEngine));
-		self.mimeType = ipc.read(@TypeOf(self.mimeType));
-		self.isStream = ipc.read(@TypeOf(self.isStream));
-		self.audioSystemSampleRate = ipc.read(@TypeOf(self.audioSystemSampleRate));
+	pub fn read(ipc: IpcDeserializer) !VideoTextureLoad {
+		var self: VideoTextureLoad = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.source = try ipc.read(@TypeOf(self.source));
+		self.overrideEngine = try ipc.read(@TypeOf(self.overrideEngine));
+		self.mimeType = try ipc.read(@TypeOf(self.mimeType));
+		self.isStream = try ipc.read(@TypeOf(self.isStream));
+		self.audioSystemSampleRate = try ipc.read(@TypeOf(self.audioSystemSampleRate));
+		return self;
 	}
 };
 
@@ -1580,19 +1827,21 @@ pub const VideoTextureProperties = struct {
 	assetId: i32,
 
 	pub fn write(self: VideoTextureProperties, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.filterMode), self.filterMode);
-		ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
-		ipc.write(@TypeOf(self.wrapU), self.wrapU);
-		ipc.write(@TypeOf(self.wrapV), self.wrapV);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+		try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+		try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+		try ipc.write(@TypeOf(self.wrapV), self.wrapV);
 	}
 
-	pub fn read(self: VideoTextureProperties, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.filterMode = ipc.read(@TypeOf(self.filterMode));
-		self.anisoLevel = ipc.read(@TypeOf(self.anisoLevel));
-		self.wrapU = ipc.read(@TypeOf(self.wrapU));
-		self.wrapV = ipc.read(@TypeOf(self.wrapV));
+	pub fn read(ipc: IpcDeserializer) !VideoTextureProperties {
+		var self: VideoTextureProperties = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+		self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+		self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+		self.wrapV = try ipc.read(@TypeOf(self.wrapV));
+		return self;
 	}
 };
 
@@ -1606,23 +1855,25 @@ pub const VideoTextureReady = struct {
 	assetId: i32,
 
 	pub fn write(self: VideoTextureReady, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.length), self.length);
-		ipc.write(@TypeOf(self.size), self.size);
-		ipc.write(@TypeOf(self.hasAlpha), self.hasAlpha);
-		ipc.write(@TypeOf(self.playbackEngine), self.playbackEngine);
-		ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.length), self.length);
+		try ipc.write(@TypeOf(self.size), self.size);
+		try ipc.write(@TypeOf(self.hasAlpha), self.hasAlpha);
+		try ipc.write(@TypeOf(self.playbackEngine), self.playbackEngine);
+		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.VideoAudioTrack>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: VideoTextureReady, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.length = ipc.read(@TypeOf(self.length));
-		self.size = ipc.read(@TypeOf(self.size));
-		self.hasAlpha = ipc.read(@TypeOf(self.hasAlpha));
-		self.playbackEngine = ipc.read(@TypeOf(self.playbackEngine));
-		self.instanceChanged = ipc.read(@TypeOf(self.instanceChanged));
+	pub fn read(ipc: IpcDeserializer) !VideoTextureReady {
+		var self: VideoTextureReady = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.length = try ipc.read(@TypeOf(self.length));
+		self.size = try ipc.read(@TypeOf(self.size));
+		self.hasAlpha = try ipc.read(@TypeOf(self.hasAlpha));
+		self.playbackEngine = try ipc.read(@TypeOf(self.playbackEngine));
+		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.VideoAudioTrack>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
@@ -1633,17 +1884,19 @@ pub const VideoTextureStartAudioTrack = struct {
 	assetId: i32,
 
 	pub fn write(self: VideoTextureStartAudioTrack, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.audioTrackIndex), self.audioTrackIndex);
-		ipc.write(@TypeOf(self.queueCapacity), self.queueCapacity);
-		ipc.write(@TypeOf(self.queueName), self.queueName);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.audioTrackIndex), self.audioTrackIndex);
+		try ipc.write(@TypeOf(self.queueCapacity), self.queueCapacity);
+		try ipc.write(@TypeOf(self.queueName), self.queueName);
 	}
 
-	pub fn read(self: VideoTextureStartAudioTrack, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.audioTrackIndex = ipc.read(@TypeOf(self.audioTrackIndex));
-		self.queueCapacity = ipc.read(@TypeOf(self.queueCapacity));
-		self.queueName = ipc.read(@TypeOf(self.queueName));
+	pub fn read(ipc: IpcDeserializer) !VideoTextureStartAudioTrack {
+		var self: VideoTextureStartAudioTrack = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.audioTrackIndex = try ipc.read(@TypeOf(self.audioTrackIndex));
+		self.queueCapacity = try ipc.read(@TypeOf(self.queueCapacity));
+		self.queueName = try ipc.read(@TypeOf(self.queueName));
+		return self;
 	}
 };
 
@@ -1654,15 +1907,17 @@ pub const VideoTextureUpdate = struct {
 	assetId: i32,
 
 	pub fn write(self: VideoTextureUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.assetId), self.assetId);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write8PackedBools(self.play, self.loop, false, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.assetId), self.assetId);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write8PackedBools(self.play, self.loop, false, false, false, false, false, false);
 	}
 
-	pub fn read(self: VideoTextureUpdate, ipc: IpcDeserializer) !void {
-		self.assetId = ipc.read(@TypeOf(self.assetId));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.play, self.loop, _, _, _, _, _, _ = ipc.read8PackedBools();
+	pub fn read(ipc: IpcDeserializer) !VideoTextureUpdate {
+		var self: VideoTextureUpdate = undefined;
+		self.assetId = try ipc.read(@TypeOf(self.assetId));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.play, self.loop, _, _, _, _, _, _ = try ipc.read8PackedBools();
+		return self;
 	}
 };
 
@@ -1672,15 +1927,17 @@ pub const DesktopConfig = struct {
 	vSync: bool,
 
 	pub fn write(self: DesktopConfig, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.maximumBackgroundFramerate), self.maximumBackgroundFramerate);
-		ipc.write(@TypeOf(self.maximumBackgroundFramerate), self.maximumBackgroundFramerate);
-		ipc.write(@TypeOf(self.vSync), self.vSync);
+		try ipc.write(@TypeOf(self.maximumBackgroundFramerate), self.maximumBackgroundFramerate);
+		try ipc.write(@TypeOf(self.maximumBackgroundFramerate), self.maximumBackgroundFramerate);
+		try ipc.write(@TypeOf(self.vSync), self.vSync);
 	}
 
-	pub fn read(self: DesktopConfig, ipc: IpcDeserializer) !void {
-		self.maximumBackgroundFramerate = ipc.read(@TypeOf(self.maximumBackgroundFramerate));
-		self.maximumBackgroundFramerate = ipc.read(@TypeOf(self.maximumBackgroundFramerate));
-		self.vSync = ipc.read(@TypeOf(self.vSync));
+	pub fn read(ipc: IpcDeserializer) !DesktopConfig {
+		var self: DesktopConfig = undefined;
+		self.maximumBackgroundFramerate = try ipc.read(@TypeOf(self.maximumBackgroundFramerate));
+		self.maximumBackgroundFramerate = try ipc.read(@TypeOf(self.maximumBackgroundFramerate));
+		self.vSync = try ipc.read(@TypeOf(self.vSync));
+		return self;
 	}
 };
 
@@ -1688,11 +1945,13 @@ pub const GaussianSplatConfig = struct {
 	sortingMegaOperationsPerCamera: f32,
 
 	pub fn write(self: GaussianSplatConfig, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.sortingMegaOperationsPerCamera), self.sortingMegaOperationsPerCamera);
+		try ipc.write(@TypeOf(self.sortingMegaOperationsPerCamera), self.sortingMegaOperationsPerCamera);
 	}
 
-	pub fn read(self: GaussianSplatConfig, ipc: IpcDeserializer) !void {
-		self.sortingMegaOperationsPerCamera = ipc.read(@TypeOf(self.sortingMegaOperationsPerCamera));
+	pub fn read(ipc: IpcDeserializer) !GaussianSplatConfig {
+		var self: GaussianSplatConfig = undefined;
+		self.sortingMegaOperationsPerCamera = try ipc.read(@TypeOf(self.sortingMegaOperationsPerCamera));
+		return self;
 	}
 };
 
@@ -1704,19 +1963,21 @@ pub const PostProcessingConfig = struct {
 	antialiasing: AntiAliasingMethod,
 
 	pub fn write(self: PostProcessingConfig, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.motionBlurIntensity), self.motionBlurIntensity);
-		ipc.write(@TypeOf(self.bloomIntensity), self.bloomIntensity);
-		ipc.write(@TypeOf(self.ambientOcclusionIntensity), self.ambientOcclusionIntensity);
-		ipc.write(@TypeOf(self.screenSpaceReflections), self.screenSpaceReflections);
-		ipc.write(@TypeOf(self.antialiasing), self.antialiasing);
+		try ipc.write(@TypeOf(self.motionBlurIntensity), self.motionBlurIntensity);
+		try ipc.write(@TypeOf(self.bloomIntensity), self.bloomIntensity);
+		try ipc.write(@TypeOf(self.ambientOcclusionIntensity), self.ambientOcclusionIntensity);
+		try ipc.write(@TypeOf(self.screenSpaceReflections), self.screenSpaceReflections);
+		try ipc.write(@TypeOf(self.antialiasing), self.antialiasing);
 	}
 
-	pub fn read(self: PostProcessingConfig, ipc: IpcDeserializer) !void {
-		self.motionBlurIntensity = ipc.read(@TypeOf(self.motionBlurIntensity));
-		self.bloomIntensity = ipc.read(@TypeOf(self.bloomIntensity));
-		self.ambientOcclusionIntensity = ipc.read(@TypeOf(self.ambientOcclusionIntensity));
-		self.screenSpaceReflections = ipc.read(@TypeOf(self.screenSpaceReflections));
-		self.antialiasing = ipc.read(@TypeOf(self.antialiasing));
+	pub fn read(ipc: IpcDeserializer) !PostProcessingConfig {
+		var self: PostProcessingConfig = undefined;
+		self.motionBlurIntensity = try ipc.read(@TypeOf(self.motionBlurIntensity));
+		self.bloomIntensity = try ipc.read(@TypeOf(self.bloomIntensity));
+		self.ambientOcclusionIntensity = try ipc.read(@TypeOf(self.ambientOcclusionIntensity));
+		self.screenSpaceReflections = try ipc.read(@TypeOf(self.screenSpaceReflections));
+		self.antialiasing = try ipc.read(@TypeOf(self.antialiasing));
+		return self;
 	}
 };
 
@@ -1728,19 +1989,21 @@ pub const QualityConfig = struct {
 	skinWeightMode: SkinWeightMode,
 
 	pub fn write(self: QualityConfig, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.perPixelLight), self.perPixelLight);
-		ipc.write(@TypeOf(self.shadowCascades), self.shadowCascades);
-		ipc.write(@TypeOf(self.shadowResolution), self.shadowResolution);
-		ipc.write(@TypeOf(self.shadowDistance), self.shadowDistance);
-		ipc.write(@TypeOf(self.skinWeightMode), self.skinWeightMode);
+		try ipc.write(@TypeOf(self.perPixelLight), self.perPixelLight);
+		try ipc.write(@TypeOf(self.shadowCascades), self.shadowCascades);
+		try ipc.write(@TypeOf(self.shadowResolution), self.shadowResolution);
+		try ipc.write(@TypeOf(self.shadowDistance), self.shadowDistance);
+		try ipc.write(@TypeOf(self.skinWeightMode), self.skinWeightMode);
 	}
 
-	pub fn read(self: QualityConfig, ipc: IpcDeserializer) !void {
-		self.perPixelLight = ipc.read(@TypeOf(self.perPixelLight));
-		self.shadowCascades = ipc.read(@TypeOf(self.shadowCascades));
-		self.shadowResolution = ipc.read(@TypeOf(self.shadowResolution));
-		self.shadowDistance = ipc.read(@TypeOf(self.shadowDistance));
-		self.skinWeightMode = ipc.read(@TypeOf(self.skinWeightMode));
+	pub fn read(ipc: IpcDeserializer) !QualityConfig {
+		var self: QualityConfig = undefined;
+		self.perPixelLight = try ipc.read(@TypeOf(self.perPixelLight));
+		self.shadowCascades = try ipc.read(@TypeOf(self.shadowCascades));
+		self.shadowResolution = try ipc.read(@TypeOf(self.shadowResolution));
+		self.shadowDistance = try ipc.read(@TypeOf(self.shadowDistance));
+		self.skinWeightMode = try ipc.read(@TypeOf(self.skinWeightMode));
+		return self;
 	}
 };
 
@@ -1749,13 +2012,15 @@ pub const ResolutionConfig = struct {
 	fullscreen: bool,
 
 	pub fn write(self: ResolutionConfig, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.resolution), self.resolution);
-		ipc.write(@TypeOf(self.fullscreen), self.fullscreen);
+		try ipc.write(@TypeOf(self.resolution), self.resolution);
+		try ipc.write(@TypeOf(self.fullscreen), self.fullscreen);
 	}
 
-	pub fn read(self: ResolutionConfig, ipc: IpcDeserializer) !void {
-		self.resolution = ipc.read(@TypeOf(self.resolution));
-		self.fullscreen = ipc.read(@TypeOf(self.fullscreen));
+	pub fn read(ipc: IpcDeserializer) !ResolutionConfig {
+		var self: ResolutionConfig = undefined;
+		self.resolution = try ipc.read(@TypeOf(self.resolution));
+		self.fullscreen = try ipc.read(@TypeOf(self.fullscreen));
+		return self;
 	}
 };
 
@@ -1774,33 +2039,35 @@ pub const CameraRenderParameters = struct {
 	screenSpaceReflections: bool,
 
 	pub fn write(self: CameraRenderParameters, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.resolution), self.resolution);
-		ipc.write(@TypeOf(self.textureFormat), self.textureFormat);
-		ipc.write(@TypeOf(self.projection), self.projection);
-		ipc.write(@TypeOf(self.fov), self.fov);
-		ipc.write(@TypeOf(self.orthographicSize), self.orthographicSize);
-		ipc.write(@TypeOf(self.clearMode), self.clearMode);
-		ipc.write(@TypeOf(self.clearColor), self.clearColor);
-		ipc.write(@TypeOf(self.nearClip), self.nearClip);
-		ipc.write(@TypeOf(self.farClip), self.farClip);
-		ipc.write(@TypeOf(self.renderPrivateUI), self.renderPrivateUI);
-		ipc.write(@TypeOf(self.postProcessing), self.postProcessing);
-		ipc.write(@TypeOf(self.screenSpaceReflections), self.screenSpaceReflections);
+		try ipc.write(@TypeOf(self.resolution), self.resolution);
+		try ipc.write(@TypeOf(self.textureFormat), self.textureFormat);
+		try ipc.write(@TypeOf(self.projection), self.projection);
+		try ipc.write(@TypeOf(self.fov), self.fov);
+		try ipc.write(@TypeOf(self.orthographicSize), self.orthographicSize);
+		try ipc.write(@TypeOf(self.clearMode), self.clearMode);
+		try ipc.write(@TypeOf(self.clearColor), self.clearColor);
+		try ipc.write(@TypeOf(self.nearClip), self.nearClip);
+		try ipc.write(@TypeOf(self.farClip), self.farClip);
+		try ipc.write(@TypeOf(self.renderPrivateUI), self.renderPrivateUI);
+		try ipc.write(@TypeOf(self.postProcessing), self.postProcessing);
+		try ipc.write(@TypeOf(self.screenSpaceReflections), self.screenSpaceReflections);
 	}
 
-	pub fn read(self: CameraRenderParameters, ipc: IpcDeserializer) !void {
-		self.resolution = ipc.read(@TypeOf(self.resolution));
-		self.textureFormat = ipc.read(@TypeOf(self.textureFormat));
-		self.projection = ipc.read(@TypeOf(self.projection));
-		self.fov = ipc.read(@TypeOf(self.fov));
-		self.orthographicSize = ipc.read(@TypeOf(self.orthographicSize));
-		self.clearMode = ipc.read(@TypeOf(self.clearMode));
-		self.clearColor = ipc.read(@TypeOf(self.clearColor));
-		self.nearClip = ipc.read(@TypeOf(self.nearClip));
-		self.farClip = ipc.read(@TypeOf(self.farClip));
-		self.renderPrivateUI = ipc.read(@TypeOf(self.renderPrivateUI));
-		self.postProcessing = ipc.read(@TypeOf(self.postProcessing));
-		self.screenSpaceReflections = ipc.read(@TypeOf(self.screenSpaceReflections));
+	pub fn read(ipc: IpcDeserializer) !CameraRenderParameters {
+		var self: CameraRenderParameters = undefined;
+		self.resolution = try ipc.read(@TypeOf(self.resolution));
+		self.textureFormat = try ipc.read(@TypeOf(self.textureFormat));
+		self.projection = try ipc.read(@TypeOf(self.projection));
+		self.fov = try ipc.read(@TypeOf(self.fov));
+		self.orthographicSize = try ipc.read(@TypeOf(self.orthographicSize));
+		self.clearMode = try ipc.read(@TypeOf(self.clearMode));
+		self.clearColor = try ipc.read(@TypeOf(self.clearColor));
+		self.nearClip = try ipc.read(@TypeOf(self.nearClip));
+		self.farClip = try ipc.read(@TypeOf(self.farClip));
+		self.renderPrivateUI = try ipc.read(@TypeOf(self.renderPrivateUI));
+		self.postProcessing = try ipc.read(@TypeOf(self.postProcessing));
+		self.screenSpaceReflections = try ipc.read(@TypeOf(self.screenSpaceReflections));
+		return self;
 	}
 };
 
@@ -1809,28 +2076,30 @@ pub const CameraRenderTask = struct {
 	position: @Vector(3, f32),
 	rotation: @Vector(4, f32),
 	parameters: CameraRenderParameters,
-	resultData: SharedMemoryBufferDescriptor(u8),
+	resultData: SharedMemoryBufferDescriptor,
 	onlyRenderList: []i32,
 	excludeRenderList: []i32,
 
 	pub fn write(self: CameraRenderTask, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.renderSpaceId), self.renderSpaceId);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.renderSpaceId), self.renderSpaceId);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.CameraRenderParameters>(T)
-		ipc.write(@TypeOf(self.parameters), self.parameters);
+		try ipc.write(@TypeOf(self.parameters), self.parameters);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: CameraRenderTask, ipc: IpcDeserializer) !void {
-		self.renderSpaceId = ipc.read(@TypeOf(self.renderSpaceId));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
+	pub fn read(ipc: IpcDeserializer) !CameraRenderTask {
+		var self: CameraRenderTask = undefined;
+		self.renderSpaceId = try ipc.read(@TypeOf(self.renderSpaceId));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.CameraRenderParameters>(T&)
-		self.parameters = ipc.read(@TypeOf(self.parameters));
+		self.parameters = try ipc.read(@TypeOf(self.parameters));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
@@ -1841,17 +2110,19 @@ pub const FrameStartData = struct {
 	renderedReflectionProbes: []RenderableHandle,
 
 	pub fn write(self: FrameStartData, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.lastFrameIndex), self.lastFrameIndex);
+		try ipc.write(@TypeOf(self.lastFrameIndex), self.lastFrameIndex);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.PerformanceState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.InputState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderableHandle>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: FrameStartData, ipc: IpcDeserializer) !void {
-		self.lastFrameIndex = ipc.read(@TypeOf(self.lastFrameIndex));
+	pub fn read(ipc: IpcDeserializer) !FrameStartData {
+		var self: FrameStartData = undefined;
+		self.lastFrameIndex = try ipc.read(@TypeOf(self.lastFrameIndex));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.PerformanceState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.InputState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderableHandle>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
@@ -1867,41 +2138,33 @@ pub const FrameSubmitData = struct {
 	renderTasks: []CameraRenderTask,
 
 	pub fn write(self: FrameSubmitData, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.frameIndex), self.frameIndex);
-		ipc.write(@TypeOf(self.debugLog), self.debugLog);
-		ipc.write(@TypeOf(self.vrActive), self.vrActive);
-		ipc.write(@TypeOf(self.nearClip), self.nearClip);
-		ipc.write(@TypeOf(self.farClip), self.farClip);
-		ipc.write(@TypeOf(self.desktopFOV), self.desktopFOV);
+		try ipc.write(@TypeOf(self.frameIndex), self.frameIndex);
+		try ipc.write(@TypeOf(self.debugLog), self.debugLog);
+		try ipc.write(@TypeOf(self.vrActive), self.vrActive);
+		try ipc.write(@TypeOf(self.nearClip), self.nearClip);
+		try ipc.write(@TypeOf(self.farClip), self.farClip);
+		try ipc.write(@TypeOf(self.desktopFOV), self.desktopFOV);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.OutputState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.RenderSpaceUpdate>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.CameraRenderTask>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: FrameSubmitData, ipc: IpcDeserializer) !void {
-		self.frameIndex = ipc.read(@TypeOf(self.frameIndex));
-		self.debugLog = ipc.read(@TypeOf(self.debugLog));
-		self.vrActive = ipc.read(@TypeOf(self.vrActive));
-		self.nearClip = ipc.read(@TypeOf(self.nearClip));
-		self.farClip = ipc.read(@TypeOf(self.farClip));
-		self.desktopFOV = ipc.read(@TypeOf(self.desktopFOV));
+	pub fn read(ipc: IpcDeserializer) !FrameSubmitData {
+		var self: FrameSubmitData = undefined;
+		self.frameIndex = try ipc.read(@TypeOf(self.frameIndex));
+		self.debugLog = try ipc.read(@TypeOf(self.debugLog));
+		self.vrActive = try ipc.read(@TypeOf(self.vrActive));
+		self.nearClip = try ipc.read(@TypeOf(self.nearClip));
+		self.farClip = try ipc.read(@TypeOf(self.farClip));
+		self.desktopFOV = try ipc.read(@TypeOf(self.desktopFOV));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.OutputState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.RenderSpaceUpdate>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.CameraRenderTask>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
 pub const KeepAlive = struct {
-
-	pub fn write(self: KeepAlive, ipc: IpcSerializer) !void {
-		_ = self;
-		_ = ipc;
-	}
-
-	pub fn read(self: KeepAlive, ipc: IpcDeserializer) !void {
-		_ = self;
-		_ = ipc;
-	}
 };
 
 pub const PerformanceState = struct {
@@ -1926,47 +2189,49 @@ pub const PerformanceState = struct {
 	textureSliceUploads: i32,
 
 	pub fn write(self: PerformanceState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.fps), self.fps);
-		ipc.write(@TypeOf(self.immediateFPS), self.immediateFPS);
-		ipc.write(@TypeOf(self.renderTime), self.renderTime);
-		ipc.write(@TypeOf(self.externalUpdateTime), self.externalUpdateTime);
-		ipc.write(@TypeOf(self.frameBeginToSubmitTime), self.frameBeginToSubmitTime);
-		ipc.write(@TypeOf(self.frameProcessedToNextBeginTime), self.frameProcessedToNextBeginTime);
-		ipc.write(@TypeOf(self.integrationProcessingTime), self.integrationProcessingTime);
-		ipc.write(@TypeOf(self.extraParticleProcessingTime), self.extraParticleProcessingTime);
-		ipc.write(@TypeOf(self.processedAssetIntegratorTasks), self.processedAssetIntegratorTasks);
-		ipc.write(@TypeOf(self.integrationHighPriorityTasks), self.integrationHighPriorityTasks);
-		ipc.write(@TypeOf(self.integrationTasks), self.integrationTasks);
-		ipc.write(@TypeOf(self.integrationRenderTasks), self.integrationRenderTasks);
-		ipc.write(@TypeOf(self.integrationParticleTasks), self.integrationParticleTasks);
-		ipc.write(@TypeOf(self.processingHandleWaits), self.processingHandleWaits);
-		ipc.write(@TypeOf(self.frameUpdateHandleTime), self.frameUpdateHandleTime);
-		ipc.write(@TypeOf(self.renderedCameras), self.renderedCameras);
-		ipc.write(@TypeOf(self.renderedCameraPortals), self.renderedCameraPortals);
-		ipc.write(@TypeOf(self.updatedTextures), self.updatedTextures);
-		ipc.write(@TypeOf(self.textureSliceUploads), self.textureSliceUploads);
+		try ipc.write(@TypeOf(self.fps), self.fps);
+		try ipc.write(@TypeOf(self.immediateFPS), self.immediateFPS);
+		try ipc.write(@TypeOf(self.renderTime), self.renderTime);
+		try ipc.write(@TypeOf(self.externalUpdateTime), self.externalUpdateTime);
+		try ipc.write(@TypeOf(self.frameBeginToSubmitTime), self.frameBeginToSubmitTime);
+		try ipc.write(@TypeOf(self.frameProcessedToNextBeginTime), self.frameProcessedToNextBeginTime);
+		try ipc.write(@TypeOf(self.integrationProcessingTime), self.integrationProcessingTime);
+		try ipc.write(@TypeOf(self.extraParticleProcessingTime), self.extraParticleProcessingTime);
+		try ipc.write(@TypeOf(self.processedAssetIntegratorTasks), self.processedAssetIntegratorTasks);
+		try ipc.write(@TypeOf(self.integrationHighPriorityTasks), self.integrationHighPriorityTasks);
+		try ipc.write(@TypeOf(self.integrationTasks), self.integrationTasks);
+		try ipc.write(@TypeOf(self.integrationRenderTasks), self.integrationRenderTasks);
+		try ipc.write(@TypeOf(self.integrationParticleTasks), self.integrationParticleTasks);
+		try ipc.write(@TypeOf(self.processingHandleWaits), self.processingHandleWaits);
+		try ipc.write(@TypeOf(self.frameUpdateHandleTime), self.frameUpdateHandleTime);
+		try ipc.write(@TypeOf(self.renderedCameras), self.renderedCameras);
+		try ipc.write(@TypeOf(self.renderedCameraPortals), self.renderedCameraPortals);
+		try ipc.write(@TypeOf(self.updatedTextures), self.updatedTextures);
+		try ipc.write(@TypeOf(self.textureSliceUploads), self.textureSliceUploads);
 	}
 
-	pub fn read(self: PerformanceState, ipc: IpcDeserializer) !void {
-		self.fps = ipc.read(@TypeOf(self.fps));
-		self.immediateFPS = ipc.read(@TypeOf(self.immediateFPS));
-		self.renderTime = ipc.read(@TypeOf(self.renderTime));
-		self.externalUpdateTime = ipc.read(@TypeOf(self.externalUpdateTime));
-		self.frameBeginToSubmitTime = ipc.read(@TypeOf(self.frameBeginToSubmitTime));
-		self.frameProcessedToNextBeginTime = ipc.read(@TypeOf(self.frameProcessedToNextBeginTime));
-		self.integrationProcessingTime = ipc.read(@TypeOf(self.integrationProcessingTime));
-		self.extraParticleProcessingTime = ipc.read(@TypeOf(self.extraParticleProcessingTime));
-		self.processedAssetIntegratorTasks = ipc.read(@TypeOf(self.processedAssetIntegratorTasks));
-		self.integrationHighPriorityTasks = ipc.read(@TypeOf(self.integrationHighPriorityTasks));
-		self.integrationTasks = ipc.read(@TypeOf(self.integrationTasks));
-		self.integrationRenderTasks = ipc.read(@TypeOf(self.integrationRenderTasks));
-		self.integrationParticleTasks = ipc.read(@TypeOf(self.integrationParticleTasks));
-		self.processingHandleWaits = ipc.read(@TypeOf(self.processingHandleWaits));
-		self.frameUpdateHandleTime = ipc.read(@TypeOf(self.frameUpdateHandleTime));
-		self.renderedCameras = ipc.read(@TypeOf(self.renderedCameras));
-		self.renderedCameraPortals = ipc.read(@TypeOf(self.renderedCameraPortals));
-		self.updatedTextures = ipc.read(@TypeOf(self.updatedTextures));
-		self.textureSliceUploads = ipc.read(@TypeOf(self.textureSliceUploads));
+	pub fn read(ipc: IpcDeserializer) !PerformanceState {
+		var self: PerformanceState = undefined;
+		self.fps = try ipc.read(@TypeOf(self.fps));
+		self.immediateFPS = try ipc.read(@TypeOf(self.immediateFPS));
+		self.renderTime = try ipc.read(@TypeOf(self.renderTime));
+		self.externalUpdateTime = try ipc.read(@TypeOf(self.externalUpdateTime));
+		self.frameBeginToSubmitTime = try ipc.read(@TypeOf(self.frameBeginToSubmitTime));
+		self.frameProcessedToNextBeginTime = try ipc.read(@TypeOf(self.frameProcessedToNextBeginTime));
+		self.integrationProcessingTime = try ipc.read(@TypeOf(self.integrationProcessingTime));
+		self.extraParticleProcessingTime = try ipc.read(@TypeOf(self.extraParticleProcessingTime));
+		self.processedAssetIntegratorTasks = try ipc.read(@TypeOf(self.processedAssetIntegratorTasks));
+		self.integrationHighPriorityTasks = try ipc.read(@TypeOf(self.integrationHighPriorityTasks));
+		self.integrationTasks = try ipc.read(@TypeOf(self.integrationTasks));
+		self.integrationRenderTasks = try ipc.read(@TypeOf(self.integrationRenderTasks));
+		self.integrationParticleTasks = try ipc.read(@TypeOf(self.integrationParticleTasks));
+		self.processingHandleWaits = try ipc.read(@TypeOf(self.processingHandleWaits));
+		self.frameUpdateHandleTime = try ipc.read(@TypeOf(self.frameUpdateHandleTime));
+		self.renderedCameras = try ipc.read(@TypeOf(self.renderedCameras));
+		self.renderedCameraPortals = try ipc.read(@TypeOf(self.renderedCameraPortals));
+		self.updatedTextures = try ipc.read(@TypeOf(self.updatedTextures));
+		self.textureSliceUploads = try ipc.read(@TypeOf(self.textureSliceUploads));
+		return self;
 	}
 };
 
@@ -1975,13 +2240,15 @@ pub const ReflectionProbeRenderResult = struct {
 	success: bool,
 
 	pub fn write(self: ReflectionProbeRenderResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.renderTaskId), self.renderTaskId);
-		ipc.write(@TypeOf(self.success), self.success);
+		try ipc.write(@TypeOf(self.renderTaskId), self.renderTaskId);
+		try ipc.write(@TypeOf(self.success), self.success);
 	}
 
-	pub fn read(self: ReflectionProbeRenderResult, ipc: IpcDeserializer) !void {
-		self.renderTaskId = ipc.read(@TypeOf(self.renderTaskId));
-		self.success = ipc.read(@TypeOf(self.success));
+	pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderResult {
+		var self: ReflectionProbeRenderResult = undefined;
+		self.renderTaskId = try ipc.read(@TypeOf(self.renderTaskId));
+		self.success = try ipc.read(@TypeOf(self.success));
+		return self;
 	}
 };
 
@@ -1991,27 +2258,29 @@ pub const ReflectionProbeRenderTask = struct {
 	size: i32,
 	hdr: bool,
 	mipOrigins: [][]i32,
-	resultData: SharedMemoryBufferDescriptor(u8),
+	resultData: SharedMemoryBufferDescriptor,
 	excludeTransformIds: []i32,
 
 	pub fn write(self: ReflectionProbeRenderTask, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
-		ipc.write(@TypeOf(self.renderTaskId), self.renderTaskId);
-		ipc.write(@TypeOf(self.size), self.size);
-		ipc.write(@TypeOf(self.hdr), self.hdr);
+		try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+		try ipc.write(@TypeOf(self.renderTaskId), self.renderTaskId);
+		try ipc.write(@TypeOf(self.size), self.size);
+		try ipc.write(@TypeOf(self.hdr), self.hdr);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
-		ipc.write(@TypeOf(self.mipOrigins), self.mipOrigins);
+		try ipc.write(@TypeOf(self.mipOrigins), self.mipOrigins);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<System.Int32>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: ReflectionProbeRenderTask, ipc: IpcDeserializer) !void {
-		self.renderableIndex = ipc.read(@TypeOf(self.renderableIndex));
-		self.renderTaskId = ipc.read(@TypeOf(self.renderTaskId));
-		self.size = ipc.read(@TypeOf(self.size));
-		self.hdr = ipc.read(@TypeOf(self.hdr));
+	pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderTask {
+		var self: ReflectionProbeRenderTask = undefined;
+		self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+		self.renderTaskId = try ipc.read(@TypeOf(self.renderTaskId));
+		self.size = try ipc.read(@TypeOf(self.size));
+		self.hdr = try ipc.read(@TypeOf(self.hdr));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
-		self.mipOrigins = ipc.read(@TypeOf(self.mipOrigins));
+		self.mipOrigins = try ipc.read(@TypeOf(self.mipOrigins));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<System.Int32>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
@@ -2047,16 +2316,16 @@ pub const RenderSpaceUpdate = struct {
 	reflectionProbeRenderTasks: []ReflectionProbeRenderTask,
 
 	pub fn write(self: RenderSpaceUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.id), self.id);
-		ipc.write(@TypeOf(self.isActive), self.isActive);
-		ipc.write(@TypeOf(self.isOverlay), self.isOverlay);
-		ipc.write(@TypeOf(self.isPrivate), self.isPrivate);
-		ipc.write(@TypeOf(self.rootTransform), self.rootTransform);
-		ipc.write(@TypeOf(self.viewPositionIsExternal), self.viewPositionIsExternal);
-		ipc.write(@TypeOf(self.overrideViewPosition), self.overrideViewPosition);
-		ipc.write(@TypeOf(self.skyboxMaterialAssetId), self.skyboxMaterialAssetId);
-		ipc.write(@TypeOf(self.ambientLight), self.ambientLight);
-		ipc.write(@TypeOf(self.overridenViewTransform), self.overridenViewTransform);
+		try ipc.write(@TypeOf(self.id), self.id);
+		try ipc.write(@TypeOf(self.isActive), self.isActive);
+		try ipc.write(@TypeOf(self.isOverlay), self.isOverlay);
+		try ipc.write(@TypeOf(self.isPrivate), self.isPrivate);
+		try ipc.write(@TypeOf(self.rootTransform), self.rootTransform);
+		try ipc.write(@TypeOf(self.viewPositionIsExternal), self.viewPositionIsExternal);
+		try ipc.write(@TypeOf(self.overrideViewPosition), self.overrideViewPosition);
+		try ipc.write(@TypeOf(self.skyboxMaterialAssetId), self.skyboxMaterialAssetId);
+		try ipc.write(@TypeOf(self.ambientLight), self.ambientLight);
+		try ipc.write(@TypeOf(self.overridenViewTransform), self.overridenViewTransform);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.TransformsUpdate>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.MeshRenderablesUpdate>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.SkinnedMeshRenderablesUpdate>(T)
@@ -2078,17 +2347,18 @@ pub const RenderSpaceUpdate = struct {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.ReflectionProbeRenderTask>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: RenderSpaceUpdate, ipc: IpcDeserializer) !void {
-		self.id = ipc.read(@TypeOf(self.id));
-		self.isActive = ipc.read(@TypeOf(self.isActive));
-		self.isOverlay = ipc.read(@TypeOf(self.isOverlay));
-		self.isPrivate = ipc.read(@TypeOf(self.isPrivate));
-		self.rootTransform = ipc.read(@TypeOf(self.rootTransform));
-		self.viewPositionIsExternal = ipc.read(@TypeOf(self.viewPositionIsExternal));
-		self.overrideViewPosition = ipc.read(@TypeOf(self.overrideViewPosition));
-		self.skyboxMaterialAssetId = ipc.read(@TypeOf(self.skyboxMaterialAssetId));
-		self.ambientLight = ipc.read(@TypeOf(self.ambientLight));
-		self.overridenViewTransform = ipc.read(@TypeOf(self.overridenViewTransform));
+	pub fn read(ipc: IpcDeserializer) !RenderSpaceUpdate {
+		var self: RenderSpaceUpdate = undefined;
+		self.id = try ipc.read(@TypeOf(self.id));
+		self.isActive = try ipc.read(@TypeOf(self.isActive));
+		self.isOverlay = try ipc.read(@TypeOf(self.isOverlay));
+		self.isPrivate = try ipc.read(@TypeOf(self.isPrivate));
+		self.rootTransform = try ipc.read(@TypeOf(self.rootTransform));
+		self.viewPositionIsExternal = try ipc.read(@TypeOf(self.viewPositionIsExternal));
+		self.overrideViewPosition = try ipc.read(@TypeOf(self.overrideViewPosition));
+		self.skyboxMaterialAssetId = try ipc.read(@TypeOf(self.skyboxMaterialAssetId));
+		self.ambientLight = try ipc.read(@TypeOf(self.ambientLight));
+		self.overridenViewTransform = try ipc.read(@TypeOf(self.overridenViewTransform));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.TransformsUpdate>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.MeshRenderablesUpdate>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.SkinnedMeshRenderablesUpdate>(T&)
@@ -2108,6 +2378,7 @@ pub const RenderSpaceUpdate = struct {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.LODGroupRenderablesUpdate>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.GaussianSplatRenderablesUpdate>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.ReflectionProbeRenderTask>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
@@ -2121,23 +2392,25 @@ pub const DisplayState = struct {
 	isPrimary: bool,
 
 	pub fn write(self: DisplayState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.displayIndex), self.displayIndex);
-		ipc.write(@TypeOf(self.resolution), self.resolution);
-		ipc.write(@TypeOf(self.offset), self.offset);
-		ipc.write(@TypeOf(self.refreshRate), self.refreshRate);
-		ipc.write(@TypeOf(self.orientation), self.orientation);
-		ipc.write(@TypeOf(self.dpi), self.dpi);
-		ipc.write(@TypeOf(self.isPrimary), self.isPrimary);
+		try ipc.write(@TypeOf(self.displayIndex), self.displayIndex);
+		try ipc.write(@TypeOf(self.resolution), self.resolution);
+		try ipc.write(@TypeOf(self.offset), self.offset);
+		try ipc.write(@TypeOf(self.refreshRate), self.refreshRate);
+		try ipc.write(@TypeOf(self.orientation), self.orientation);
+		try ipc.write(@TypeOf(self.dpi), self.dpi);
+		try ipc.write(@TypeOf(self.isPrimary), self.isPrimary);
 	}
 
-	pub fn read(self: DisplayState, ipc: IpcDeserializer) !void {
-		self.displayIndex = ipc.read(@TypeOf(self.displayIndex));
-		self.resolution = ipc.read(@TypeOf(self.resolution));
-		self.offset = ipc.read(@TypeOf(self.offset));
-		self.refreshRate = ipc.read(@TypeOf(self.refreshRate));
-		self.orientation = ipc.read(@TypeOf(self.orientation));
-		self.dpi = ipc.read(@TypeOf(self.dpi));
-		self.isPrimary = ipc.read(@TypeOf(self.isPrimary));
+	pub fn read(ipc: IpcDeserializer) !DisplayState {
+		var self: DisplayState = undefined;
+		self.displayIndex = try ipc.read(@TypeOf(self.displayIndex));
+		self.resolution = try ipc.read(@TypeOf(self.resolution));
+		self.offset = try ipc.read(@TypeOf(self.offset));
+		self.refreshRate = try ipc.read(@TypeOf(self.refreshRate));
+		self.orientation = try ipc.read(@TypeOf(self.orientation));
+		self.dpi = try ipc.read(@TypeOf(self.dpi));
+		self.isPrimary = try ipc.read(@TypeOf(self.isPrimary));
+		return self;
 	}
 };
 
@@ -2147,12 +2420,14 @@ pub const DragAndDropEvent = struct {
 
 	pub fn write(self: DragAndDropEvent, ipc: IpcSerializer) !void {
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::WriteStringList(System.Collections.Generic.List`1<System.String>)
-		ipc.write(@TypeOf(self.paths), self.paths);
+		try ipc.write(@TypeOf(self.paths), self.paths);
 	}
 
-	pub fn read(self: DragAndDropEvent, ipc: IpcDeserializer) !void {
+	pub fn read(ipc: IpcDeserializer) !DragAndDropEvent {
+		var self: DragAndDropEvent = undefined;
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::ReadStringList(System.Collections.Generic.List`1<System.String>&)
-		self.paths = ipc.read(@TypeOf(self.paths));
+		self.paths = try ipc.read(@TypeOf(self.paths));
+		return self;
 	}
 };
 
@@ -2183,27 +2458,29 @@ pub const GamepadState = struct {
 	paddle3: bool,
 
 	pub fn write(self: GamepadState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.displayName), self.displayName);
-		ipc.write(@TypeOf(self.leftThumbstick), self.leftThumbstick);
-		ipc.write(@TypeOf(self.rightThumbstick), self.rightThumbstick);
-		ipc.write(@TypeOf(self.dPad), self.dPad);
-		ipc.write(@TypeOf(self.leftTrigger), self.leftTrigger);
-		ipc.write(@TypeOf(self.rightTrigger), self.rightTrigger);
-		ipc.write8PackedBools(self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper);
-		ipc.write8PackedBools(self.start, self.menu, false, false, false, false, false, false);
-		ipc.write8PackedBools(self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3);
+		try ipc.write(@TypeOf(self.displayName), self.displayName);
+		try ipc.write(@TypeOf(self.leftThumbstick), self.leftThumbstick);
+		try ipc.write(@TypeOf(self.rightThumbstick), self.rightThumbstick);
+		try ipc.write(@TypeOf(self.dPad), self.dPad);
+		try ipc.write(@TypeOf(self.leftTrigger), self.leftTrigger);
+		try ipc.write(@TypeOf(self.rightTrigger), self.rightTrigger);
+		try ipc.write8PackedBools(self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper);
+		try ipc.write8PackedBools(self.start, self.menu, false, false, false, false, false, false);
+		try ipc.write8PackedBools(self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3);
 	}
 
-	pub fn read(self: GamepadState, ipc: IpcDeserializer) !void {
-		self.displayName = ipc.read(@TypeOf(self.displayName));
-		self.leftThumbstick = ipc.read(@TypeOf(self.leftThumbstick));
-		self.rightThumbstick = ipc.read(@TypeOf(self.rightThumbstick));
-		self.dPad = ipc.read(@TypeOf(self.dPad));
-		self.leftTrigger = ipc.read(@TypeOf(self.leftTrigger));
-		self.rightTrigger = ipc.read(@TypeOf(self.rightTrigger));
-		self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper = ipc.read8PackedBools();
-		self.start, self.menu, _, _, _, _, _, _ = ipc.read8PackedBools();
-		self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3 = ipc.read8PackedBools();
+	pub fn read(ipc: IpcDeserializer) !GamepadState {
+		var self: GamepadState = undefined;
+		self.displayName = try ipc.read(@TypeOf(self.displayName));
+		self.leftThumbstick = try ipc.read(@TypeOf(self.leftThumbstick));
+		self.rightThumbstick = try ipc.read(@TypeOf(self.rightThumbstick));
+		self.dPad = try ipc.read(@TypeOf(self.dPad));
+		self.leftTrigger = try ipc.read(@TypeOf(self.leftTrigger));
+		self.rightTrigger = try ipc.read(@TypeOf(self.rightTrigger));
+		self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper = try ipc.read8PackedBools();
+		self.start, self.menu, _, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3 = try ipc.read8PackedBools();
+		return self;
 	}
 };
 
@@ -2221,27 +2498,29 @@ pub const HandState = struct {
 	segmentRotations: []@Vector(4, f32),
 
 	pub fn write(self: HandState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
-		ipc.write(@TypeOf(self.priority), self.priority);
-		ipc.write(@TypeOf(self.chirality), self.chirality);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.tracksMetacarpals, false, false, false, false, false);
-		ipc.write(@TypeOf(self.confidence), self.confidence);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.wristPosition), self.wristPosition);
+		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
+		try ipc.write(@TypeOf(self.priority), self.priority);
+		try ipc.write(@TypeOf(self.chirality), self.chirality);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.tracksMetacarpals, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.confidence), self.confidence);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.wristPosition), self.wristPosition);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.RenderQuaternion>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: HandState, ipc: IpcDeserializer) !void {
-		self.uniqueId = ipc.read(@TypeOf(self.uniqueId));
-		self.priority = ipc.read(@TypeOf(self.priority));
-		self.chirality = ipc.read(@TypeOf(self.chirality));
-		self.isDeviceActive, self.isTracking, self.tracksMetacarpals, _, _, _, _, _ = ipc.read8PackedBools();
-		self.confidence = ipc.read(@TypeOf(self.confidence));
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.wristPosition = ipc.read(@TypeOf(self.wristPosition));
+	pub fn read(ipc: IpcDeserializer) !HandState {
+		var self: HandState = undefined;
+		self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
+		self.priority = try ipc.read(@TypeOf(self.priority));
+		self.chirality = try ipc.read(@TypeOf(self.chirality));
+		self.isDeviceActive, self.isTracking, self.tracksMetacarpals, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.confidence = try ipc.read(@TypeOf(self.confidence));
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.wristPosition = try ipc.read(@TypeOf(self.wristPosition));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderVector3>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.RenderQuaternion>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
@@ -2266,7 +2545,8 @@ pub const InputState = struct {
 		_ = ipc;
 	}
 
-	pub fn read(self: InputState, ipc: IpcDeserializer) !void {
+	pub fn read(ipc: IpcDeserializer) !InputState {
+		var self: InputState = undefined;
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.MouseState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.KeyboardState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.WindowState>(T&)
@@ -2274,8 +2554,9 @@ pub const InputState = struct {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.GamepadState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TouchState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.DisplayState>(System.Collections.Generic.List`1<T>&)
-		_ = self;
+		_ = &self; // FIXME: Type not generating any members
 		_ = ipc;
+		return self;
 	}
 };
 
@@ -2284,13 +2565,15 @@ pub const KeyboardState = struct {
 	heldKeys: []Key,
 
 	pub fn write(self: KeyboardState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.typeDelta), self.typeDelta);
+		try ipc.write(@TypeOf(self.typeDelta), self.typeDelta);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.Key>(System.Collections.Generic.HashSet`1<T>)
 	}
 
-	pub fn read(self: KeyboardState, ipc: IpcDeserializer) !void {
-		self.typeDelta = ipc.read(@TypeOf(self.typeDelta));
+	pub fn read(ipc: IpcDeserializer) !KeyboardState {
+		var self: KeyboardState = undefined;
+		self.typeDelta = try ipc.read(@TypeOf(self.typeDelta));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.Key>(System.Collections.Generic.HashSet`1<T>&)
+		return self;
 	}
 };
 
@@ -2307,19 +2590,21 @@ pub const MouseState = struct {
 	scrollWheelDelta: @Vector(2, f32),
 
 	pub fn write(self: MouseState, ipc: IpcSerializer) !void {
-		ipc.write8PackedBools(self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, false, false);
-		ipc.write(@TypeOf(self.desktopPosition), self.desktopPosition);
-		ipc.write(@TypeOf(self.windowPosition), self.windowPosition);
-		ipc.write(@TypeOf(self.directDelta), self.directDelta);
-		ipc.write(@TypeOf(self.scrollWheelDelta), self.scrollWheelDelta);
+		try ipc.write8PackedBools(self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, false, false);
+		try ipc.write(@TypeOf(self.desktopPosition), self.desktopPosition);
+		try ipc.write(@TypeOf(self.windowPosition), self.windowPosition);
+		try ipc.write(@TypeOf(self.directDelta), self.directDelta);
+		try ipc.write(@TypeOf(self.scrollWheelDelta), self.scrollWheelDelta);
 	}
 
-	pub fn read(self: MouseState, ipc: IpcDeserializer) !void {
-		self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, _, _ = ipc.read8PackedBools();
-		self.desktopPosition = ipc.read(@TypeOf(self.desktopPosition));
-		self.windowPosition = ipc.read(@TypeOf(self.windowPosition));
-		self.directDelta = ipc.read(@TypeOf(self.directDelta));
-		self.scrollWheelDelta = ipc.read(@TypeOf(self.scrollWheelDelta));
+	pub fn read(ipc: IpcDeserializer) !MouseState {
+		var self: MouseState = undefined;
+		self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, _, _ = try ipc.read8PackedBools();
+		self.desktopPosition = try ipc.read(@TypeOf(self.desktopPosition));
+		self.windowPosition = try ipc.read(@TypeOf(self.windowPosition));
+		self.directDelta = try ipc.read(@TypeOf(self.directDelta));
+		self.scrollWheelDelta = try ipc.read(@TypeOf(self.scrollWheelDelta));
+		return self;
 	}
 };
 
@@ -2330,17 +2615,19 @@ pub const TouchState = struct {
 	pressure: f32,
 
 	pub fn write(self: TouchState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.touchId), self.touchId);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.isPressing), self.isPressing);
-		ipc.write(@TypeOf(self.pressure), self.pressure);
+		try ipc.write(@TypeOf(self.touchId), self.touchId);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.isPressing), self.isPressing);
+		try ipc.write(@TypeOf(self.pressure), self.pressure);
 	}
 
-	pub fn read(self: TouchState, ipc: IpcDeserializer) !void {
-		self.touchId = ipc.read(@TypeOf(self.touchId));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.isPressing = ipc.read(@TypeOf(self.isPressing));
-		self.pressure = ipc.read(@TypeOf(self.pressure));
+	pub fn read(ipc: IpcDeserializer) !TouchState {
+		var self: TouchState = undefined;
+		self.touchId = try ipc.read(@TypeOf(self.touchId));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.isPressing = try ipc.read(@TypeOf(self.isPressing));
+		self.pressure = try ipc.read(@TypeOf(self.pressure));
+		return self;
 	}
 };
 
@@ -2371,39 +2658,41 @@ pub const CosmosControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: CosmosControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY);
-		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
-		ipc.write(@TypeOf(self.trigger), self.trigger);
-		ipc.write(@TypeOf(self.bumper), self.bumper);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY);
+		try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+		try ipc.write(@TypeOf(self.trigger), self.trigger);
+		try ipc.write(@TypeOf(self.bumper), self.bumper);
 	}
 
-	pub fn read(self: CosmosControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY = ipc.read8PackedBools();
-		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
-		self.trigger = ipc.read(@TypeOf(self.trigger));
-		self.bumper = ipc.read(@TypeOf(self.bumper));
+	pub fn read(ipc: IpcDeserializer) !CosmosControllerState {
+		var self: CosmosControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY = try ipc.read8PackedBools();
+		self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+		self.trigger = try ipc.read(@TypeOf(self.trigger));
+		self.bumper = try ipc.read(@TypeOf(self.bumper));
+		return self;
 	}
 };
 
@@ -2431,37 +2720,39 @@ pub const GenericControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: GenericControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.strength), self.strength);
-		ipc.write(@TypeOf(self.axis), self.axis);
-		ipc.write8PackedBools(self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, false, false);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.strength), self.strength);
+		try ipc.write(@TypeOf(self.axis), self.axis);
+		try ipc.write8PackedBools(self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, false, false);
 	}
 
-	pub fn read(self: GenericControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.strength = ipc.read(@TypeOf(self.strength));
-		self.axis = ipc.read(@TypeOf(self.axis));
-		self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, _, _ = ipc.read8PackedBools();
+	pub fn read(ipc: IpcDeserializer) !GenericControllerState {
+		var self: GenericControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.strength = try ipc.read(@TypeOf(self.strength));
+		self.axis = try ipc.read(@TypeOf(self.axis));
+		self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, _, _ = try ipc.read8PackedBools();
+		return self;
 	}
 };
 
@@ -2492,39 +2783,41 @@ pub const HP_ReverbControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: HP_ReverbControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write8PackedBools(self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick);
-		ipc.write(@TypeOf(self.grip), self.grip);
-		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
-		ipc.write(@TypeOf(self.trigger), self.trigger);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write8PackedBools(self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick);
+		try ipc.write(@TypeOf(self.grip), self.grip);
+		try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+		try ipc.write(@TypeOf(self.trigger), self.trigger);
 	}
 
-	pub fn read(self: HP_ReverbControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick = ipc.read8PackedBools();
-		self.grip = ipc.read(@TypeOf(self.grip));
-		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
-		self.trigger = ipc.read(@TypeOf(self.trigger));
+	pub fn read(ipc: IpcDeserializer) !HP_ReverbControllerState {
+		var self: HP_ReverbControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick = try ipc.read8PackedBools();
+		self.grip = try ipc.read(@TypeOf(self.grip));
+		self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+		self.trigger = try ipc.read(@TypeOf(self.trigger));
+		return self;
 	}
 };
 
@@ -2561,45 +2854,47 @@ pub const IndexControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: IndexControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write8PackedBools(self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick);
-		ipc.write(@TypeOf(self.grip), self.grip);
-		ipc.write(@TypeOf(self.trigger), self.trigger);
-		ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, false, false, false, false);
-		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
-		ipc.write(@TypeOf(self.touchpad), self.touchpad);
-		ipc.write(@TypeOf(self.touchpadForce), self.touchpadForce);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write8PackedBools(self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick);
+		try ipc.write(@TypeOf(self.grip), self.grip);
+		try ipc.write(@TypeOf(self.trigger), self.trigger);
+		try ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, false, false, false, false);
+		try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+		try ipc.write(@TypeOf(self.touchpad), self.touchpad);
+		try ipc.write(@TypeOf(self.touchpadForce), self.touchpadForce);
 	}
 
-	pub fn read(self: IndexControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick = ipc.read8PackedBools();
-		self.grip = ipc.read(@TypeOf(self.grip));
-		self.trigger = ipc.read(@TypeOf(self.trigger));
-		self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, _, _, _, _ = ipc.read8PackedBools();
-		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
-		self.touchpad = ipc.read(@TypeOf(self.touchpad));
-		self.touchpadForce = ipc.read(@TypeOf(self.touchpadForce));
+	pub fn read(ipc: IpcDeserializer) !IndexControllerState {
+		var self: IndexControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick = try ipc.read8PackedBools();
+		self.grip = try ipc.read(@TypeOf(self.grip));
+		self.trigger = try ipc.read(@TypeOf(self.trigger));
+		self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, _, _, _, _ = try ipc.read8PackedBools();
+		self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+		self.touchpad = try ipc.read(@TypeOf(self.touchpad));
+		self.touchpadForce = try ipc.read(@TypeOf(self.touchpadForce));
+		return self;
 	}
 };
 
@@ -2629,37 +2924,39 @@ pub const PicoNeo2ControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: PicoNeo2ControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write8PackedBools(self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick);
-		ipc.write(@TypeOf(self.joystick), self.joystick);
-		ipc.write(@TypeOf(self.trigger), self.trigger);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write8PackedBools(self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick);
+		try ipc.write(@TypeOf(self.joystick), self.joystick);
+		try ipc.write(@TypeOf(self.trigger), self.trigger);
 	}
 
-	pub fn read(self: PicoNeo2ControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick = ipc.read8PackedBools();
-		self.joystick = ipc.read(@TypeOf(self.joystick));
-		self.trigger = ipc.read(@TypeOf(self.trigger));
+	pub fn read(ipc: IpcDeserializer) !PicoNeo2ControllerState {
+		var self: PicoNeo2ControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick = try ipc.read8PackedBools();
+		self.joystick = try ipc.read(@TypeOf(self.joystick));
+		self.trigger = try ipc.read(@TypeOf(self.trigger));
+		return self;
 	}
 };
 
@@ -2694,43 +2991,45 @@ pub const TouchControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: TouchControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write(@TypeOf(self.model), self.model);
-		ipc.write8PackedBools(self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, false, false);
-		ipc.write8PackedBools(self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, false, false, false);
-		ipc.write(@TypeOf(self.grip), self.grip);
-		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
-		ipc.write(@TypeOf(self.trigger), self.trigger);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.model), self.model);
+		try ipc.write8PackedBools(self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, false, false);
+		try ipc.write8PackedBools(self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, false, false, false);
+		try ipc.write(@TypeOf(self.grip), self.grip);
+		try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+		try ipc.write(@TypeOf(self.trigger), self.trigger);
 	}
 
-	pub fn read(self: TouchControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.model = ipc.read(@TypeOf(self.model));
-		self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, _, _ = ipc.read8PackedBools();
-		self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, _, _, _ = ipc.read8PackedBools();
-		self.grip = ipc.read(@TypeOf(self.grip));
-		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
-		self.trigger = ipc.read(@TypeOf(self.trigger));
+	pub fn read(ipc: IpcDeserializer) !TouchControllerState {
+		var self: TouchControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.model = try ipc.read(@TypeOf(self.model));
+		self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, _, _ = try ipc.read8PackedBools();
+		self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, _, _, _ = try ipc.read8PackedBools();
+		self.grip = try ipc.read(@TypeOf(self.grip));
+		self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+		self.trigger = try ipc.read(@TypeOf(self.trigger));
+		return self;
 	}
 };
 
@@ -2758,37 +3057,39 @@ pub const ViveControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: ViveControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, false, false);
-		ipc.write(@TypeOf(self.trigger), self.trigger);
-		ipc.write(@TypeOf(self.touchpad), self.touchpad);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, false, false);
+		try ipc.write(@TypeOf(self.trigger), self.trigger);
+		try ipc.write(@TypeOf(self.touchpad), self.touchpad);
 	}
 
-	pub fn read(self: ViveControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, _, _ = ipc.read8PackedBools();
-		self.trigger = ipc.read(@TypeOf(self.trigger));
-		self.touchpad = ipc.read(@TypeOf(self.touchpad));
+	pub fn read(ipc: IpcDeserializer) !ViveControllerState {
+		var self: ViveControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, _, _ = try ipc.read8PackedBools();
+		self.trigger = try ipc.read(@TypeOf(self.trigger));
+		self.touchpad = try ipc.read(@TypeOf(self.touchpad));
+		return self;
 	}
 };
 
@@ -2818,39 +3119,41 @@ pub const WindowsMR_ControllerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: WindowsMR_ControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-		ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, false);
-		ipc.write(@TypeOf(self.trigger), self.trigger);
-		ipc.write(@TypeOf(self.touchpad), self.touchpad);
-		ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+		try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+		try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
+		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, false);
+		try ipc.write(@TypeOf(self.trigger), self.trigger);
+		try ipc.write(@TypeOf(self.touchpad), self.touchpad);
+		try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
 	}
 
-	pub fn read(self: WindowsMR_ControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, _ = ipc.read8PackedBools();
-		self.trigger = ipc.read(@TypeOf(self.trigger));
-		self.touchpad = ipc.read(@TypeOf(self.touchpad));
-		self.joystickRaw = ipc.read(@TypeOf(self.joystickRaw));
+	pub fn read(ipc: IpcDeserializer) !WindowsMR_ControllerState {
+		var self: WindowsMR_ControllerState = undefined;
+		self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+		self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
+		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, _ = try ipc.read8PackedBools();
+		self.trigger = try ipc.read(@TypeOf(self.trigger));
+		self.touchpad = try ipc.read(@TypeOf(self.touchpad));
+		self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+		return self;
 	}
 };
 
@@ -2865,23 +3168,25 @@ pub const HeadsetState = struct {
 	headsetModel: []const u16,
 
 	pub fn write(self: HeadsetState, ipc: IpcSerializer) !void {
-		ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
-		ipc.write(@TypeOf(self.connectionType), self.connectionType);
-		ipc.write(@TypeOf(self.headsetManufacturer), self.headsetManufacturer);
+		try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.connectionType), self.connectionType);
+		try ipc.write(@TypeOf(self.headsetManufacturer), self.headsetManufacturer);
 	}
 
-	pub fn read(self: HeadsetState, ipc: IpcDeserializer) !void {
-		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.batteryLevel = ipc.read(@TypeOf(self.batteryLevel));
-		self.connectionType = ipc.read(@TypeOf(self.connectionType));
-		self.headsetManufacturer = ipc.read(@TypeOf(self.headsetManufacturer));
+	pub fn read(ipc: IpcDeserializer) !HeadsetState {
+		var self: HeadsetState = undefined;
+		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.connectionType = try ipc.read(@TypeOf(self.connectionType));
+		self.headsetManufacturer = try ipc.read(@TypeOf(self.headsetManufacturer));
+		return self;
 	}
 };
 
@@ -2894,19 +3199,21 @@ pub const TrackerState = struct {
 	batteryCharging: bool,
 
 	pub fn write(self: TrackerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
-		ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
+		try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
 	}
 
-	pub fn read(self: TrackerState, ipc: IpcDeserializer) !void {
-		self.uniqueId = ipc.read(@TypeOf(self.uniqueId));
-		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
+	pub fn read(ipc: IpcDeserializer) !TrackerState {
+		var self: TrackerState = undefined;
+		self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
+		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		return self;
 	}
 };
 
@@ -2917,17 +3224,19 @@ pub const TrackingReferenceState = struct {
 	rotation: @Vector(4, f32),
 
 	pub fn write(self: TrackingReferenceState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		try ipc.write(@TypeOf(self.position), self.position);
 	}
 
-	pub fn read(self: TrackingReferenceState, ipc: IpcDeserializer) !void {
-		self.uniqueId = ipc.read(@TypeOf(self.uniqueId));
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
+	pub fn read(ipc: IpcDeserializer) !TrackingReferenceState {
+		var self: TrackingReferenceState = undefined;
+		self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		self.position = try ipc.read(@TypeOf(self.position));
+		return self;
 	}
 };
 
@@ -2941,7 +3250,7 @@ pub const VR_InputsState = struct {
 	hands: []HandState,
 
 	pub fn write(self: VR_InputsState, ipc: IpcSerializer) !void {
-		ipc.write8PackedBools(self.userPresentInHeadset, self.dashboardOpen, false, false, false, false, false, false);
+		try ipc.write8PackedBools(self.userPresentInHeadset, self.dashboardOpen, false, false, false, false, false, false);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.HeadsetState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WritePolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>)
@@ -2949,13 +3258,15 @@ pub const VR_InputsState = struct {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: VR_InputsState, ipc: IpcDeserializer) !void {
-		self.userPresentInHeadset, self.dashboardOpen, _, _, _, _, _, _ = ipc.read8PackedBools();
+	pub fn read(ipc: IpcDeserializer) !VR_InputsState {
+		var self: VR_InputsState = undefined;
+		self.userPresentInHeadset, self.dashboardOpen, _, _, _, _, _, _ = try ipc.read8PackedBools();
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.HeadsetState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadPolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackingReferenceState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
@@ -2967,19 +3278,21 @@ pub const WindowState = struct {
 	dragAndDropEvent: DragAndDropEvent,
 
 	pub fn write(self: WindowState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.isWindowFocused), self.isWindowFocused);
-		ipc.write(@TypeOf(self.isFullscreen), self.isFullscreen);
-		ipc.write(@TypeOf(self.windowResolution), self.windowResolution);
-		ipc.write(@TypeOf(self.resolutionSettingsApplied), self.resolutionSettingsApplied);
+		try ipc.write(@TypeOf(self.isWindowFocused), self.isWindowFocused);
+		try ipc.write(@TypeOf(self.isFullscreen), self.isFullscreen);
+		try ipc.write(@TypeOf(self.windowResolution), self.windowResolution);
+		try ipc.write(@TypeOf(self.resolutionSettingsApplied), self.resolutionSettingsApplied);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.DragAndDropEvent>(T)
 	}
 
-	pub fn read(self: WindowState, ipc: IpcDeserializer) !void {
-		self.isWindowFocused = ipc.read(@TypeOf(self.isWindowFocused));
-		self.isFullscreen = ipc.read(@TypeOf(self.isFullscreen));
-		self.windowResolution = ipc.read(@TypeOf(self.windowResolution));
-		self.resolutionSettingsApplied = ipc.read(@TypeOf(self.resolutionSettingsApplied));
+	pub fn read(ipc: IpcDeserializer) !WindowState {
+		var self: WindowState = undefined;
+		self.isWindowFocused = try ipc.read(@TypeOf(self.isWindowFocused));
+		self.isFullscreen = try ipc.read(@TypeOf(self.isFullscreen));
+		self.windowResolution = try ipc.read(@TypeOf(self.windowResolution));
+		self.resolutionSettingsApplied = try ipc.read(@TypeOf(self.resolutionSettingsApplied));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.DragAndDropEvent>(T&)
+		return self;
 	}
 };
 
@@ -2990,17 +3303,19 @@ pub const OutputState = struct {
 	vr: VR_OutputState,
 
 	pub fn write(self: OutputState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.lockCursor), self.lockCursor);
-		ipc.write(@TypeOf(self.lockCursorPosition), self.lockCursorPosition);
-		ipc.write(@TypeOf(self.keyboardInputActive), self.keyboardInputActive);
+		try ipc.write(@TypeOf(self.lockCursor), self.lockCursor);
+		try ipc.write(@TypeOf(self.lockCursorPosition), self.lockCursorPosition);
+		try ipc.write(@TypeOf(self.keyboardInputActive), self.keyboardInputActive);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.VR_OutputState>(T)
 	}
 
-	pub fn read(self: OutputState, ipc: IpcDeserializer) !void {
-		self.lockCursor = ipc.read(@TypeOf(self.lockCursor));
-		self.lockCursorPosition = ipc.read(@TypeOf(self.lockCursorPosition));
-		self.keyboardInputActive = ipc.read(@TypeOf(self.keyboardInputActive));
+	pub fn read(ipc: IpcDeserializer) !OutputState {
+		var self: OutputState = undefined;
+		self.lockCursor = try ipc.read(@TypeOf(self.lockCursor));
+		self.lockCursorPosition = try ipc.read(@TypeOf(self.lockCursorPosition));
+		self.keyboardInputActive = try ipc.read(@TypeOf(self.keyboardInputActive));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_OutputState>(T&)
+		return self;
 	}
 };
 
@@ -3010,15 +3325,17 @@ pub const VR_ControllerOutputState = struct {
 	hapticState: HapticPointState,
 
 	pub fn write(self: VR_ControllerOutputState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.vibrateTime), self.vibrateTime);
-		ipc.write(@TypeOf(self.hapticState), self.hapticState);
+		try ipc.write(@TypeOf(self.side), self.side);
+		try ipc.write(@TypeOf(self.vibrateTime), self.vibrateTime);
+		try ipc.write(@TypeOf(self.hapticState), self.hapticState);
 	}
 
-	pub fn read(self: VR_ControllerOutputState, ipc: IpcDeserializer) !void {
-		self.side = ipc.read(@TypeOf(self.side));
-		self.vibrateTime = ipc.read(@TypeOf(self.vibrateTime));
-		self.hapticState = ipc.read(@TypeOf(self.hapticState));
+	pub fn read(ipc: IpcDeserializer) !VR_ControllerOutputState {
+		var self: VR_ControllerOutputState = undefined;
+		self.side = try ipc.read(@TypeOf(self.side));
+		self.vibrateTime = try ipc.read(@TypeOf(self.vibrateTime));
+		self.hapticState = try ipc.read(@TypeOf(self.hapticState));
+		return self;
 	}
 };
 
@@ -3033,164 +3350,182 @@ pub const VR_OutputState = struct {
 		_ = ipc;
 	}
 
-	pub fn read(self: VR_OutputState, ipc: IpcDeserializer) !void {
+	pub fn read(ipc: IpcDeserializer) !VR_OutputState {
+		var self: VR_OutputState = undefined;
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_ControllerOutputState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_ControllerOutputState>(T&)
-		_ = self;
+		_ = &self; // FIXME: Type not generating any members
 		_ = ipc;
+		return self;
 	}
 };
 
 pub const BillboardRenderBufferUpdate = struct {
-	states: SharedMemoryBufferDescriptor(BillboardRenderBufferState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: BillboardRenderBufferUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: BillboardRenderBufferUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !BillboardRenderBufferUpdate {
+		var self: BillboardRenderBufferUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const BlitToDisplayRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(BlitToDisplayState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: BlitToDisplayRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: BlitToDisplayRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !BlitToDisplayRenderablesUpdate {
+		var self: BlitToDisplayRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const CameraPortalsRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(CameraPortalState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: CameraPortalsRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: CameraPortalsRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !CameraPortalsRenderablesUpdate {
+		var self: CameraPortalsRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const CameraRenderablesUpdate = struct {
-	transformIds: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(CameraState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	transformIds: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: CameraRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
-		ipc.write(@TypeOf(self.transformIds), self.transformIds);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.transformIds), self.transformIds);
 	}
 
-	pub fn read(self: CameraRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
-		self.transformIds = ipc.read(@TypeOf(self.transformIds));
+	pub fn read(ipc: IpcDeserializer) !CameraRenderablesUpdate {
+		var self: CameraRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		self.transformIds = try ipc.read(@TypeOf(self.transformIds));
+		return self;
 	}
 };
 
 pub const RenderMaterialOverridesUpdate = struct {
-	materialOverrideStates: SharedMemoryBufferDescriptor(MaterialOverrideState),
-	states: SharedMemoryBufferDescriptor(RenderMaterialOverrideState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	materialOverrideStates: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: RenderMaterialOverridesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
-		ipc.write(@TypeOf(self.materialOverrideStates), self.materialOverrideStates);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.materialOverrideStates), self.materialOverrideStates);
 	}
 
-	pub fn read(self: RenderMaterialOverridesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
-		self.materialOverrideStates = ipc.read(@TypeOf(self.materialOverrideStates));
+	pub fn read(ipc: IpcDeserializer) !RenderMaterialOverridesUpdate {
+		var self: RenderMaterialOverridesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		self.materialOverrideStates = try ipc.read(@TypeOf(self.materialOverrideStates));
+		return self;
 	}
 };
 
 pub const RenderTransformOverridesUpdate = struct {
-	skinnedMeshRenderersIndexes: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(RenderTransformOverrideState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	skinnedMeshRenderersIndexes: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: RenderTransformOverridesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
-		ipc.write(@TypeOf(self.skinnedMeshRenderersIndexes), self.skinnedMeshRenderersIndexes);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.skinnedMeshRenderersIndexes), self.skinnedMeshRenderersIndexes);
 	}
 
-	pub fn read(self: RenderTransformOverridesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
-		self.skinnedMeshRenderersIndexes = ipc.read(@TypeOf(self.skinnedMeshRenderersIndexes));
+	pub fn read(ipc: IpcDeserializer) !RenderTransformOverridesUpdate {
+		var self: RenderTransformOverridesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		self.skinnedMeshRenderersIndexes = try ipc.read(@TypeOf(self.skinnedMeshRenderersIndexes));
+		return self;
 	}
 };
 
 pub const GaussianSplatRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(GaussianSplatRendererState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: GaussianSplatRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: GaussianSplatRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !GaussianSplatRenderablesUpdate {
+		var self: GaussianSplatRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const LayerUpdate = struct {
-	layerAssignments: SharedMemoryBufferDescriptor(LayerType),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	layerAssignments: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LayerUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.layerAssignments), self.layerAssignments);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.layerAssignments), self.layerAssignments);
 	}
 
-	pub fn read(self: LayerUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.layerAssignments = ipc.read(@TypeOf(self.layerAssignments));
+	pub fn read(ipc: IpcDeserializer) !LayerUpdate {
+		var self: LayerUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.layerAssignments = try ipc.read(@TypeOf(self.layerAssignments));
+		return self;
 	}
 };
 
@@ -3198,245 +3533,269 @@ pub const LightsBufferRendererConsumed = struct {
 	globalUniqueId: i32,
 
 	pub fn write(self: LightsBufferRendererConsumed, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.globalUniqueId), self.globalUniqueId);
+		try ipc.write(@TypeOf(self.globalUniqueId), self.globalUniqueId);
 	}
 
-	pub fn read(self: LightsBufferRendererConsumed, ipc: IpcDeserializer) !void {
-		self.globalUniqueId = ipc.read(@TypeOf(self.globalUniqueId));
+	pub fn read(ipc: IpcDeserializer) !LightsBufferRendererConsumed {
+		var self: LightsBufferRendererConsumed = undefined;
+		self.globalUniqueId = try ipc.read(@TypeOf(self.globalUniqueId));
+		return self;
 	}
 };
 
 pub const LightsBufferRendererSubmission = struct {
 	lightsBufferUniqueId: i32,
 	lightsCount: i32,
-	lights: SharedMemoryBufferDescriptor(LightData),
+	lights: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LightsBufferRendererSubmission, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.lightsBufferUniqueId), self.lightsBufferUniqueId);
-		ipc.write(@TypeOf(self.lightsCount), self.lightsCount);
-		ipc.write(@TypeOf(self.lights), self.lights);
+		try ipc.write(@TypeOf(self.lightsBufferUniqueId), self.lightsBufferUniqueId);
+		try ipc.write(@TypeOf(self.lightsCount), self.lightsCount);
+		try ipc.write(@TypeOf(self.lights), self.lights);
 	}
 
-	pub fn read(self: LightsBufferRendererSubmission, ipc: IpcDeserializer) !void {
-		self.lightsBufferUniqueId = ipc.read(@TypeOf(self.lightsBufferUniqueId));
-		self.lightsCount = ipc.read(@TypeOf(self.lightsCount));
-		self.lights = ipc.read(@TypeOf(self.lights));
+	pub fn read(ipc: IpcDeserializer) !LightsBufferRendererSubmission {
+		var self: LightsBufferRendererSubmission = undefined;
+		self.lightsBufferUniqueId = try ipc.read(@TypeOf(self.lightsBufferUniqueId));
+		self.lightsCount = try ipc.read(@TypeOf(self.lightsCount));
+		self.lights = try ipc.read(@TypeOf(self.lights));
+		return self;
 	}
 };
 
 pub const LightsBufferRendererUpdate = struct {
-	states: SharedMemoryBufferDescriptor(LightsBufferRendererState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LightsBufferRendererUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: LightsBufferRendererUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !LightsBufferRendererUpdate {
+		var self: LightsBufferRendererUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const LightRenderablesUpdate = struct {
-	states: SharedMemoryBufferDescriptor(LightState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LightRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: LightRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !LightRenderablesUpdate {
+		var self: LightRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const LODGroupRenderablesUpdate = struct {
-	lodStates: SharedMemoryBufferDescriptor(LODState),
-	packedMeshRendererIds: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(LODGroupState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	lodStates: SharedMemoryBufferDescriptor,
+	packedMeshRendererIds: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: LODGroupRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
-		ipc.write(@TypeOf(self.lodStates), self.lodStates);
-		ipc.write(@TypeOf(self.packedMeshRendererIds), self.packedMeshRendererIds);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.lodStates), self.lodStates);
+		try ipc.write(@TypeOf(self.packedMeshRendererIds), self.packedMeshRendererIds);
 	}
 
-	pub fn read(self: LODGroupRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
-		self.lodStates = ipc.read(@TypeOf(self.lodStates));
-		self.packedMeshRendererIds = ipc.read(@TypeOf(self.packedMeshRendererIds));
+	pub fn read(ipc: IpcDeserializer) !LODGroupRenderablesUpdate {
+		var self: LODGroupRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		self.lodStates = try ipc.read(@TypeOf(self.lodStates));
+		self.packedMeshRendererIds = try ipc.read(@TypeOf(self.packedMeshRendererIds));
+		return self;
 	}
 };
 
 pub const MeshRenderBufferUpdate = struct {
-	states: SharedMemoryBufferDescriptor(MeshRenderBufferState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: MeshRenderBufferUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: MeshRenderBufferUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !MeshRenderBufferUpdate {
+		var self: MeshRenderBufferUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const MeshRenderablesUpdate = struct {
-	meshStates: SharedMemoryBufferDescriptor(MeshRendererState),
-	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor(i32),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	meshStates: SharedMemoryBufferDescriptor,
+	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: MeshRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.meshStates), self.meshStates);
-		ipc.write(@TypeOf(self.meshMaterialsAndPropertyBlocks), self.meshMaterialsAndPropertyBlocks);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.meshStates), self.meshStates);
+		try ipc.write(@TypeOf(self.meshMaterialsAndPropertyBlocks), self.meshMaterialsAndPropertyBlocks);
 	}
 
-	pub fn read(self: MeshRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.meshStates = ipc.read(@TypeOf(self.meshStates));
-		self.meshMaterialsAndPropertyBlocks = ipc.read(@TypeOf(self.meshMaterialsAndPropertyBlocks));
+	pub fn read(ipc: IpcDeserializer) !MeshRenderablesUpdate {
+		var self: MeshRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.meshStates = try ipc.read(@TypeOf(self.meshStates));
+		self.meshMaterialsAndPropertyBlocks = try ipc.read(@TypeOf(self.meshMaterialsAndPropertyBlocks));
+		return self;
 	}
 };
 
 pub const ReflectionProbeRenderablesUpdate = struct {
-	changedProbesToRender: SharedMemoryBufferDescriptor(i32),
-	states: SharedMemoryBufferDescriptor(ReflectionProbeState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	changedProbesToRender: SharedMemoryBufferDescriptor,
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: ReflectionProbeRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
-		ipc.write(@TypeOf(self.changedProbesToRender), self.changedProbesToRender);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.changedProbesToRender), self.changedProbesToRender);
 	}
 
-	pub fn read(self: ReflectionProbeRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
-		self.changedProbesToRender = ipc.read(@TypeOf(self.changedProbesToRender));
+	pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderablesUpdate {
+		var self: ReflectionProbeRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		self.changedProbesToRender = try ipc.read(@TypeOf(self.changedProbesToRender));
+		return self;
 	}
 };
 
 pub const SkinnedMeshRenderablesUpdate = struct {
-	boundsUpdates: SharedMemoryBufferDescriptor(SkinnedMeshBoundsUpdate),
-	realtimeBoundsUpdates: SharedMemoryBufferDescriptor(SkinnedMeshRealtimeBoundsUpdate),
-	boneAssignments: SharedMemoryBufferDescriptor(BoneAssignment),
-	boneTransformIndexes: SharedMemoryBufferDescriptor(i32),
-	blendshapeUpdateBatches: SharedMemoryBufferDescriptor(BlendshapeUpdateBatch),
-	blendshapeUpdates: SharedMemoryBufferDescriptor(BlendshapeUpdate),
-	meshStates: SharedMemoryBufferDescriptor(MeshRendererState),
-	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor(i32),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	boundsUpdates: SharedMemoryBufferDescriptor,
+	realtimeBoundsUpdates: SharedMemoryBufferDescriptor,
+	boneAssignments: SharedMemoryBufferDescriptor,
+	boneTransformIndexes: SharedMemoryBufferDescriptor,
+	blendshapeUpdateBatches: SharedMemoryBufferDescriptor,
+	blendshapeUpdates: SharedMemoryBufferDescriptor,
+	meshStates: SharedMemoryBufferDescriptor,
+	meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: SkinnedMeshRenderablesUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.meshStates), self.meshStates);
-		ipc.write(@TypeOf(self.meshMaterialsAndPropertyBlocks), self.meshMaterialsAndPropertyBlocks);
-		ipc.write(@TypeOf(self.boundsUpdates), self.boundsUpdates);
-		ipc.write(@TypeOf(self.realtimeBoundsUpdates), self.realtimeBoundsUpdates);
-		ipc.write(@TypeOf(self.boneAssignments), self.boneAssignments);
-		ipc.write(@TypeOf(self.boneTransformIndexes), self.boneTransformIndexes);
-		ipc.write(@TypeOf(self.blendshapeUpdateBatches), self.blendshapeUpdateBatches);
-		ipc.write(@TypeOf(self.blendshapeUpdates), self.blendshapeUpdates);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.meshStates), self.meshStates);
+		try ipc.write(@TypeOf(self.meshMaterialsAndPropertyBlocks), self.meshMaterialsAndPropertyBlocks);
+		try ipc.write(@TypeOf(self.boundsUpdates), self.boundsUpdates);
+		try ipc.write(@TypeOf(self.realtimeBoundsUpdates), self.realtimeBoundsUpdates);
+		try ipc.write(@TypeOf(self.boneAssignments), self.boneAssignments);
+		try ipc.write(@TypeOf(self.boneTransformIndexes), self.boneTransformIndexes);
+		try ipc.write(@TypeOf(self.blendshapeUpdateBatches), self.blendshapeUpdateBatches);
+		try ipc.write(@TypeOf(self.blendshapeUpdates), self.blendshapeUpdates);
 	}
 
-	pub fn read(self: SkinnedMeshRenderablesUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.meshStates = ipc.read(@TypeOf(self.meshStates));
-		self.meshMaterialsAndPropertyBlocks = ipc.read(@TypeOf(self.meshMaterialsAndPropertyBlocks));
-		self.boundsUpdates = ipc.read(@TypeOf(self.boundsUpdates));
-		self.realtimeBoundsUpdates = ipc.read(@TypeOf(self.realtimeBoundsUpdates));
-		self.boneAssignments = ipc.read(@TypeOf(self.boneAssignments));
-		self.boneTransformIndexes = ipc.read(@TypeOf(self.boneTransformIndexes));
-		self.blendshapeUpdateBatches = ipc.read(@TypeOf(self.blendshapeUpdateBatches));
-		self.blendshapeUpdates = ipc.read(@TypeOf(self.blendshapeUpdates));
+	pub fn read(ipc: IpcDeserializer) !SkinnedMeshRenderablesUpdate {
+		var self: SkinnedMeshRenderablesUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.meshStates = try ipc.read(@TypeOf(self.meshStates));
+		self.meshMaterialsAndPropertyBlocks = try ipc.read(@TypeOf(self.meshMaterialsAndPropertyBlocks));
+		self.boundsUpdates = try ipc.read(@TypeOf(self.boundsUpdates));
+		self.realtimeBoundsUpdates = try ipc.read(@TypeOf(self.realtimeBoundsUpdates));
+		self.boneAssignments = try ipc.read(@TypeOf(self.boneAssignments));
+		self.boneTransformIndexes = try ipc.read(@TypeOf(self.boneTransformIndexes));
+		self.blendshapeUpdateBatches = try ipc.read(@TypeOf(self.blendshapeUpdateBatches));
+		self.blendshapeUpdates = try ipc.read(@TypeOf(self.blendshapeUpdates));
+		return self;
 	}
 };
 
 pub const ReflectionProbeSH2Tasks = struct {
-	tasks: SharedMemoryBufferDescriptor(ReflectionProbeSH2Task),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	tasks: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: ReflectionProbeSH2Tasks, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.tasks), self.tasks);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.tasks), self.tasks);
 	}
 
-	pub fn read(self: ReflectionProbeSH2Tasks, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.tasks = ipc.read(@TypeOf(self.tasks));
+	pub fn read(ipc: IpcDeserializer) !ReflectionProbeSH2Tasks {
+		var self: ReflectionProbeSH2Tasks = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.tasks = try ipc.read(@TypeOf(self.tasks));
+		return self;
 	}
 };
 
 pub const TrailsRendererUpdate = struct {
-	states: SharedMemoryBufferDescriptor(TrailsRendererState),
-	removals: SharedMemoryBufferDescriptor(i32),
-	additions: SharedMemoryBufferDescriptor(i32),
+	states: SharedMemoryBufferDescriptor,
+	removals: SharedMemoryBufferDescriptor,
+	additions: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: TrailsRendererUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.additions), self.additions);
-		ipc.write(@TypeOf(self.states), self.states);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.additions), self.additions);
+		try ipc.write(@TypeOf(self.states), self.states);
 	}
 
-	pub fn read(self: TrailsRendererUpdate, ipc: IpcDeserializer) !void {
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.additions = ipc.read(@TypeOf(self.additions));
-		self.states = ipc.read(@TypeOf(self.states));
+	pub fn read(ipc: IpcDeserializer) !TrailsRendererUpdate {
+		var self: TrailsRendererUpdate = undefined;
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.additions = try ipc.read(@TypeOf(self.additions));
+		self.states = try ipc.read(@TypeOf(self.states));
+		return self;
 	}
 };
 
 pub const TransformsUpdate = struct {
 	targetTransformCount: i32,
-	removals: SharedMemoryBufferDescriptor(i32),
-	parentUpdates: SharedMemoryBufferDescriptor(TransformParentUpdate),
-	poseUpdates: SharedMemoryBufferDescriptor(TransformPoseUpdate),
+	removals: SharedMemoryBufferDescriptor,
+	parentUpdates: SharedMemoryBufferDescriptor,
+	poseUpdates: SharedMemoryBufferDescriptor,
 
 	pub fn write(self: TransformsUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.targetTransformCount), self.targetTransformCount);
-		ipc.write(@TypeOf(self.removals), self.removals);
-		ipc.write(@TypeOf(self.parentUpdates), self.parentUpdates);
-		ipc.write(@TypeOf(self.poseUpdates), self.poseUpdates);
+		try ipc.write(@TypeOf(self.targetTransformCount), self.targetTransformCount);
+		try ipc.write(@TypeOf(self.removals), self.removals);
+		try ipc.write(@TypeOf(self.parentUpdates), self.parentUpdates);
+		try ipc.write(@TypeOf(self.poseUpdates), self.poseUpdates);
 	}
 
-	pub fn read(self: TransformsUpdate, ipc: IpcDeserializer) !void {
-		self.targetTransformCount = ipc.read(@TypeOf(self.targetTransformCount));
-		self.removals = ipc.read(@TypeOf(self.removals));
-		self.parentUpdates = ipc.read(@TypeOf(self.parentUpdates));
-		self.poseUpdates = ipc.read(@TypeOf(self.poseUpdates));
+	pub fn read(ipc: IpcDeserializer) !TransformsUpdate {
+		var self: TransformsUpdate = undefined;
+		self.targetTransformCount = try ipc.read(@TypeOf(self.targetTransformCount));
+		self.removals = try ipc.read(@TypeOf(self.removals));
+		self.parentUpdates = try ipc.read(@TypeOf(self.parentUpdates));
+		self.poseUpdates = try ipc.read(@TypeOf(self.poseUpdates));
+		return self;
 	}
 };
 
@@ -3448,33 +3807,25 @@ pub const RendererInitData = struct {
 	windowTitle: []const u16,
 
 	pub fn write(self: RendererInitData, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.sharedMemoryPrefix), self.sharedMemoryPrefix);
-		ipc.write(@TypeOf(self.mainProcessId), self.mainProcessId);
-		ipc.write(@TypeOf(self.debugFramePacing), self.debugFramePacing);
-		ipc.write(@TypeOf(self.outputDevice), self.outputDevice);
-		ipc.write(@TypeOf(self.windowTitle), self.windowTitle);
+		try ipc.write(@TypeOf(self.sharedMemoryPrefix), self.sharedMemoryPrefix);
+		try ipc.write(@TypeOf(self.mainProcessId), self.mainProcessId);
+		try ipc.write(@TypeOf(self.debugFramePacing), self.debugFramePacing);
+		try ipc.write(@TypeOf(self.outputDevice), self.outputDevice);
+		try ipc.write(@TypeOf(self.windowTitle), self.windowTitle);
 	}
 
-	pub fn read(self: RendererInitData, ipc: IpcDeserializer) !void {
-		self.sharedMemoryPrefix = ipc.read(@TypeOf(self.sharedMemoryPrefix));
-		self.mainProcessId = ipc.read(@TypeOf(self.mainProcessId));
-		self.debugFramePacing = ipc.read(@TypeOf(self.debugFramePacing));
-		self.outputDevice = ipc.read(@TypeOf(self.outputDevice));
-		self.windowTitle = ipc.read(@TypeOf(self.windowTitle));
+	pub fn read(ipc: IpcDeserializer) !RendererInitData {
+		var self: RendererInitData = undefined;
+		self.sharedMemoryPrefix = try ipc.read(@TypeOf(self.sharedMemoryPrefix));
+		self.mainProcessId = try ipc.read(@TypeOf(self.mainProcessId));
+		self.debugFramePacing = try ipc.read(@TypeOf(self.debugFramePacing));
+		self.outputDevice = try ipc.read(@TypeOf(self.outputDevice));
+		self.windowTitle = try ipc.read(@TypeOf(self.windowTitle));
+		return self;
 	}
 };
 
 pub const RendererInitFinalizeData = struct {
-
-	pub fn write(self: RendererInitFinalizeData, ipc: IpcSerializer) !void {
-		_ = self;
-		_ = ipc;
-	}
-
-	pub fn read(self: RendererInitFinalizeData, ipc: IpcDeserializer) !void {
-		_ = self;
-		_ = ipc;
-	}
 };
 
 pub const RendererInitProgressUpdate = struct {
@@ -3484,17 +3835,19 @@ pub const RendererInitProgressUpdate = struct {
 	forceShow: bool,
 
 	pub fn write(self: RendererInitProgressUpdate, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.phaseIndex), self.phaseIndex);
-		ipc.write(@TypeOf(self.phase), self.phase);
-		ipc.write(@TypeOf(self.subPhase), self.subPhase);
-		ipc.write(@TypeOf(self.forceShow), self.forceShow);
+		try ipc.write(@TypeOf(self.phaseIndex), self.phaseIndex);
+		try ipc.write(@TypeOf(self.phase), self.phase);
+		try ipc.write(@TypeOf(self.subPhase), self.subPhase);
+		try ipc.write(@TypeOf(self.forceShow), self.forceShow);
 	}
 
-	pub fn read(self: RendererInitProgressUpdate, ipc: IpcDeserializer) !void {
-		self.phaseIndex = ipc.read(@TypeOf(self.phaseIndex));
-		self.phase = ipc.read(@TypeOf(self.phase));
-		self.subPhase = ipc.read(@TypeOf(self.subPhase));
-		self.forceShow = ipc.read(@TypeOf(self.forceShow));
+	pub fn read(ipc: IpcDeserializer) !RendererInitProgressUpdate {
+		var self: RendererInitProgressUpdate = undefined;
+		self.phaseIndex = try ipc.read(@TypeOf(self.phaseIndex));
+		self.phase = try ipc.read(@TypeOf(self.phase));
+		self.subPhase = try ipc.read(@TypeOf(self.subPhase));
+		self.forceShow = try ipc.read(@TypeOf(self.forceShow));
+		return self;
 	}
 };
 
@@ -3506,75 +3859,33 @@ pub const RendererInitResult = struct {
 	supportedTextureFormats: []TextureFormat,
 
 	pub fn write(self: RendererInitResult, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.actualOutputDevice), self.actualOutputDevice);
-		ipc.write(@TypeOf(self.stereoRenderingMode), self.stereoRenderingMode);
-		ipc.write(@TypeOf(self.maxTextureSize), self.maxTextureSize);
-		ipc.write(@TypeOf(self.isGPUTexturePOTByteAligned), self.isGPUTexturePOTByteAligned);
+		try ipc.write(@TypeOf(self.actualOutputDevice), self.actualOutputDevice);
+		try ipc.write(@TypeOf(self.stereoRenderingMode), self.stereoRenderingMode);
+		try ipc.write(@TypeOf(self.maxTextureSize), self.maxTextureSize);
+		try ipc.write(@TypeOf(self.isGPUTexturePOTByteAligned), self.isGPUTexturePOTByteAligned);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteValueList<Renderite.Shared.TextureFormat>(System.Collections.Generic.List`1<T>)
 	}
 
-	pub fn read(self: RendererInitResult, ipc: IpcDeserializer) !void {
-		self.actualOutputDevice = ipc.read(@TypeOf(self.actualOutputDevice));
-		self.stereoRenderingMode = ipc.read(@TypeOf(self.stereoRenderingMode));
-		self.maxTextureSize = ipc.read(@TypeOf(self.maxTextureSize));
-		self.isGPUTexturePOTByteAligned = ipc.read(@TypeOf(self.isGPUTexturePOTByteAligned));
+	pub fn read(ipc: IpcDeserializer) !RendererInitResult {
+		var self: RendererInitResult = undefined;
+		self.actualOutputDevice = try ipc.read(@TypeOf(self.actualOutputDevice));
+		self.stereoRenderingMode = try ipc.read(@TypeOf(self.stereoRenderingMode));
+		self.maxTextureSize = try ipc.read(@TypeOf(self.maxTextureSize));
+		self.isGPUTexturePOTByteAligned = try ipc.read(@TypeOf(self.isGPUTexturePOTByteAligned));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadValueList<Renderite.Shared.TextureFormat>(System.Collections.Generic.List`1<T>&)
+		return self;
 	}
 };
 
 pub const RendererShutdown = struct {
-
-	pub fn write(self: RendererShutdown, ipc: IpcSerializer) !void {
-		_ = self;
-		_ = ipc;
-	}
-
-	pub fn read(self: RendererShutdown, ipc: IpcDeserializer) !void {
-		_ = self;
-		_ = ipc;
-	}
 };
 
 pub const RendererShutdownRequest = struct {
-
-	pub fn write(self: RendererShutdownRequest, ipc: IpcSerializer) !void {
-		_ = self;
-		_ = ipc;
-	}
-
-	pub fn read(self: RendererShutdownRequest, ipc: IpcDeserializer) !void {
-		_ = self;
-		_ = ipc;
-	}
 };
 
 pub const RenderBoundingBox = struct {
 	center: @Vector(3, f32),
 	extents: @Vector(3, f32),
-};
-
-pub const MaterialPropertyUpdate = struct {
-	propertyID: i32,
-	updateType: MaterialPropertyUpdateType,
-};
-
-pub const RenderMatrix4x4 = struct {
-	m00: f32,
-	m10: f32,
-	m20: f32,
-	m30: f32,
-	m01: f32,
-	m11: f32,
-	m21: f32,
-	m31: f32,
-	m02: f32,
-	m12: f32,
-	m22: f32,
-	m32: f32,
-	m03: f32,
-	m13: f32,
-	m23: f32,
-	m33: f32,
 };
 
 pub const VertexAttributeDescriptor = struct {
@@ -3633,50 +3944,6 @@ pub const RenderSH2 = struct {
 	sh8: @Vector(3, f32),
 };
 
-pub const VR_ControllerState = struct {
-	deviceID: []const u16,
-	deviceModel: []const u16,
-	side: Chirality,
-	bodyNode: BodyNode,
-	isDeviceActive: bool,
-	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
-	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
-	batteryLevel: f32,
-	batteryCharging: bool,
-
-	pub fn write(self: VR_ControllerState, ipc: IpcSerializer) !void {
-		ipc.write(@TypeOf(self.deviceID), self.deviceID);
-		ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
-		ipc.write(@TypeOf(self.side), self.side);
-		ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
-		ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		ipc.write(@TypeOf(self.position), self.position);
-		ipc.write(@TypeOf(self.rotation), self.rotation);
-		ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
-		ipc.write(@TypeOf(self.handPosition), self.handPosition);
-		ipc.write(@TypeOf(self.handRotation), self.handRotation);
-	}
-
-	pub fn read(self: VR_ControllerState, ipc: IpcDeserializer) !void {
-		self.deviceID = ipc.read(@TypeOf(self.deviceID));
-		self.deviceModel = ipc.read(@TypeOf(self.deviceModel));
-		self.side = ipc.read(@TypeOf(self.side));
-		self.bodyNode = ipc.read(@TypeOf(self.bodyNode));
-		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = ipc.read8PackedBools();
-		self.isTracking = ipc.read(@TypeOf(self.isTracking));
-		self.position = ipc.read(@TypeOf(self.position));
-		self.rotation = ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = ipc.read(@TypeOf(self.hasBoundHand));
-		self.handPosition = ipc.read(@TypeOf(self.handPosition));
-		self.handRotation = ipc.read(@TypeOf(self.handRotation));
-	}
-};
-
 pub const HapticPointState = struct {
 	force: f32,
 	temperature: f32,
@@ -3684,230 +3951,10 @@ pub const HapticPointState = struct {
 	vibration: f32,
 };
 
-pub const BillboardRenderBufferState = struct {
-	renderableIndex: i32,
-	pointRenderBufferAssetId: i32,
-	materialAssetId: i32,
-	minBillboardScreenSize: f32,
-	maxBillboardScreenSize: f32,
-	alignment: BillboardAlignment,
-	motionVectorMode: MotionVectorMode,
-};
-
-pub const BlitToDisplayState = struct {
-	renderableIndex: i32,
-	textureId: i32,
-	backgroundColor: @Vector(4, f32),
-	displayIndex: i16,
-};
-
-pub const CameraPortalState = struct {
-	renderableIndex: i32,
-	meshRendererIndex: i32,
-	planeNormal: @Vector(3, f32),
-	planeOffset: f32,
-	renderTextureId: i32,
-	portalTransform: RenderMatrix4x4,
-	portalPlanePosition: @Vector(3, f32),
-	portalPlaneNormal: @Vector(3, f32),
-};
-
-pub const CameraState = struct {
-	renderableIndex: i32,
-	fieldOfView: f32,
-	orthographicSize: f32,
-	nearClip: f32,
-	farClip: f32,
-	backgroundColor: @Vector(4, f32),
-	viewport: RenderRect,
-	depth: f32,
-	renderTextureAssetId: i32,
-	selectiveRenderCount: i32,
-	excludeRenderCount: i32,
-	clearMode: CameraClearMode,
-	projection: CameraProjection,
-};
-
-pub const MaterialOverrideState = struct {
-	materialSlotIndex: i32,
-	materialAssetId: i32,
-};
-
-pub const RenderMaterialOverrideState = struct {
-	renderableIndex: i32,
-	packedMeshRendererIndex: i32,
-	materrialOverrideCount: i16,
-	context: RenderingContext,
-};
-
-pub const RenderTransformOverrideState = struct {
-	renderableIndex: i32,
-	positionOverride: @Vector(3, f32),
-	rotationOverride: @Vector(4, f32),
-	scaleOverride: @Vector(3, f32),
-	skinnedMeshRendererCount: i32,
-	context: RenderingContext,
-	overrideFlags: u8,
-};
-
-pub const GaussianSplatRendererState = struct {
-	renderableIndex: i32,
-	gaussianSplatAssetId: i32,
-	sizeScale: f32,
-	opacityScale: f32,
-	maxSHOrder: i32,
-	sphericalHamornicsOnly: bool,
-};
-
-pub const LightData = struct {
-	point: @Vector(3, f32),
-	orientation: @Vector(4, f32),
-	color: @Vector(3, f32),
-	intensity: f32,
-	range: f32,
-	angle: f32,
-};
-
-pub const LightsBufferRendererState = struct {
-	renderableIndex: i32,
-	globalUniqueId: i32,
-	shadowStrength: f32,
-	shadowNearPlane: f32,
-	shadowMapResolution: i32,
-	shadowBias: f32,
-	shadowNormalBias: f32,
-	cookieTextureAssetId: i32,
-	lightType: LightType,
-	shadowType: ShadowType,
-};
-
-pub const LightState = struct {
-	renderableIndex: i32,
-	intensity: f32,
-	range: f32,
-	spotAngle: f32,
-	color: @Vector(4, f32),
-	shadowStrength: f32,
-	shadowNearPlane: f32,
-	shadowMapResolutionOverride: i32,
-	shadowBias: f32,
-	shadowNormalBias: f32,
-	cookieTextureAssetId: i32,
-	type: LightType,
-	shadowType: ShadowType,
-};
-
-pub const LODState = struct {
-	screenRelativeTransitionHeight: f32,
-	fadeTransitionWidth: f32,
-	rendererCount: i32,
-};
-
-pub const LODGroupState = struct {
-	renderableIndex: i32,
-	lodCount: i32,
-	crossFade: bool,
-	animateCrossFading: bool,
-};
-
-pub const MeshRenderBufferState = struct {
-	renderableIndex: i32,
-	pointRenderBufferAssetId: i32,
-	materialAssetId: i32,
-	meshAssetId: i32,
-	alignment: MeshAlignment,
-};
-
-pub const MeshRendererState = struct {
-	renderableIndex: i32,
-	meshAssetId: i32,
-	materialCount: i32,
-	materialPropertyBlockCount: i32,
-	sortingOrder: i32,
-	shadowCastMode: ShadowCastMode,
-	motionVectorMode: MotionVectorMode,
-};
-
-pub const ReflectionProbeState = struct {
-	renderableIndex: i32,
-	importance: i32,
-	intensity: f32,
-	blendDistance: f32,
-	boxSize: @Vector(3, f32),
-	cubemapAssetId: i32,
-	resolution: i32,
-	shadowDistance: f32,
-	backgroundColor: @Vector(4, f32),
-	nearClip: f32,
-	farClip: f32,
-	type: ReflectionProbeType,
-	clearFlags: ReflectionProbeClear,
-	timeSlicingMode: ReflectionProbeTimeSlicingMode,
-};
-
-pub const SkinnedMeshBoundsUpdate = struct {
-	renderableIndex: i32,
-	localBounds: RenderBoundingBox,
-};
-
-pub const SkinnedMeshRealtimeBoundsUpdate = struct {
-	renderableIndex: i32,
-	computedGlobalBounds: RenderBoundingBox,
-};
-
-pub const BoneAssignment = struct {
-	renderableIndex: i32,
-	rootBoneTransformId: i32,
-	boneCount: i32,
-};
-
-pub const BlendshapeUpdateBatch = struct {
-	renderableIndex: i32,
-	blendshapeUpdateCount: i32,
-};
-
-pub const BlendshapeUpdate = struct {
-	blendshapeIndex: i32,
-	weight: f32,
-};
-
-pub const ReflectionProbeSH2Task = struct {
-	renderableIndex: i32,
-	reflectionProbeRenderableIndex: i32,
-	result: ComputeResult,
-	resultData: RenderSH2,
-};
-
-pub const TrailsRendererState = struct {
-	renderableIndex: i32,
-	trailsRenderBufferAssetId: i32,
-	materialAssetId: i32,
-	textureMode: TrailTextureMode,
-	motionVectorMode: MotionVectorMode,
-	generateLightingData: bool,
-};
-
-pub const TransformParentUpdate = struct {
-	transformId: i32,
-	newParentId: i32,
-};
-
-pub const TransformPoseUpdate = struct {
-	transformId: i32,
-	pose: RenderTransform,
-};
-
 pub const RenderIntRect = struct {
 	x: i32,
 	y: i32,
 	width: i32,
 	height: i32,
-};
-
-pub const RenderRect = struct {
-	x: f32,
-	y: f32,
-	width: f32,
-	height: f32,
 };
 

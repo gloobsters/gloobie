@@ -19,6 +19,7 @@ pub fn main() !void {
 
         return err;
     };
+    log.info("Gloobie exiting...", .{});
 }
 
 fn sdl3ErrorCallback(err: ?[:0]const u8) void {
@@ -59,7 +60,11 @@ fn start() !void {
     };
     defer app.deinit();
 
-    try app.frameLoop();
+    app.frameLoop() catch |err| {
+        log.err("Got error {s} in frame loop", .{@errorName(err)});
+
+        return err;
+    };
 }
 
 pub fn panic(

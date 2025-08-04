@@ -420,6 +420,7 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = renderite_root.path(b, "renderite.zig"),
             .imports = &.{
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
+                .{ .name = "tracy", .module = tracy_mod },
             },
         });
 
