@@ -83,6 +83,8 @@ const ImGuiData = struct {
 
 const GameData = struct {
     run_loop: bool,
+    head_output_device: renderite.Shared.HeadOutputDevice,
+    main_process_pid: ?i32,
 };
 
 gpa: std.mem.Allocator,
@@ -245,6 +247,8 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
     const game_data: GameData = .{
         .run_loop = true,
+        .head_output_device = .UNKNOWN,
+        .main_process_pid = null,
     };
 
     app.* = .{
@@ -313,6 +317,12 @@ fn handleMessages(self: *App) !void {
                         log.info("Setting window title to {s}", .{title});
 
                         try self.window.window.setTitle(title);
+
+                        self.game.head_output_device = renderer_init_data.outputDevice;
+                        self.game.main_process_pid = renderer_init_data.mainProcessId;
+
+                        log.info("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
+                        log.info("Main process PID {d}", .{renderer_init_data.mainProcessId});
                     },
                     else => {
                         log.warn("Unhandled command type {s}", .{@tagName(command)});
