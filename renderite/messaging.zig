@@ -8,6 +8,9 @@ const IpcSerializer = serialization.IpcSerializer;
 
 const log = std.log.scoped(.messaging);
 
+pub const ReceiveCallback = fn (shared.RendererCommand) bool;
+// *const ReceiveCallback
+
 pub const MessagingHost = struct {
     primary: QueueManager,
     background: QueueManager,
@@ -19,8 +22,8 @@ pub const MessagingHost = struct {
         const queue_name_background = try queueSuffix(queue_name, "Background", allocator);
         defer allocator.free(queue_name_background);
 
-        const primary = try QueueManager.init(queue_name_primary, false, queue_length, allocator);
-        const background = try QueueManager.init(queue_name_background, false, queue_length, allocator);
+        const primary = try QueueManager.init(queue_name_primary, false, queue_length, &emptyCallback, allocator);
+        const background = try QueueManager.init(queue_name_background, false, queue_length, &emptyCallback, allocator);
 
         return MessagingHost{
             .primary = primary,
@@ -59,6 +62,11 @@ pub const MessagingHost = struct {
         return suffixed_name;
     }
 
+    fn emptyCallback(command: shared.RendererCommand) bool {
+        _ = command;
+        return false;
+    }
+
     pub fn deinit(self: MessagingHost) void {
         self.primary.deinit();
         self.background.deinit();
@@ -69,9 +77,11 @@ pub const QueueManager = struct {
     allocator: std.mem.Allocator,
     publisher: zinterprocess.Queue,
     subscriber: zinterprocess.Queue,
-    thread: std.Thread = undefined,
 
-    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, allocator: std.mem.Allocator) !QueueManager {
+    thread: std.Thread = undefined,
+    receive_callback: *const ReceiveCallback,
+
+    pub fn init(queue_name: []const u8, comptime is_authority: bool, capacity: u32, receive_callback: *const ReceiveCallback, allocator: std.mem.Allocator) !QueueManager {
         var name_a_buf: [std.fs.max_path_bytes]u8 = undefined;
         const name_a = try std.fmt.bufPrint(&name_a_buf, "{s}A", .{queue_name});
         var name_s_buf: [std.fs.max_path_bytes]u8 = undefined;
@@ -101,6 +111,7 @@ pub const QueueManager = struct {
             .allocator = allocator,
             .publisher = publisher,
             .subscriber = subscriber,
+            .receive_callback = receive_callback,
         };
 
         queue.thread = try std.Thread.spawn(.{}, QueueManager.receiverLoop, .{queue});
@@ -111,33 +122,40 @@ pub const QueueManager = struct {
     pub fn deinit(self: QueueManager) void {
         self.publisher.deinit();
         self.subscriber.deinit();
+        // todo: stop receiver thread
     }
 
-    fn receiverLoop(self: QueueManager) !void {
+    fn receiverLoop(self: QueueManager) void {
         // log.debug("Starting receiver loop", .{});
         while (true) {
-            const data = try self.subscriber.dequeue();
-            defer self.allocator.free(data);
+            self.receiveOnce() catch |err| {
+                log.err("Error while receiving: {any}", .{err});
+            };
+        }
+    }
 
-            var reader: std.io.Reader = std.io.Reader.fixed(data);
-            const deserializer = IpcDeserializer.init(
-                &reader,
-                self.allocator,
-            );
+    fn receiveOnce(self: QueueManager) !void {
+        const data = try self.subscriber.dequeue();
+        defer self.allocator.free(data);
 
-            const message_type = try deserializer.readEnum(shared.RendererCommandTypes);
-            log.debug("Received message of type '{s}'", .{@tagName(message_type)});
+        var reader: std.io.Reader = std.io.Reader.fixed(data);
+        const deserializer = IpcDeserializer.init(
+            &reader,
+            self.allocator,
+        );
 
-            if (message_type == .RendererInitData) {
-                const init_data: shared.RendererInitData = try .read(deserializer);
+        const message_type = try deserializer.readEnum(shared.RendererCommandTypes);
+        log.debug("Received message of type '{s}'", .{@tagName(message_type)});
 
-                log.debug("Received renderer init data: {any}", .{init_data});
-            }
-
-            // log.debug("Received message (type {d}): {s}", .{ message_type, data });
-            // for (data) |byte| {
-            //     std.debug.print("{X:0>2}", .{byte});
-            // }
+        // make RendererCommand from enum value
+        switch (message_type) {
+            inline else => |comptime_type| {
+                // TODO: handle empty types
+                if (@hasDecl(shared.RendererCommand, @tagName(comptime_type))) {
+                    const command = @unionInit(shared.RendererCommand, @tagName(comptime_type), try .read(deserializer));
+                    self.receive_callback(command);
+                }
+            },
         }
     }
 };
