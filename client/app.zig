@@ -41,7 +41,7 @@ const WindowData = struct {
 
 pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
 
-pub const ToRenderLetter = union(enum) {};
+pub const ToRenderLetter = union(enum) { renderer_command: renderite.Shared.RendererCommand };
 
 const MessagingData = struct {
     host: renderite.MessagingHost,
@@ -284,18 +284,15 @@ fn handleMessages(self: *App) !void {
         }
 
         // process the letter in the envelope
-        switch (envelope.letter) {}
+        switch (envelope.letter) {
+            else => {},
+        }
     }
 }
 
 fn messagingCallback(ctx: *anyopaque, message: renderite.Shared.RendererCommand) void {
     const self: *App = @ptrCast(@alignCast(ctx));
-    // switch (message) {
-    //     inline else => |value| {
-    //         log.debug("Callback got command {s}", .{@typeName(@TypeOf(value))});
-    //     },
-    // }
-    _ = self;
+    self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
 }
 
 /// Sends an envelope to the render thread
