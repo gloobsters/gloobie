@@ -361,13 +361,27 @@ fn handleMessages(self: *App) !void {
                         log.debug("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
                         log.debug("Main process PID {d}", .{renderer_init_data.mainProcessId});
 
+                        const formats = comptime std.enums.values(renderite.Shared.TextureFormat);
+
+                        const supported_formats = self.graphics.sampler_supported_formats.unionWith(self.graphics.cubemap_supported_formats);
+                        const supported_formats_len = supported_formats.count();
+
+                        var supported_formats_buf: [formats.len]renderite.Shared.TextureFormat = undefined;
+                        var i: usize = 0;
+                        for (formats) |format| {
+                            if (supported_formats.contains(format)) {
+                                supported_formats_buf[i] = format;
+                                i += 1;
+                            }
+                        }
+
                         try self.messaging.host.primary.send(.{
                             .RendererInitResult = .{
                                 .actualOutputDevice = .Screen,
                                 .stereoRenderingMode = &.{},
                                 .isGPUTexturePOTByteAligned = false,
                                 .maxTextureSize = 1024,
-                                .supportedTextureFormats = &.{.RGB565},
+                                .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
                             },
                         });
                     },
