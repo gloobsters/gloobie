@@ -166,12 +166,13 @@ public class Generator : IDisposable
         string structName = type.Name;
         
         this._writer.WriteLine($"pub const {structName} = struct {{");
-        foreach (FieldInfo field in type.GetFields())
+        FieldInfo[] fields = type.GetFields();
+        foreach (FieldInfo field in fields)
         {
             this._writer.WriteLine($"\t{field.Name}: {MapToZigType(field.FieldType)},");
         }
 
-        if (isPackable)
+        if (isPackable && fields.Length > 0)
         {
             this._writer.WriteLine();
             this._writer.WriteLine($"\tpub fn write(self: {structName}, ipc: IpcSerializer) !void {{");
@@ -179,9 +180,11 @@ public class Generator : IDisposable
             if(!generated) WritePackDiscard();
             this._writer.WriteLine("\t}\n");
             
-            this._writer.WriteLine($"\tpub fn read(self: {structName}, ipc: IpcDeserializer) !void {{");
+            this._writer.WriteLine($"\tpub fn read(ipc: IpcDeserializer) !{structName} {{");
+            this._writer.WriteLine($"\t\tvar self: {structName} = undefined;");
             generated = WritePackFunction(type, type.GetMethod("Unpack")!);
-            if(!generated) WritePackDiscard();
+            if(!generated) WritePackDiscard(false);
+            this._writer.WriteLine("\t\treturn self;");
             this._writer.WriteLine("\t}");
         }
         
@@ -293,9 +296,13 @@ public class Generator : IDisposable
         return written;
     }
 
-    private void WritePackDiscard()
+    private void WritePackDiscard(bool self = true)
     {
-        this._writer.WriteLine("\t\t_ = self;");
+        if (self)
+            this._writer.WriteLine("\t\t_ = self;");
+        else
+            this._writer.WriteLine("\t\t_ = &self; // FIXME: Type not generating any members");
+
         this._writer.WriteLine("\t\t_ = ipc;");
     }
 
