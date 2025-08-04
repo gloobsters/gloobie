@@ -301,7 +301,23 @@ fn handleMessages(self: *App) !void {
             .renderer_command => |renderer_command| {
                 defer renderer_command.arena.deinit();
 
-                log.debug("Recieved command {s}", .{@tagName(renderer_command.command)});
+                const command = renderer_command.command;
+
+                log.debug("Recieved command {s}", .{@tagName(command)});
+
+                switch (command) {
+                    .RendererInitData => |renderer_init_data| {
+                        var title_buf: [128]u8 = undefined;
+                        const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
+
+                        log.info("Setting window title to {s}", .{title});
+
+                        try self.window.window.setTitle(title);
+                    },
+                    else => {
+                        log.warn("Unhandled command type {s}", .{@tagName(command)});
+                    },
+                }
             },
         }
     }
