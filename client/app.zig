@@ -10,7 +10,10 @@ const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr_t = @import("xr");
 
+const Assets = @import("Assets.zig");
 const Texture = @import("Texture.zig");
+
+const MessagingHost = renderite.MessagingHost(*App);
 
 const log = std.log.scoped(.app);
 
@@ -48,7 +51,7 @@ pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
 pub const ToRenderLetter = union(enum) { renderer_command: renderite.ParsedCommand };
 
 const MessagingData = struct {
-    host: renderite.MessagingHost,
+    host: MessagingHost,
 
     to_render: ToRenderMailbox,
     to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
@@ -115,15 +118,16 @@ graphics: GraphicsData,
 window: WindowData,
 messaging: MessagingData,
 imgui: ?ImGuiData,
+assets: Assets,
 
 pub fn init(gpa: std.mem.Allocator) !*App {
     const app = try gpa.create(App);
     errdefer gpa.destroy(app);
 
     const messaging_data: MessagingData = create_messaging_data: {
-        const host = renderite.MessagingHost.initFromArgs(messagingCallback, app, gpa) catch |err| debug_queue: {
+        const host = MessagingHost.initFromArgs(messagingCallback, app, gpa) catch |err| debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
-            break :debug_queue try renderite.MessagingHost.init("gloopie", 8388608, messagingCallback, app);
+            break :debug_queue try MessagingHost.init("gloopie", 8388608, messagingCallback, app);
         };
         errdefer host.deinit();
 
@@ -183,28 +187,37 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         var sampler_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
         var cubemap_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
         for (std.enums.values(renderite.Shared.TextureFormat)) |renderite_format| {
-            const gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format) orelse continue;
+            const srgb_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .sRGB) orelse continue;
+            const linear_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .Linear) orelse continue;
 
             if (gpu_device.textureSupportsFormat(
-                gpu_format,
+                srgb_gpu_format,
+                .two_dimensional,
+                .{ .sampler = true },
+            ) and gpu_device.textureSupportsFormat(
+                linear_gpu_format,
                 .two_dimensional,
                 .{ .sampler = true },
             )) {
                 sampler_supported_formats.insert(renderite_format);
-                log.debug("GPU supports {s} for samplers", .{@tagName(gpu_format)});
+                log.debug("GPU supports {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             } else {
-                log.debug("GPU does not support {s} for samplers", .{@tagName(gpu_format)});
+                log.debug("GPU does not support {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             }
 
             if (gpu_device.textureSupportsFormat(
-                gpu_format,
+                srgb_gpu_format,
+                .cube,
+                .{ .sampler = true },
+            ) and gpu_device.textureSupportsFormat(
+                linear_gpu_format,
                 .cube,
                 .{ .sampler = true },
             )) {
                 cubemap_supported_formats.insert(renderite_format);
-                log.debug("GPU supports {s} for cubemaps", .{@tagName(gpu_format)});
+                log.debug("GPU supports {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             } else {
-                log.debug("GPU does not support {s} for cubemaps", .{@tagName(gpu_format)});
+                log.debug("GPU does not support {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             }
         }
 
@@ -311,24 +324,111 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         .messaging = messaging_data,
         .imgui = imgui_data,
         .game = game_data,
+        .assets = .empty,
     };
 
     return app;
 }
 
 pub fn deinit(self: *App) void {
+    const gpa = self.gpa;
+
     self.messaging.deinit();
     if (self.imgui) |imgui| imgui.deinit();
-    if (self.xr) |xr| xr.deinit(self.gpa);
+    if (self.xr) |xr| xr.deinit(gpa);
+    self.assets.deinit(gpa, self.graphics.device);
     self.graphics.deinit();
     self.window.deinit();
 
-    const gpa = self.gpa;
     gpa.destroy(self);
 }
 
 fn beginExit(self: *App) void {
     self.game.run_loop = false;
+}
+
+fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) !void {
+    // NOTE: this could be called from multiple threads!!! be aware of threading here
+    // any command which _could be sent from both queues_ needs to have some kind of locking!
+
+    defer renderer_command.arena.deinit();
+
+    const command = renderer_command.command;
+
+    switch (command) {
+        .RendererInitData => |renderer_init_data| {
+            self.game.load_state.init = true;
+
+            var title_buf: [128]u8 = undefined;
+            const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
+
+            log.debug("Setting window title to {s}", .{title});
+
+            try self.window.window.setTitle(title);
+
+            self.game.head_output_device = renderer_init_data.outputDevice;
+            self.game.main_process_pid = renderer_init_data.mainProcessId;
+
+            log.debug("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
+            log.debug("Main process PID {d}", .{renderer_init_data.mainProcessId});
+
+            const formats = comptime std.enums.values(renderite.Shared.TextureFormat);
+
+            const supported_formats = self.graphics.sampler_supported_formats.unionWith(self.graphics.cubemap_supported_formats);
+            const supported_formats_len = supported_formats.count();
+
+            var supported_formats_buf: [formats.len]renderite.Shared.TextureFormat = undefined;
+            var i: usize = 0;
+            for (formats) |format| {
+                if (supported_formats.contains(format)) {
+                    supported_formats_buf[i] = format;
+                    i += 1;
+                }
+            }
+
+            try self.messaging.host.primary.send(.{
+                .RendererInitResult = .{
+                    .actualOutputDevice = self.game.head_output_device,
+                    .stereoRenderingMode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
+                    .isGPUTexturePOTByteAligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
+                    .maxTextureSize = 16384, // TODO: determine this from GPU code
+                    .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
+                },
+            });
+        },
+        .RendererInitProgressUpdate => |renderer_init_progress_update| {
+            self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
+
+            var phase = self.game.load_state.phase;
+
+            phase.phase_name.len = try std.unicode.utf16LeToUtf8(&phase.phase_name.buffer, renderer_init_progress_update.phase);
+            phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(&phase.sub_phase_name.buffer, renderer_init_progress_update.subPhase);
+
+            log.debug("Renderer init progress update: force show: {}, phase: \"{s}\", phase index: {d}, sub phase: \"{s}\"", .{
+                renderer_init_progress_update.forceShow,
+                phase.phase_name.constSlice(),
+                renderer_init_progress_update.phaseIndex,
+                phase.sub_phase_name.constSlice(),
+            });
+        },
+        .RendererShutdown => |_| {
+            log.debug("Engine is requesting that we shut down, beginning exit", .{});
+            self.beginExit();
+        },
+        .RendererInitFinalizeData => |_| {
+            self.game.load_state.full_init = true;
+            log.info("Engine is fully loaded!", .{});
+        },
+        .SetTexture2DProperties => |set_texture_2d_properties| {
+            try self.assets.setTexture2dPropertiesOrCreate(self.gpa, set_texture_2d_properties);
+        },
+        .SetTexture2DFormat => |set_texture_2d_format| {
+            try self.assets.setTexture2dFormat(set_texture_2d_format, self.graphics.device);
+        },
+        else => {
+            log.warn("Unhandled command type {s}", .{@tagName(command)});
+        },
+    }
 }
 
 fn handleMessages(self: *App) !void {
@@ -355,86 +455,22 @@ fn handleMessages(self: *App) !void {
         // process the letter in the envelope
         switch (envelope.letter) {
             .renderer_command => |renderer_command| {
-                defer renderer_command.arena.deinit();
-
-                const command = renderer_command.command;
-
-                switch (command) {
-                    .RendererInitData => |renderer_init_data| {
-                        self.game.load_state.init = true;
-
-                        var title_buf: [128]u8 = undefined;
-                        const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
-
-                        log.debug("Setting window title to {s}", .{title});
-
-                        try self.window.window.setTitle(title);
-
-                        self.game.head_output_device = renderer_init_data.outputDevice;
-                        self.game.main_process_pid = renderer_init_data.mainProcessId;
-
-                        log.debug("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
-                        log.debug("Main process PID {d}", .{renderer_init_data.mainProcessId});
-
-                        const formats = comptime std.enums.values(renderite.Shared.TextureFormat);
-
-                        const supported_formats = self.graphics.sampler_supported_formats.unionWith(self.graphics.cubemap_supported_formats);
-                        const supported_formats_len = supported_formats.count();
-
-                        var supported_formats_buf: [formats.len]renderite.Shared.TextureFormat = undefined;
-                        var i: usize = 0;
-                        for (formats) |format| {
-                            if (supported_formats.contains(format)) {
-                                supported_formats_buf[i] = format;
-                                i += 1;
-                            }
-                        }
-
-                        try self.messaging.host.primary.send(.{
-                            .RendererInitResult = .{
-                                .actualOutputDevice = self.game.head_output_device,
-                                .stereoRenderingMode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
-                                .isGPUTexturePOTByteAligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
-                                .maxTextureSize = 16384, // TODO: determine this from GPU code
-                                .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
-                            },
-                        });
-                    },
-                    .RendererInitProgressUpdate => |renderer_init_progress_update| {
-                        self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
-
-                        var phase = self.game.load_state.phase;
-
-                        phase.phase_name.len = try std.unicode.utf16LeToUtf8(&phase.phase_name.buffer, renderer_init_progress_update.phase);
-                        phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(&phase.sub_phase_name.buffer, renderer_init_progress_update.subPhase);
-
-                        log.debug("Renderer init progress update: force show: {}, phase: \"{s}\", phase index: {d}, sub phase: \"{s}\"", .{
-                            renderer_init_progress_update.forceShow,
-                            phase.phase_name.constSlice(),
-                            renderer_init_progress_update.phaseIndex,
-                            phase.sub_phase_name.constSlice(),
-                        });
-                    },
-                    .RendererShutdown => |_| {
-                        log.debug("Engine is requesting that we shut down, beginning exit", .{});
-                        self.beginExit();
-                    },
-                    .RendererInitFinalizeData => |_| {
-                        self.game.load_state.full_init = true;
-                        log.info("Engine is fully loaded!", .{});
-                    },
-                    else => {
-                        log.warn("Unhandled command type {s}", .{@tagName(command)});
-                    },
-                }
+                try self.handleRendererCommand(renderer_command);
             },
         }
     }
 }
 
-fn messagingCallback(ctx: *anyopaque, message: renderite.ParsedCommand) void {
-    const self: *App = @ptrCast(@alignCast(ctx));
-    self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
+fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, message: renderite.ParsedCommand) void {
+    switch (queue_type) {
+        // messages coming in the primary queue need to be processed ASAP by the main thread
+        .primary => self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),
+        .background => {
+            self.handleRendererCommand(message) catch |err| {
+                std.debug.panic("Failed to handle background command got err {s}", .{@errorName(err)});
+            };
+        },
+    }
 }
 
 /// Sends an envelope to the render thread

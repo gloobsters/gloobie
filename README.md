@@ -40,3 +40,4 @@ A cross-platform experimental renderer for Resonite.
 - `imgui/`: An implementation of an ImGui renderer for our GPU abstraction.
 - `math/`: An xr_linear based math library, with lots of extra routines sprinkled in. Taken from vrshit.
 - `build/`: Misc build scripts.
+- `tracy/`: Zig + Tracy integration

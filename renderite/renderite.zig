@@ -1,5 +1,4 @@
 const messaging = @import("messaging.zig");
-pub const QueueManager = messaging.QueueManager;
 pub const MessagingHost = messaging.MessagingHost;
 pub const ReceiveCallback = messaging.ReceiveCallback;
 pub const ParsedCommand = messaging.ParsedCommand;
