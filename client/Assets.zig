@@ -20,9 +20,11 @@ pub const AssetId = enum(i32) {
     }
 };
 
+lock: std.Thread.RwLock,
 texture_2ds: std.AutoHashMapUnmanaged(AssetId, Texture),
 
 pub const empty: Assets = .{
+    .lock = .{},
     .texture_2ds = .empty,
 };
 
@@ -31,6 +33,9 @@ pub fn deinit(self: *Assets, gpa: std.mem.Allocator) void {
 }
 
 pub fn setTexture2dPropertiesOrCreate(self: *Assets, gpa: std.mem.Allocator, properties: renderite.Shared.SetTexture2DProperties) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
     const result = try self.texture_2ds.getOrPut(gpa, .from(properties.assetId));
 
     const texture = result.value_ptr;
@@ -44,6 +49,9 @@ pub fn setTexture2dPropertiesOrCreate(self: *Assets, gpa: std.mem.Allocator, pro
 }
 
 pub fn setTexture2dFormat(self: *Assets, format: renderite.Shared.SetTexture2DFormat) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
     const texture = self.texture_2ds.getPtr(.from(format.assetId)) orelse return error.MissingAsset;
 
     texture.setFormat(format);
