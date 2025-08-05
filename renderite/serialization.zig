@@ -5,16 +5,6 @@ const builtin = @import("builtin");
 
 const endian = builtin.cpu.arch.endian();
 
-fn getChildType(comptime T: type) type {
-    return switch (@typeInfo(T)) {
-        .array => |array| array.child,
-        .pointer => |pointer| pointer.child,
-        .optional => |optional| optional.child,
-        // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
-        else => return undefined, // TODO
-    };
-}
-
 pub const IpcDeserializer = struct {
     reader: *Reader,
     gpa: std.mem.Allocator,
@@ -58,7 +48,7 @@ pub const IpcDeserializer = struct {
     }
 
     pub fn readList(self: IpcDeserializer, comptime T: type) !T {
-        const BaseType = getChildType(T);
+        const BaseType = std.meta.Child(T);
 
         switch (@typeInfo(BaseType)) {
             .@"struct" => {
@@ -157,7 +147,7 @@ pub const IpcSerializer = struct {
     }
 
     pub fn writeList(self: IpcSerializer, comptime T: type, value: T) !void {
-        const BaseType = getChildType(T);
+        const BaseType = std.meta.Child(T);
 
         switch (@typeInfo(BaseType)) {
             .@"struct" => {
