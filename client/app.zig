@@ -419,6 +419,10 @@ fn handleMessages(self: *App) !void {
                         log.debug("Engine is requesting that we shut down, beginning exit", .{});
                         self.beginExit();
                     },
+                    .RendererInitFinalizeData => |_| {
+                        self.game.load_state.full_init = true;
+                        log.info("Engine is fully loaded!", .{});
+                    },
                     else => {
                         log.warn("Unhandled command type {s}", .{@tagName(command)});
                     },
