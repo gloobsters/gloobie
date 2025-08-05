@@ -1,9 +1,12 @@
 ﻿using System.Collections;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using TypeAttributes = System.Reflection.TypeAttributes;
 
 namespace RenderiteGenerator;
 
@@ -170,35 +173,52 @@ public class Generator : IDisposable
         this._writer.WriteLine("};\n");
     }
     
-    private void WriteStruct(Type type, bool isPackable = false)
+    [SuppressMessage("ReSharper", "ConvertIfStatementToConditionalTernaryExpression")]
+    private void WriteStruct(Type type, bool isMemoryPackable = false)
     {
         if(this._verbose)
             Console.WriteLine($"\tWriting struct {type.FullName}");
         
         // if we were called from a place that didn't already check if we're a packable, check
-        if (!isPackable)
-            isPackable = type.IsAssignableTo(this._iMemoryPackable);
+        if (!isMemoryPackable)
+            isMemoryPackable = type.IsAssignableTo(this._iMemoryPackable);
+
+        bool isExplicitPackable = false;
+        if (!isMemoryPackable)
+            isExplicitPackable = (type.Attributes & TypeAttributes.ExplicitLayout) != 0;
         
         string structName = type.Name;
-        
-        this._writer.WriteLine($"pub const {structName} = struct {{");
+
+        this._writer.WriteLine(isExplicitPackable
+            ? $"pub const {structName} = extern struct {{"
+            : $"pub const {structName} = struct {{");
+
         FieldInfo[] fields = type.GetFields();
         foreach (FieldInfo field in fields)
         {
             this._writer.WriteLine($"\t{field.Name}: {MapToZigType(field.FieldType)},");
         }
 
-        if (isPackable && fields.Length > 0)
+        if ((isMemoryPackable || isExplicitPackable) && fields.Length > 0)
         {
+            // ReSharper disable once RedundantAssignment
+            bool generated = false;
+            
             this._writer.WriteLine();
             this._writer.WriteLine($"\tpub fn write(self: {structName}, ipc: IpcSerializer) !void {{");
-            bool generated = WritePackFunction(type, type.GetMethod("Pack")!);
+            if(isExplicitPackable)
+                generated = WriteExplicitPackFunction(type, fields);
+            else
+                generated = WritePackFunction(type, type.GetMethod("Pack")!);
             if(!generated) WritePackDiscard();
             this._writer.WriteLine("\t}\n");
             
             this._writer.WriteLine($"\tpub fn read(ipc: IpcDeserializer) !{structName} {{");
             this._writer.WriteLine($"\t\tvar self: {structName} = undefined;");
-            generated = WritePackFunction(type, type.GetMethod("Unpack")!);
+            if(isExplicitPackable)
+                generated = WriteExplicitPackFunction(type, fields);
+            else
+                generated = WritePackFunction(type, type.GetMethod("Unpack")!);
             if(!generated) WritePackDiscard(false);
             this._writer.WriteLine("\t\treturn self;");
             this._writer.WriteLine("\t}");
@@ -352,6 +372,32 @@ public class Generator : IDisposable
 
         return written;
     }
+    
+    private bool WriteExplicitPackFunction(Type type, FieldInfo[] fields)
+    {
+        int last = 0;
+        foreach (FieldInfo field in fields)
+        {
+            FieldOffsetAttribute? offset = field.GetCustomAttribute<FieldOffsetAttribute>();
+            Debug.Assert(offset != null);
+
+            Type fieldType = field.FieldType;
+            if (fieldType.IsEnum)
+            {
+                FieldInfo valueField = fieldType.GetField("value__")!;
+                fieldType = valueField.FieldType;
+            }
+
+            int size = Marshal.SizeOf(fieldType);
+            int gap = offset.Value - last;
+
+            if (gap != 0) this._writer.WriteLine($"\t\t// NOTE: field with gap/overlap, {field.Name} = offset:{offset.Value}, size:{size}, gap:{gap}");
+            
+            last = offset.Value + size;
+        }
+
+        return false;
+    }
 
     private void WritePackDiscard(bool self = true)
     {
@@ -369,7 +415,6 @@ public class Generator : IDisposable
             Console.WriteLine($"\tWriting polymorphic enum {type.FullName}");
 
         string enumName = type.Name;
-
         
         this._writer.WriteLine($"pub const {enumName}Types = enum(i32) {{");
 
