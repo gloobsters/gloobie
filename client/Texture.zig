@@ -1,6 +1,32 @@
 const gpu = @import("gpu");
 const renderite = @import("renderite");
 
+const Texture = @This();
+
+filter_mode: renderite.Shared.TextureFilterMode,
+aniso_level: i32,
+wrap_u: renderite.Shared.TextureWrapMode,
+wrap_v: renderite.Shared.TextureWrapMode,
+mipmap_bias: f32,
+
+pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
+    return .{
+        .filter_mode = properties.filterMode,
+        .aniso_level = properties.anisoLevel,
+        .wrap_u = properties.wrapU,
+        .wrap_v = properties.wrapV,
+        .mipmap_bias = properties.mipmapBias,
+    };
+}
+
+pub fn setProperties(self: *Texture, properties: renderite.Shared.SetTexture2DProperties) void {
+    self.filter_mode = properties.filterMode;
+    self.aniso_level = properties.anisoLevel;
+    self.wrap_u = properties.wrapU;
+    self.wrap_v = properties.wrapV;
+    self.mipmap_bias = properties.mipmapBias;
+}
+
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat) ?gpu.TextureFormat {
     // TODO: audit sRGB vs. linear here! we *probably* want to be uploading into sRGB textures
     return switch (format) {
