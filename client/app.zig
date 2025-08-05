@@ -393,7 +393,7 @@ fn handleMessages(self: *App) !void {
                             .RendererInitResult = .{
                                 .actualOutputDevice = self.game.head_output_device,
                                 .stereoRenderingMode = &.{},
-                                .isGPUTexturePOTByteAligned = false,
+                                .isGPUTexturePOTByteAligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
                                 .maxTextureSize = 16384,
                                 .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
                             },
