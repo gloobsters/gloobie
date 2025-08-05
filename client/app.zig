@@ -359,8 +359,6 @@ fn handleMessages(self: *App) !void {
 
                 const command = renderer_command.command;
 
-                log.debug("Recieved command {s}", .{@tagName(command)});
-
                 switch (command) {
                     .RendererInitData => |renderer_init_data| {
                         self.game.load_state.init = true;
