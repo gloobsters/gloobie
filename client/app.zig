@@ -89,15 +89,15 @@ const ImGuiData = struct {
 const total_load_phases = 25;
 
 const LoadPhase = struct {
-    phase_index: u8 = 0,
-    phase_name: []const u8 = "",
-    sub_phase_name: []const u8 = "",
+    phase_index: u8,
+    phase_name: []const u8,
+    sub_phase_name: []const u8,
 };
 
 const LoadState = struct {
-    phase: LoadPhase = .{},
-    init: bool = false,
-    full_init: bool = false,
+    phase: LoadPhase,
+    init: bool,
+    full_init: bool,
 };
 
 const GameData = struct {
@@ -289,11 +289,15 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         .run_loop = true,
         .head_output_device = .UNKNOWN,
         .main_process_pid = null,
-        .load_state = .{ .phase = .{
-            .phase_index = 0,
-            .phase_name = "Awaiting engine...",
-            .sub_phase_name = "",
-        } },
+        .load_state = .{
+            .phase = .{
+                .phase_index = 0,
+                .phase_name = "Awaiting engine...",
+                .sub_phase_name = "",
+            },
+            .init = false,
+            .full_init = false,
+        },
     };
 
     app.* = .{
