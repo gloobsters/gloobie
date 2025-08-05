@@ -387,10 +387,10 @@ fn handleMessages(self: *App) !void {
 
                         try self.messaging.host.primary.send(.{
                             .RendererInitResult = .{
-                                .actualOutputDevice = .Screen,
+                                .actualOutputDevice = self.game.head_output_device,
                                 .stereoRenderingMode = &.{},
                                 .isGPUTexturePOTByteAligned = false,
-                                .maxTextureSize = 1024,
+                                .maxTextureSize = 16384,
                                 .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
                             },
                         });

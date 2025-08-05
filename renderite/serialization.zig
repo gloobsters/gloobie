@@ -33,14 +33,14 @@ pub const IpcDeserializer = struct {
     }
 
     pub fn readList(self: IpcDeserializer, comptime T: type) !T {
-        const base_t = switch (@typeInfo(T)) {
+        const BaseType = switch (@typeInfo(T)) {
             .array => |array| array.child,
             .pointer => |pointer| pointer.child,
             // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
             else => return undefined, // TODO
         };
 
-        return try self.readValueList(base_t, self.gpa);
+        return try self.readValueList(BaseType, self.gpa);
     }
 
     pub fn readStruct(self: IpcDeserializer, comptime T: type) !T {
@@ -79,7 +79,7 @@ pub const IpcDeserializer = struct {
 
     pub fn readValueList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
         const len = try self.reader.takeInt(i32, endian);
-        if (len == 0 or len == -1)
+        if (len == 0 or len == -1) // TODO: handle -1 meaning null
             return &.{};
 
         return try self.reader.readSliceEndianAlloc(gpa, T, @intCast(len), endian);
@@ -140,7 +140,7 @@ pub const IpcSerializer = struct {
     }
 
     pub fn writeBool(self: IpcSerializer, value: bool) !void {
-        try self.writeInt(u8, if (value) 1 else 0);
+        try self.writeInt(u8, @intFromBool(value));
     }
 
     pub fn write8PackedBools(self: IpcSerializer, b0: bool, b1: bool, b2: bool, b3: bool, b4: bool, b5: bool, b6: bool, b7: bool) !void {
