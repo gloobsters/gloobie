@@ -252,7 +252,6 @@ pub const QueueManager = struct {
             },
         }
 
-        // TODO: get slice of written data instead of full buffer
-        try self.publisher.enqueue(data[0..1024]);
+        try self.publisher.enqueue(data[0..writer.end]);
     }
 };
