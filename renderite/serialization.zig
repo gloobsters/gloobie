@@ -2,6 +2,8 @@ const std = @import("std");
 const Reader = std.io.Reader;
 const Writer = std.io.Writer;
 const builtin = @import("builtin");
+const buffer = @import("buffer.zig");
+const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;
 
 const endian = builtin.cpu.arch.endian();
 
@@ -137,7 +139,7 @@ pub const IpcSerializer = struct {
             .int => return try self.writeInt(T, value),
             .float => return try self.writeFloat(T, value),
             // .pointer, .array => return try self.writeString(self.allocator),
-            // .@"struct" => return try self.writeStruct(T),
+            .@"struct" => return try self.writeObject(T, value),
             .bool => return try self.writeBool(value),
             .@"enum" => return try self.writeEnum(T, value),
             .vector => return try self.writeVector(T, value),
@@ -162,8 +164,15 @@ pub const IpcSerializer = struct {
         try self.writeValueList(BaseType, value);
     }
 
+    pub fn writeObject(self: IpcSerializer, comptime T: type, value: T) !void {
+        if (@hasDecl(T, "write")) {
+            return try value.write(self);
+        }
+        return try self.writeStruct(T, value);
+    }
+
     pub fn writeStruct(self: IpcSerializer, comptime T: type, value: T) !void {
-        try self.writer.writeStruct(T, value, endian);
+        try self.writer.writeStruct(value, endian);
     }
 
     pub fn writeInt(self: IpcSerializer, comptime T: type, value: T) !void {
