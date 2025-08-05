@@ -5,6 +5,15 @@ const builtin = @import("builtin");
 
 const endian = builtin.cpu.arch.endian();
 
+fn getChildType(comptime T: type) type {
+    return switch (@typeInfo(T)) {
+        .array => |array| array.child,
+        .pointer => |pointer| pointer.child,
+        // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
+        else => return undefined, // TODO
+    };
+}
+
 pub const IpcDeserializer = struct {
     reader: *Reader,
     gpa: std.mem.Allocator,
@@ -33,12 +42,16 @@ pub const IpcDeserializer = struct {
     }
 
     pub fn readList(self: IpcDeserializer, comptime T: type) !T {
-        const BaseType = switch (@typeInfo(T)) {
-            .array => |array| array.child,
-            .pointer => |pointer| pointer.child,
-            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
-            else => return undefined, // TODO
-        };
+        const BaseType = getChildType(T);
+
+        switch (@typeInfo(BaseType)) {
+            .@"struct" => {
+                if (@hasDecl(BaseType, "read")) {
+                    return try self.readObjectList(BaseType, self.gpa);
+                }
+            },
+            else => {},
+        }
 
         return try self.readValueList(BaseType, self.gpa);
     }
@@ -75,6 +88,20 @@ pub const IpcDeserializer = struct {
             return &.{};
 
         return try self.reader.readSliceEndianAlloc(gpa, u16, @intCast(len), endian);
+    }
+
+    pub fn readObjectList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
+        const len = try self.reader.takeInt(i32, endian);
+        if (len == 0 or len == -1) // TODO: handle -1 meaning null
+            return &.{};
+
+        var list = try gpa.alloc(T, @intCast(len));
+
+        for (0..list.len) |i| {
+            list[i] = try .read(self);
+        }
+
+        return list;
     }
 
     pub fn readValueList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
@@ -114,14 +141,19 @@ pub const IpcSerializer = struct {
     }
 
     pub fn writeList(self: IpcSerializer, comptime T: type, value: T) !void {
-        const base_t = switch (@typeInfo(T)) {
-            .array => |array| array.child,
-            .pointer => |pointer| pointer.child,
-            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
-            else => return,
-        };
+        const BaseType = getChildType(T);
 
-        try self.writeValueList(base_t, value);
+        switch (@typeInfo(BaseType)) {
+            .@"struct" => {
+                if (@hasDecl(BaseType, "write")) {
+                    try self.writeObjectList(BaseType, value);
+                    return;
+                }
+            },
+            else => {},
+        }
+
+        try self.writeValueList(BaseType, value);
     }
 
     pub fn writeStruct(self: IpcSerializer, comptime T: type, value: T) !void {
@@ -161,9 +193,16 @@ pub const IpcSerializer = struct {
         try self.writer.writeSliceEndian(u16, value, endian);
     }
 
-    pub fn writeValueList(self: IpcSerializer, comptime T: type, value: []const T) !void {
-        try self.writer.writeInt(i32, @intCast(value.len), endian);
-        try self.writer.writeSliceEndian(T, value, endian);
+    pub fn writeObjectList(self: IpcSerializer, comptime T: type, list: []const T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        for (list) |value| {
+            try value.write(self);
+        }
+    }
+
+    pub fn writeValueList(self: IpcSerializer, comptime T: type, list: []const T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        try self.writer.writeSliceEndian(T, list, endian);
     }
 };
 

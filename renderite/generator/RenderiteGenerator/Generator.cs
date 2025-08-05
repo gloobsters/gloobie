@@ -88,6 +88,8 @@ public class Generator : IDisposable
         this._writer.WriteLine("const IpcDeserializer = serialization.IpcDeserializer;");
         this._writer.WriteLine("const IpcSerializer = serialization.IpcSerializer;");
         this._writer.WriteLine();
+        this._writer.WriteLine("const math = @import(\"math\");");
+        this._writer.WriteLine();
         
         Console.WriteLine("Generating polymorphic entity enums...");
         this._writer.WriteLine("// Polymorphic entity enums (PolymorphicMemoryPackableEntity<T>)");
@@ -309,6 +311,7 @@ public class Generator : IDisposable
                     }
                     // Write list
                     case "WriteValueList":
+                    case "WriteObjectList":
                     {
                         string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\ttry ipc.writeList(@TypeOf(self.{name}), self.{name});");
@@ -317,6 +320,7 @@ public class Generator : IDisposable
                     }
                     // Read list
                     case "ReadValueList":
+                    case "ReadObjectList":
                     {
                         string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\tself.{name} = try ipc.readList(@TypeOf(self.{name}));");
@@ -434,15 +438,15 @@ public class Generator : IDisposable
         switch (type.Name)
         {
             case "RenderVector2":
-                return "@Vector(2, f32)";
+                return "math.Vector2f";
             case "RenderVector2i":
                 return "@Vector(2, i32)";
             case "RenderVector3":
-                return "@Vector(3, f32)";
+                return "math.Vector3f";
             case "RenderVector3i":
                 return "@Vector(3, i32)";
             case "RenderVector4" or "RenderQuaternion":
-                return "@Vector(4, f32)";
+                return "math.Vector4f";
             case "RenderVector4i":
                 return "@Vector(4, i32)";
         }

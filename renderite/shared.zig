@@ -8,6 +8,8 @@ const serialization = @import("serialization.zig");
 const IpcDeserializer = serialization.IpcDeserializer;
 const IpcSerializer = serialization.IpcSerializer;
 
+const math = @import("math");
+
 // Polymorphic entity enums (PolymorphicMemoryPackableEntity<T>)
 pub const VR_ControllerStateTypes = enum(i32) {
 	CosmosControllerState,
@@ -1861,7 +1863,7 @@ pub const VideoTextureReady = struct {
 		try ipc.write(@TypeOf(self.hasAlpha), self.hasAlpha);
 		try ipc.write(@TypeOf(self.playbackEngine), self.playbackEngine);
 		try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.VideoAudioTrack>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.audioTracks), self.audioTracks);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !VideoTextureReady {
@@ -1872,7 +1874,7 @@ pub const VideoTextureReady = struct {
 		self.hasAlpha = try ipc.read(@TypeOf(self.hasAlpha));
 		self.playbackEngine = try ipc.read(@TypeOf(self.playbackEngine));
 		self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.VideoAudioTrack>(System.Collections.Generic.List`1<T>&)
+		self.audioTracks = try ipc.readList(@TypeOf(self.audioTracks));
 		return self;
 	}
 };
@@ -2031,7 +2033,7 @@ pub const CameraRenderParameters = struct {
 	fov: f32,
 	orthographicSize: f32,
 	clearMode: CameraClearMode,
-	clearColor: @Vector(4, f32),
+	clearColor: math.Vector4f,
 	nearClip: f32,
 	farClip: f32,
 	renderPrivateUI: bool,
@@ -2073,8 +2075,8 @@ pub const CameraRenderParameters = struct {
 
 pub const CameraRenderTask = struct {
 	renderSpaceId: i32,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	parameters: CameraRenderParameters,
 	resultData: SharedMemoryBufferDescriptor,
 	onlyRenderList: []const i32,
@@ -2145,8 +2147,8 @@ pub const FrameSubmitData = struct {
 		try ipc.write(@TypeOf(self.farClip), self.farClip);
 		try ipc.write(@TypeOf(self.desktopFOV), self.desktopFOV);
 		try self.outputState.write(ipc);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.RenderSpaceUpdate>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.CameraRenderTask>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.renderSpaces), self.renderSpaces);
+		try ipc.writeList(@TypeOf(self.renderTasks), self.renderTasks);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !FrameSubmitData {
@@ -2158,8 +2160,8 @@ pub const FrameSubmitData = struct {
 		self.farClip = try ipc.read(@TypeOf(self.farClip));
 		self.desktopFOV = try ipc.read(@TypeOf(self.desktopFOV));
 		self.outputState = try .read(ipc);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.RenderSpaceUpdate>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.CameraRenderTask>(System.Collections.Generic.List`1<T>&)
+		self.renderSpaces = try ipc.readList(@TypeOf(self.renderSpaces));
+		self.renderTasks = try ipc.readList(@TypeOf(self.renderTasks));
 		return self;
 	}
 };
@@ -2344,7 +2346,7 @@ pub const RenderSpaceUpdate = struct {
 		try self.blitToDisplaysUpdate.write(ipc);
 		try self.lodGroupUpdate.write(ipc);
 		try self.gaussianSplatRenderersUpdate.write(ipc);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.ReflectionProbeRenderTask>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.reflectionProbeRenderTasks), self.reflectionProbeRenderTasks);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !RenderSpaceUpdate {
@@ -2377,17 +2379,17 @@ pub const RenderSpaceUpdate = struct {
 		self.blitToDisplaysUpdate = try .read(ipc);
 		self.lodGroupUpdate = try .read(ipc);
 		self.gaussianSplatRenderersUpdate = try .read(ipc);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.ReflectionProbeRenderTask>(System.Collections.Generic.List`1<T>&)
+		self.reflectionProbeRenderTasks = try ipc.readList(@TypeOf(self.reflectionProbeRenderTasks));
 		return self;
 	}
 };
 
 pub const ViveHandState = struct {
 	confidence: f32,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	pinchStrength: f32,
-	points: []const @Vector(3, f32),
+	points: []const math.Vector3f,
 
 	pub fn write(self: ViveHandState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.confidence), self.confidence);
@@ -2434,7 +2436,7 @@ pub const DisplayState = struct {
 	offset: @Vector(2, i32),
 	refreshRate: f64,
 	orientation: RectOrientation,
-	dpi: @Vector(2, f32),
+	dpi: math.Vector2f,
 	isPrimary: bool,
 
 	pub fn write(self: DisplayState, ipc: IpcSerializer) !void {
@@ -2479,9 +2481,9 @@ pub const DragAndDropEvent = struct {
 
 pub const GamepadState = struct {
 	displayName: []const u16,
-	leftThumbstick: @Vector(2, f32),
-	rightThumbstick: @Vector(2, f32),
-	dPad: @Vector(2, f32),
+	leftThumbstick: math.Vector2f,
+	rightThumbstick: math.Vector2f,
+	dPad: math.Vector2f,
 	leftTrigger: f32,
 	rightTrigger: f32,
 	leftThumbstickClick: bool,
@@ -2538,10 +2540,10 @@ pub const HandState = struct {
 	isTracking: bool,
 	tracksMetacarpals: bool,
 	confidence: f32,
-	wristPosition: @Vector(3, f32),
-	wristRotation: @Vector(4, f32),
-	segmentPositions: []const @Vector(3, f32),
-	segmentRotations: []const @Vector(4, f32),
+	wristPosition: math.Vector3f,
+	wristRotation: math.Vector4f,
+	segmentPositions: []const math.Vector3f,
+	segmentRotations: []const math.Vector4f,
 
 	pub fn write(self: HandState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
@@ -2584,9 +2586,9 @@ pub const InputState = struct {
 		try self.keyboard.write(ipc);
 		try self.window.write(ipc);
 		try self.vr.write(ipc);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.GamepadState>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TouchState>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.DisplayState>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.gamepads), self.gamepads);
+		try ipc.writeList(@TypeOf(self.touches), self.touches);
+		try ipc.writeList(@TypeOf(self.displays), self.displays);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !InputState {
@@ -2595,9 +2597,9 @@ pub const InputState = struct {
 		self.keyboard = try .read(ipc);
 		self.window = try .read(ipc);
 		self.vr = try .read(ipc);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.GamepadState>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TouchState>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.DisplayState>(System.Collections.Generic.List`1<T>&)
+		self.gamepads = try ipc.readList(@TypeOf(self.gamepads));
+		self.touches = try ipc.readList(@TypeOf(self.touches));
+		self.displays = try ipc.readList(@TypeOf(self.displays));
 		return self;
 	}
 };
@@ -2626,10 +2628,10 @@ pub const MouseState = struct {
 	middleButtonState: bool,
 	button4State: bool,
 	button5State: bool,
-	desktopPosition: @Vector(2, f32),
-	windowPosition: @Vector(2, f32),
-	directDelta: @Vector(2, f32),
-	scrollWheelDelta: @Vector(2, f32),
+	desktopPosition: math.Vector2f,
+	windowPosition: math.Vector2f,
+	directDelta: math.Vector2f,
+	scrollWheelDelta: math.Vector2f,
 
 	pub fn write(self: MouseState, ipc: IpcSerializer) !void {
 		try ipc.write8PackedBools(self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, false, false);
@@ -2652,7 +2654,7 @@ pub const MouseState = struct {
 
 pub const TouchState = struct {
 	touchId: i32,
-	position: @Vector(2, f32),
+	position: math.Vector2f,
 	isPressing: bool,
 	pressure: f32,
 
@@ -2676,7 +2678,7 @@ pub const TouchState = struct {
 pub const CosmosControllerState = struct {
 	joystickTouch: bool,
 	joystickClick: bool,
-	joystickRaw: @Vector(2, f32),
+	joystickRaw: math.Vector2f,
 	triggerTouch: bool,
 	triggerClick: bool,
 	trigger: f32,
@@ -2691,11 +2693,11 @@ pub const CosmosControllerState = struct {
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2740,7 +2742,7 @@ pub const CosmosControllerState = struct {
 
 pub const GenericControllerState = struct {
 	strength: f32,
-	axis: @Vector(2, f32),
+	axis: math.Vector2f,
 	touchingStrength: bool,
 	touchingAxis: bool,
 	primary: bool,
@@ -2753,11 +2755,11 @@ pub const GenericControllerState = struct {
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2806,7 +2808,7 @@ pub const HP_ReverbControllerState = struct {
 	gripClick: bool,
 	grip: f32,
 	joystickClick: bool,
-	joystickRaw: @Vector(2, f32),
+	joystickRaw: math.Vector2f,
 	triggerHair: bool,
 	triggerClick: bool,
 	trigger: f32,
@@ -2816,11 +2818,11 @@ pub const HP_ReverbControllerState = struct {
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2874,10 +2876,10 @@ pub const IndexControllerState = struct {
 	trigger: f32,
 	triggerTouch: bool,
 	triggerClick: bool,
-	joystickRaw: @Vector(2, f32),
+	joystickRaw: math.Vector2f,
 	joystickTouch: bool,
 	joystickClick: bool,
-	touchpad: @Vector(2, f32),
+	touchpad: math.Vector2f,
 	touchpadTouch: bool,
 	touchpadPress: bool,
 	touchpadForce: f32,
@@ -2887,11 +2889,11 @@ pub const IndexControllerState = struct {
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2948,7 +2950,7 @@ pub const PicoNeo2ControllerState = struct {
 	gripClick: bool,
 	joystickTouch: bool,
 	joystickClick: bool,
-	joystick: @Vector(2, f32),
+	joystick: math.Vector2f,
 	triggerClick: bool,
 	trigger: f32,
 	deviceID: []const u16,
@@ -2957,11 +2959,11 @@ pub const PicoNeo2ControllerState = struct {
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3012,7 +3014,7 @@ pub const TouchControllerState = struct {
 	thumbrestTouch: bool,
 	grip: f32,
 	gripClick: bool,
-	joystickRaw: @Vector(2, f32),
+	joystickRaw: math.Vector2f,
 	joystickTouch: bool,
 	joystickClick: bool,
 	trigger: f32,
@@ -3024,11 +3026,11 @@ pub const TouchControllerState = struct {
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3083,18 +3085,18 @@ pub const ViveControllerState = struct {
 	trigger: f32,
 	touchpadTouch: bool,
 	touchpadClick: bool,
-	touchpad: @Vector(2, f32),
+	touchpad: math.Vector2f,
 	deviceID: []const u16,
 	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3143,20 +3145,20 @@ pub const WindowsMR_ControllerState = struct {
 	trigger: f32,
 	touchpadTouch: bool,
 	touchpadClick: bool,
-	touchpad: @Vector(2, f32),
+	touchpad: math.Vector2f,
 	joystickClick: bool,
-	joystickRaw: @Vector(2, f32),
+	joystickRaw: math.Vector2f,
 	deviceID: []const u16,
 	deviceModel: []const u16,
 	side: Chirality,
 	bodyNode: BodyNode,
 	isDeviceActive: bool,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	hasBoundHand: bool,
-	handPosition: @Vector(3, f32),
-	handRotation: @Vector(4, f32),
+	handPosition: math.Vector3f,
+	handRotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3201,8 +3203,8 @@ pub const WindowsMR_ControllerState = struct {
 
 pub const HeadsetState = struct {
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 	connectionType: HeadsetConnection,
@@ -3235,8 +3237,8 @@ pub const HeadsetState = struct {
 pub const TrackerState = struct {
 	uniqueId: []const u16,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3262,8 +3264,8 @@ pub const TrackerState = struct {
 pub const TrackingReferenceState = struct {
 	uniqueId: []const u16,
 	isTracking: bool,
-	position: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	rotation: math.Vector4f,
 
 	pub fn write(self: TrackingReferenceState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
@@ -3296,9 +3298,9 @@ pub const VR_InputsState = struct {
 		try ipc.write8PackedBools(self.userPresentInHeadset, self.dashboardOpen, false, false, false, false, false, false);
 		try self.headsetState.write(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WritePolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TrackingReferenceState>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>)
+		try ipc.writeList(@TypeOf(self.trackers), self.trackers);
+		try ipc.writeList(@TypeOf(self.trackingReferences), self.trackingReferences);
+		try ipc.writeList(@TypeOf(self.hands), self.hands);
 		try self.viveHandTracking.write(ipc);
 	}
 
@@ -3307,9 +3309,9 @@ pub const VR_InputsState = struct {
 		self.userPresentInHeadset, self.dashboardOpen, _, _, _, _, _, _ = try ipc.read8PackedBools();
 		self.headsetState = try .read(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadPolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackingReferenceState>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>&)
+		self.trackers = try ipc.readList(@TypeOf(self.trackers));
+		self.trackingReferences = try ipc.readList(@TypeOf(self.trackingReferences));
+		self.hands = try ipc.readList(@TypeOf(self.hands));
 		self.viveHandTracking = try .read(ipc);
 		return self;
 	}
@@ -3928,8 +3930,8 @@ pub const RendererShutdownRequest = struct {
 };
 
 pub const RenderBoundingBox = struct {
-	center: @Vector(3, f32),
-	extents: @Vector(3, f32),
+	center: math.Vector3f,
+	extents: math.Vector3f,
 };
 
 pub const VertexAttributeDescriptor = struct {
@@ -3971,21 +3973,21 @@ pub const RenderableHandle = struct {
 };
 
 pub const RenderTransform = struct {
-	position: @Vector(3, f32),
-	scale: @Vector(3, f32),
-	rotation: @Vector(4, f32),
+	position: math.Vector3f,
+	scale: math.Vector3f,
+	rotation: math.Vector4f,
 };
 
 pub const RenderSH2 = struct {
-	sh0: @Vector(3, f32),
-	sh1: @Vector(3, f32),
-	sh2: @Vector(3, f32),
-	sh3: @Vector(3, f32),
-	sh4: @Vector(3, f32),
-	sh5: @Vector(3, f32),
-	sh6: @Vector(3, f32),
-	sh7: @Vector(3, f32),
-	sh8: @Vector(3, f32),
+	sh0: math.Vector3f,
+	sh1: math.Vector3f,
+	sh2: math.Vector3f,
+	sh3: math.Vector3f,
+	sh4: math.Vector3f,
+	sh5: math.Vector3f,
+	sh6: math.Vector3f,
+	sh7: math.Vector3f,
+	sh8: math.Vector3f,
 };
 
 pub const HapticPointState = struct {
