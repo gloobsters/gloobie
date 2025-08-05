@@ -1264,8 +1264,8 @@ pub const SetCubemapData = struct {
 		try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
 		try ipc.writeList(@TypeOf(self.mipMapSizes), self.mipMapSizes);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
-		try ipc.write(@TypeOf(self.mipStarts), self.mipStarts);
 		try ipc.write(@TypeOf(self.flipY), self.flipY);
+		try ipc.write(@TypeOf(self.highPriority), self.highPriority);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !SetCubemapData {
@@ -1275,8 +1275,8 @@ pub const SetCubemapData = struct {
 		self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
 		self.mipMapSizes = try ipc.readList(@TypeOf(self.mipMapSizes));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
-		self.mipStarts = try ipc.read(@TypeOf(self.mipStarts));
 		self.flipY = try ipc.read(@TypeOf(self.flipY));
+		self.highPriority = try ipc.read(@TypeOf(self.highPriority));
 		return self;
 	}
 };
@@ -2085,9 +2085,9 @@ pub const CameraRenderTask = struct {
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.CameraRenderParameters>(T)
-		try ipc.write(@TypeOf(self.parameters), self.parameters);
-		try ipc.writeList(@TypeOf(self.resultData), self.resultData);
+		try ipc.write(@TypeOf(self.resultData), self.resultData);
 		try ipc.writeList(@TypeOf(self.onlyRenderList), self.onlyRenderList);
+		try ipc.writeList(@TypeOf(self.excludeRenderList), self.excludeRenderList);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !CameraRenderTask {
@@ -2096,9 +2096,9 @@ pub const CameraRenderTask = struct {
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.CameraRenderParameters>(T&)
-		self.parameters = try ipc.read(@TypeOf(self.parameters));
-		self.resultData = try ipc.readList(@TypeOf(self.resultData));
+		self.resultData = try ipc.read(@TypeOf(self.resultData));
 		self.onlyRenderList = try ipc.readList(@TypeOf(self.onlyRenderList));
+		self.excludeRenderList = try ipc.readList(@TypeOf(self.excludeRenderList));
 		return self;
 	}
 };
@@ -2113,7 +2113,7 @@ pub const FrameStartData = struct {
 		try ipc.write(@TypeOf(self.lastFrameIndex), self.lastFrameIndex);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.PerformanceState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.InputState>(T)
-		try ipc.writeList(@TypeOf(self.performance), self.performance);
+		try ipc.writeList(@TypeOf(self.renderedReflectionProbes), self.renderedReflectionProbes);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !FrameStartData {
@@ -2121,7 +2121,7 @@ pub const FrameStartData = struct {
 		self.lastFrameIndex = try ipc.read(@TypeOf(self.lastFrameIndex));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.PerformanceState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.InputState>(T&)
-		self.performance = try ipc.readList(@TypeOf(self.performance));
+		self.renderedReflectionProbes = try ipc.readList(@TypeOf(self.renderedReflectionProbes));
 		return self;
 	}
 };
@@ -2267,8 +2267,8 @@ pub const ReflectionProbeRenderTask = struct {
 		try ipc.write(@TypeOf(self.size), self.size);
 		try ipc.write(@TypeOf(self.hdr), self.hdr);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>)
-		try ipc.write(@TypeOf(self.mipOrigins), self.mipOrigins);
-		try ipc.writeList(@TypeOf(self.resultData), self.resultData);
+		try ipc.write(@TypeOf(self.resultData), self.resultData);
+		try ipc.writeList(@TypeOf(self.excludeTransformIds), self.excludeTransformIds);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderTask {
@@ -2278,8 +2278,8 @@ pub const ReflectionProbeRenderTask = struct {
 		self.size = try ipc.read(@TypeOf(self.size));
 		self.hdr = try ipc.read(@TypeOf(self.hdr));
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadNestedValueList<System.Int32>(System.Collections.Generic.List`1<System.Collections.Generic.List`1<T>>&)
-		self.mipOrigins = try ipc.read(@TypeOf(self.mipOrigins));
-		self.resultData = try ipc.readList(@TypeOf(self.resultData));
+		self.resultData = try ipc.read(@TypeOf(self.resultData));
+		self.excludeTransformIds = try ipc.readList(@TypeOf(self.excludeTransformIds));
 		return self;
 	}
 };
@@ -2466,13 +2466,13 @@ pub const DragAndDropEvent = struct {
 
 	pub fn write(self: DragAndDropEvent, ipc: IpcSerializer) !void {
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::WriteStringList(System.Collections.Generic.List`1<System.String>)
-		try ipc.write(@TypeOf(self.paths), self.paths);
+		try ipc.write(@TypeOf(self.dropPoint), self.dropPoint);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !DragAndDropEvent {
 		var self: DragAndDropEvent = undefined;
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryUnpacker::ReadStringList(System.Collections.Generic.List`1<System.String>&)
-		self.paths = try ipc.read(@TypeOf(self.paths));
+		self.dropPoint = try ipc.read(@TypeOf(self.dropPoint));
 		return self;
 	}
 };
@@ -2549,10 +2549,10 @@ pub const HandState = struct {
 		try ipc.write(@TypeOf(self.chirality), self.chirality);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.tracksMetacarpals, false, false, false, false, false);
 		try ipc.write(@TypeOf(self.confidence), self.confidence);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.wristPosition), self.wristPosition);
-		try ipc.writeList(@TypeOf(self.wristRotation), self.wristRotation);
+		try ipc.write(@TypeOf(self.wristRotation), self.wristRotation);
 		try ipc.writeList(@TypeOf(self.segmentPositions), self.segmentPositions);
+		try ipc.writeList(@TypeOf(self.segmentRotations), self.segmentRotations);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !HandState {
@@ -2562,10 +2562,10 @@ pub const HandState = struct {
 		self.chirality = try ipc.read(@TypeOf(self.chirality));
 		self.isDeviceActive, self.isTracking, self.tracksMetacarpals, _, _, _, _, _ = try ipc.read8PackedBools();
 		self.confidence = try ipc.read(@TypeOf(self.confidence));
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.wristPosition = try ipc.read(@TypeOf(self.wristPosition));
-		self.wristRotation = try ipc.readList(@TypeOf(self.wristRotation));
+		self.wristRotation = try ipc.read(@TypeOf(self.wristRotation));
 		self.segmentPositions = try ipc.readList(@TypeOf(self.segmentPositions));
+		self.segmentRotations = try ipc.readList(@TypeOf(self.segmentRotations));
 		return self;
 	}
 };
@@ -2709,12 +2709,12 @@ pub const CosmosControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY);
 		try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
 		try ipc.write(@TypeOf(self.trigger), self.trigger);
@@ -2728,12 +2728,12 @@ pub const CosmosControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY = try ipc.read8PackedBools();
 		self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
 		self.trigger = try ipc.read(@TypeOf(self.trigger));
@@ -2771,12 +2771,12 @@ pub const GenericControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write(@TypeOf(self.strength), self.strength);
 		try ipc.write(@TypeOf(self.axis), self.axis);
 		try ipc.write8PackedBools(self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, false, false);
@@ -2789,12 +2789,12 @@ pub const GenericControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.strength = try ipc.read(@TypeOf(self.strength));
 		self.axis = try ipc.read(@TypeOf(self.axis));
 		self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, _, _ = try ipc.read8PackedBools();
@@ -2834,12 +2834,12 @@ pub const HP_ReverbControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write8PackedBools(self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick);
 		try ipc.write(@TypeOf(self.grip), self.grip);
 		try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
@@ -2853,12 +2853,12 @@ pub const HP_ReverbControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick = try ipc.read8PackedBools();
 		self.grip = try ipc.read(@TypeOf(self.grip));
 		self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
@@ -2905,12 +2905,12 @@ pub const IndexControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write8PackedBools(self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick);
 		try ipc.write(@TypeOf(self.grip), self.grip);
 		try ipc.write(@TypeOf(self.trigger), self.trigger);
@@ -2927,12 +2927,12 @@ pub const IndexControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick = try ipc.read8PackedBools();
 		self.grip = try ipc.read(@TypeOf(self.grip));
 		self.trigger = try ipc.read(@TypeOf(self.trigger));
@@ -2975,12 +2975,12 @@ pub const PicoNeo2ControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write8PackedBools(self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick);
 		try ipc.write(@TypeOf(self.joystick), self.joystick);
 		try ipc.write(@TypeOf(self.trigger), self.trigger);
@@ -2993,12 +2993,12 @@ pub const PicoNeo2ControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick = try ipc.read8PackedBools();
 		self.joystick = try ipc.read(@TypeOf(self.joystick));
 		self.trigger = try ipc.read(@TypeOf(self.trigger));
@@ -3042,12 +3042,12 @@ pub const TouchControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write(@TypeOf(self.model), self.model);
 		try ipc.write8PackedBools(self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, false, false);
 		try ipc.write8PackedBools(self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, false, false, false);
@@ -3063,12 +3063,12 @@ pub const TouchControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.model = try ipc.read(@TypeOf(self.model));
 		self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, _, _ = try ipc.read8PackedBools();
 		self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, _, _, _ = try ipc.read8PackedBools();
@@ -3108,12 +3108,12 @@ pub const ViveControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, false, false);
 		try ipc.write(@TypeOf(self.trigger), self.trigger);
 		try ipc.write(@TypeOf(self.touchpad), self.touchpad);
@@ -3126,12 +3126,12 @@ pub const ViveControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, _, _ = try ipc.read8PackedBools();
 		self.trigger = try ipc.read(@TypeOf(self.trigger));
 		self.touchpad = try ipc.read(@TypeOf(self.touchpad));
@@ -3170,12 +3170,12 @@ pub const WindowsMR_ControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		try ipc.write(@TypeOf(self.hasBoundHand), self.hasBoundHand);
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+		try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
 		try ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, false);
 		try ipc.write(@TypeOf(self.trigger), self.trigger);
 		try ipc.write(@TypeOf(self.touchpad), self.touchpad);
@@ -3189,12 +3189,12 @@ pub const WindowsMR_ControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		self.hasBoundHand = try ipc.read(@TypeOf(self.hasBoundHand));
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+		self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
 		self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, _ = try ipc.read8PackedBools();
 		self.trigger = try ipc.read(@TypeOf(self.trigger));
 		self.touchpad = try ipc.read(@TypeOf(self.touchpad));
@@ -3215,23 +3215,23 @@ pub const HeadsetState = struct {
 
 	pub fn write(self: HeadsetState, ipc: IpcSerializer) !void {
 		try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
 		try ipc.write(@TypeOf(self.connectionType), self.connectionType);
 		try ipc.write(@TypeOf(self.headsetManufacturer), self.headsetManufacturer);
+		try ipc.write(@TypeOf(self.headsetModel), self.headsetModel);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !HeadsetState {
 		var self: HeadsetState = undefined;
 		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
 		self.connectionType = try ipc.read(@TypeOf(self.connectionType));
 		self.headsetManufacturer = try ipc.read(@TypeOf(self.headsetManufacturer));
+		self.headsetModel = try ipc.read(@TypeOf(self.headsetModel));
 		return self;
 	}
 };
@@ -3247,18 +3247,18 @@ pub const TrackerState = struct {
 	pub fn write(self: TrackerState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
 		try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !TrackerState {
 		var self: TrackerState = undefined;
 		self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
 		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
 		return self;
 	}
 };
@@ -3272,16 +3272,16 @@ pub const TrackingReferenceState = struct {
 	pub fn write(self: TrackingReferenceState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
 		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
 		try ipc.write(@TypeOf(self.position), self.position);
+		try ipc.write(@TypeOf(self.rotation), self.rotation);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !TrackingReferenceState {
 		var self: TrackingReferenceState = undefined;
 		self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
 		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
-		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
 		self.position = try ipc.read(@TypeOf(self.position));
+		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		return self;
 	}
 };
@@ -3396,14 +3396,14 @@ pub const VR_OutputState = struct {
 	pub fn write(self: VR_OutputState, ipc: IpcSerializer) !void {
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.VR_ControllerOutputState>(T)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.VR_ControllerOutputState>(T)
-		try ipc.write(@TypeOf(self.leftController), self.leftController);
+		try ipc.write(@TypeOf(self.useViveHandTracking), self.useViveHandTracking);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !VR_OutputState {
 		var self: VR_OutputState = undefined;
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_ControllerOutputState>(T&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_ControllerOutputState>(T&)
-		self.leftController = try ipc.read(@TypeOf(self.leftController));
+		self.useViveHandTracking = try ipc.read(@TypeOf(self.useViveHandTracking));
 		return self;
 	}
 };

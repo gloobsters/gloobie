@@ -254,7 +254,7 @@ public class Generator : IDisposable
                     // Write single value or packed boolean
                     case "Write" when callRef.Parameters.Count == 1:
                     {
-                        string name = names.Dequeue();
+                        string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
@@ -274,7 +274,7 @@ public class Generator : IDisposable
                     // Read single value or packed boolean
                     case "Read" when callRef.Parameters.Count == 1:
                     {
-                        string name = names.Dequeue();
+                        string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
                         written = true;
                         break;
@@ -296,7 +296,7 @@ public class Generator : IDisposable
                     // Write list
                     case "WriteValueList":
                     {
-                        string name = names.Dequeue();
+                        string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\ttry ipc.writeList(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
@@ -304,7 +304,7 @@ public class Generator : IDisposable
                     // Read list
                     case "ReadValueList":
                     {
-                        string name = names.Dequeue();
+                        string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\tself.{name} = try ipc.readList(@TypeOf(self.{name}));");
                         written = true;
                         break;
