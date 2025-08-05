@@ -65,6 +65,14 @@ pub const Vector2f = extern struct {
     }
 };
 
+pub const Vector2i = extern struct {
+    x: i32,
+    y: i32,
+
+    pub const zero: Vector2i = .{ .x = 0, .y = 0 };
+    pub const one: Vector2i = .{ .x = 1, .y = 1 };
+};
+
 pub const SimdVector3f = @Vector(3, f32);
 pub fn lengthSimdV3f(self: SimdVector3f) f32 {
     return @sqrt(@reduce(.Add, self * self));
@@ -195,6 +203,54 @@ pub const Vector3f = extern struct {
     }
 };
 
+pub const Vector3i = extern struct {
+    x: i32,
+    y: i32,
+    z: i32,
+
+    pub const zero: Vector3i = .{ .x = 0, .y = 0, .z = 0 };
+    pub const one: Vector3i = .{ .x = 1, .y = 1, .z = 1 };
+    pub const natural_up: Vector3i = .{ .x = 0, .y = 1, .z = 0 };
+    pub const natural_forward: Vector3i = .{ .x = 0, .y = 0, .z = -1 };
+    pub const natural_backward: Vector3i = .{ .x = 0, .y = 0, .z = 1 };
+
+    pub fn sub(self: Vector3i, other: Vector3i) Vector3i {
+        return .{
+            .x = self.x - other.x,
+            .y = self.y - other.y,
+            .z = self.z - other.z,
+        };
+    }
+
+    pub fn mul(self: Vector3i, other: Vector3i) Vector3i {
+        return .{
+            .x = self.x * other.x,
+            .y = self.y * other.y,
+            .z = self.z * other.z,
+        };
+    }
+
+    pub fn add(self: Vector3i, other: Vector3i) Vector3i {
+        return .{
+            .x = self.x + other.x,
+            .y = self.y + other.y,
+            .z = self.z + other.z,
+        };
+    }
+
+    pub fn div(self: Vector3i, other: Vector3i) Vector3i {
+        return .{
+            .x = self.x / other.x,
+            .y = self.y / other.y,
+            .z = self.z / other.z,
+        };
+    }
+
+    pub fn splat(val: i32) Vector3i {
+        return .{ .x = val, .y = val, .z = val };
+    }
+};
+
 pub const Vector4f = extern struct {
     x: f32,
     y: f32,
@@ -207,6 +263,16 @@ pub const Vector4f = extern struct {
     pub fn from(xr: c.XrVector4f) Vector4f {
         return @bitCast(xr);
     }
+};
+
+pub const Vector4i = extern struct {
+    x: i32,
+    y: i32,
+    z: i32,
+    w: i32,
+
+    pub const zero: Vector4f = .{ .x = 0, .y = 0, .z = 0, .w = 0 };
+    pub const one: Vector4f = .{ .x = 1, .y = 1, .z = 1, .w = 1 };
 };
 
 pub const Spheref = extern struct {

@@ -421,6 +421,7 @@ pub fn build(b: *std.Build) !void {
             .imports = &.{
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
                 .{ .name = "tracy", .module = tracy_mod },
+                .{ .name = "math", .module = math_mod },
             },
         });
 

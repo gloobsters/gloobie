@@ -20,25 +20,44 @@ pub const IpcDeserializer = struct {
 
         switch (@typeInfo(T)) {
             // TODO: this needs work.
-            // ."struct" => return try self.readStruct(T),
+            .@"struct" => return try self.readObject(T),
             .int => return try self.readInt(T),
             .float => return try self.readFloat(T),
             // .pointer, .array => return try self.readString(self.allocator),
             // .@"struct" => return try self.readStruct(T),
             .bool => return try self.readBool(),
             .@"enum" => return try self.readEnum(T),
+            .optional => return try self.readNullable(T),
             // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
             else => return error.TypeNotSupported,
         }
     }
 
+    pub fn readNullable(self: IpcDeserializer, comptime T: type) !T {
+        if (try self.readBool()) {
+            return try self.read(@typeInfo(T).optional.child);
+        }
+        return null;
+    }
+
+    pub fn readObject(self: IpcDeserializer, comptime T: type) !T {
+        if (@hasDecl(T, "read")) {
+            return try .read(self);
+        }
+        return try self.readStruct(T);
+    }
+
     pub fn readList(self: IpcDeserializer, comptime T: type) !T {
-        const BaseType = switch (@typeInfo(T)) {
-            .array => |array| array.child,
-            .pointer => |pointer| pointer.child,
-            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
-            else => return undefined, // TODO
-        };
+        const BaseType = std.meta.Child(T);
+
+        switch (@typeInfo(BaseType)) {
+            .@"struct" => {
+                if (@hasDecl(BaseType, "read")) {
+                    return try self.readObjectList(BaseType, self.gpa);
+                }
+            },
+            else => {},
+        }
 
         return try self.readValueList(BaseType, self.gpa);
     }
@@ -77,6 +96,20 @@ pub const IpcDeserializer = struct {
         return try self.reader.readSliceEndianAlloc(gpa, u16, @intCast(len), endian);
     }
 
+    pub fn readObjectList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
+        const len = try self.reader.takeInt(i32, endian);
+        if (len == 0 or len == -1) // TODO: handle -1 meaning null
+            return &.{};
+
+        var list = try gpa.alloc(T, @intCast(len));
+
+        for (0..list.len) |i| {
+            list[i] = try .read(self);
+        }
+
+        return list;
+    }
+
     pub fn readValueList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
         const len = try self.reader.takeInt(i32, endian);
         if (len == 0 or len == -1) // TODO: handle -1 meaning null
@@ -107,20 +140,26 @@ pub const IpcSerializer = struct {
             // .@"struct" => return try self.writeStruct(T),
             .bool => return try self.writeBool(value),
             .@"enum" => return try self.writeEnum(T, value),
+            .vector => return try self.writeVector(T, value),
             // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for serialization", .{@typeName(T)})),
             else => return error.TypeNotSupported,
         }
     }
 
     pub fn writeList(self: IpcSerializer, comptime T: type, value: T) !void {
-        const base_t = switch (@typeInfo(T)) {
-            .array => |array| array.child,
-            .pointer => |pointer| pointer.child,
-            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
-            else => return,
-        };
+        const BaseType = std.meta.Child(T);
 
-        try self.writeValueList(base_t, value);
+        switch (@typeInfo(BaseType)) {
+            .@"struct" => {
+                if (@hasDecl(BaseType, "write")) {
+                    try self.writeObjectList(BaseType, value);
+                    return;
+                }
+            },
+            else => {},
+        }
+
+        try self.writeValueList(BaseType, value);
     }
 
     pub fn writeStruct(self: IpcSerializer, comptime T: type, value: T) !void {
@@ -148,14 +187,28 @@ pub const IpcSerializer = struct {
             @as(u8, @intFromBool(b4)) << 4 | @as(u8, @intFromBool(b5)) << 5 | @as(u8, @intFromBool(b6)) << 6 | @as(u8, @intFromBool(b7)) << 7);
     }
 
+    pub fn writeVector(self: IpcSerializer, comptime T: type, value: T) !void {
+        const info = @typeInfo(T).vector;
+        inline for (0..info.len) |i| {
+            try self.writeFloat(info.child, value[i]);
+        }
+    }
+
     pub fn writeString(self: IpcSerializer, value: []const u16) !void {
         try self.writer.writeInt(i32, @intCast(value.len), endian);
         try self.writer.writeSliceEndian(u16, value, endian);
     }
 
-    pub fn writeValueList(self: IpcSerializer, comptime T: type, value: []const T) !void {
-        try self.writer.writeInt(i32, @intCast(value.len), endian);
-        try self.writer.writeSliceEndian(T, value, endian);
+    pub fn writeObjectList(self: IpcSerializer, comptime T: type, list: []const T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        for (list) |value| {
+            try value.write(self);
+        }
+    }
+
+    pub fn writeValueList(self: IpcSerializer, comptime T: type, list: []const T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        try self.writer.writeSliceEndian(T, list, endian);
     }
 };
 

@@ -355,8 +355,6 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
 
     const command = renderer_command.command;
 
-    log.debug("Recieved command {s}", .{@tagName(command)});
-
     switch (command) {
         .RendererInitData => |renderer_init_data| {
             self.game.load_state.init = true;
@@ -416,6 +414,10 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
         .RendererShutdown => |_| {
             log.debug("Engine is requesting that we shut down, beginning exit", .{});
             self.beginExit();
+        },
+        .RendererInitFinalizeData => |_| {
+            self.game.load_state.full_init = true;
+            log.info("Engine is fully loaded!", .{});
         },
         .SetTexture2DProperties => |set_texture_2d_properties| {
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, set_texture_2d_properties);
