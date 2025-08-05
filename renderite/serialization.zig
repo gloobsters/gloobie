@@ -9,6 +9,7 @@ fn getChildType(comptime T: type) type {
     return switch (@typeInfo(T)) {
         .array => |array| array.child,
         .pointer => |pointer| pointer.child,
+        .optional => |optional| optional.child,
         // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} is not an array (was {s})", .{ @typeName(T), @tagName(@typeInfo(T)) })),
         else => return undefined, // TODO
     };
@@ -29,16 +30,31 @@ pub const IpcDeserializer = struct {
 
         switch (@typeInfo(T)) {
             // TODO: this needs work.
-            // ."struct" => return try self.readStruct(T),
+            .@"struct" => return try self.readObject(T),
             .int => return try self.readInt(T),
             .float => return try self.readFloat(T),
             // .pointer, .array => return try self.readString(self.allocator),
             // .@"struct" => return try self.readStruct(T),
             .bool => return try self.readBool(),
             .@"enum" => return try self.readEnum(T),
+            .optional => return try self.readNullable(T),
             // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
             else => return error.TypeNotSupported,
         }
+    }
+
+    pub fn readNullable(self: IpcDeserializer, comptime T: type) !T {
+        if (try self.readBool()) {
+            return try self.read(@typeInfo(T).optional.child);
+        }
+        return null;
+    }
+
+    pub fn readObject(self: IpcDeserializer, comptime T: type) !T {
+        if (@hasDecl(T, "read")) {
+            return try .read(self);
+        }
+        return try self.readStruct(T);
     }
 
     pub fn readList(self: IpcDeserializer, comptime T: type) !T {
