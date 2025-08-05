@@ -90,8 +90,8 @@ const total_load_phases = 25;
 
 const LoadPhase = struct {
     phase_index: u8,
-    phase_name: []const u8,
-    sub_phase_name: []const u8,
+    phase_name: std.BoundedArray(u8, 128),
+    sub_phase_name: std.BoundedArray(u8, 128),
 };
 
 const LoadState = struct {
@@ -285,20 +285,23 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     };
     errdefer if (imgui_data) |imgui| imgui.deinit();
 
-    const game_data: GameData = .{
+    var game_data: GameData = .{
         .run_loop = true,
         .head_output_device = .UNKNOWN,
         .main_process_pid = null,
         .load_state = .{
             .phase = .{
                 .phase_index = 0,
-                .phase_name = "Awaiting engine...",
-                .sub_phase_name = "",
+                .phase_name = .{},
+                .sub_phase_name = .{},
             },
             .init = false,
             .full_init = false,
         },
     };
+
+    // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
+    game_data.load_state.phase.phase_name.appendSlice("Awaiting engine...") catch unreachable;
 
     app.* = .{
         .gpa = gpa,
@@ -402,20 +405,16 @@ fn handleMessages(self: *App) !void {
                     .RendererInitProgressUpdate => |renderer_init_progress_update| {
                         self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
 
-                        var phase_name: [128]u8 = undefined;
-                        var sub_phase_name: [128]u8 = undefined;
+                        var phase = self.game.load_state.phase;
 
-                        const phase_name_len = try std.unicode.utf16LeToUtf8(&phase_name, renderer_init_progress_update.phase);
-                        const sub_phase_name_len = try std.unicode.utf16LeToUtf8(&sub_phase_name, renderer_init_progress_update.subPhase);
-
-                        self.game.load_state.phase.phase_name = phase_name[0..phase_name_len];
-                        self.game.load_state.phase.sub_phase_name = sub_phase_name[0..sub_phase_name_len];
+                        phase.phase_name.len = try std.unicode.utf16LeToUtf8(&phase.phase_name.buffer, renderer_init_progress_update.phase);
+                        phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(&phase.sub_phase_name.buffer, renderer_init_progress_update.subPhase);
 
                         log.debug("Renderer init progress update: force show: {}, phase: \"{s}\", phase index: {d}, sub phase: \"{s}\"", .{
                             renderer_init_progress_update.forceShow,
-                            self.game.load_state.phase.phase_name,
+                            phase.phase_name.constSlice(),
                             renderer_init_progress_update.phaseIndex,
-                            self.game.load_state.phase.sub_phase_name,
+                            phase.sub_phase_name.constSlice(),
                         });
                     },
                     .RendererShutdown => |_| {
