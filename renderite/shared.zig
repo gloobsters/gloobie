@@ -2084,7 +2084,7 @@ pub const CameraRenderTask = struct {
 		try ipc.write(@TypeOf(self.renderSpaceId), self.renderSpaceId);
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.CameraRenderParameters>(T)
+		try self.parameters.write(ipc);
 		try ipc.write(@TypeOf(self.resultData), self.resultData);
 		try ipc.writeList(@TypeOf(self.onlyRenderList), self.onlyRenderList);
 		try ipc.writeList(@TypeOf(self.excludeRenderList), self.excludeRenderList);
@@ -2095,7 +2095,7 @@ pub const CameraRenderTask = struct {
 		self.renderSpaceId = try ipc.read(@TypeOf(self.renderSpaceId));
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.CameraRenderParameters>(T&)
+		self.parameters = try .read(ipc);
 		self.resultData = try ipc.read(@TypeOf(self.resultData));
 		self.onlyRenderList = try ipc.readList(@TypeOf(self.onlyRenderList));
 		self.excludeRenderList = try ipc.readList(@TypeOf(self.excludeRenderList));
@@ -2111,16 +2111,16 @@ pub const FrameStartData = struct {
 
 	pub fn write(self: FrameStartData, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.lastFrameIndex), self.lastFrameIndex);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.PerformanceState>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.InputState>(T)
+		try self.performance.write(ipc);
+		try self.inputs.write(ipc);
 		try ipc.writeList(@TypeOf(self.renderedReflectionProbes), self.renderedReflectionProbes);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !FrameStartData {
 		var self: FrameStartData = undefined;
 		self.lastFrameIndex = try ipc.read(@TypeOf(self.lastFrameIndex));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.PerformanceState>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.InputState>(T&)
+		self.performance = try .read(ipc);
+		self.inputs = try .read(ipc);
 		self.renderedReflectionProbes = try ipc.readList(@TypeOf(self.renderedReflectionProbes));
 		return self;
 	}
@@ -2144,7 +2144,7 @@ pub const FrameSubmitData = struct {
 		try ipc.write(@TypeOf(self.nearClip), self.nearClip);
 		try ipc.write(@TypeOf(self.farClip), self.farClip);
 		try ipc.write(@TypeOf(self.desktopFOV), self.desktopFOV);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.OutputState>(T)
+		try self.outputState.write(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.RenderSpaceUpdate>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.CameraRenderTask>(System.Collections.Generic.List`1<T>)
 	}
@@ -2157,7 +2157,7 @@ pub const FrameSubmitData = struct {
 		self.nearClip = try ipc.read(@TypeOf(self.nearClip));
 		self.farClip = try ipc.read(@TypeOf(self.farClip));
 		self.desktopFOV = try ipc.read(@TypeOf(self.desktopFOV));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.OutputState>(T&)
+		self.outputState = try .read(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.RenderSpaceUpdate>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.CameraRenderTask>(System.Collections.Generic.List`1<T>&)
 		return self;
@@ -2326,24 +2326,24 @@ pub const RenderSpaceUpdate = struct {
 		try ipc.write(@TypeOf(self.skyboxMaterialAssetId), self.skyboxMaterialAssetId);
 		try ipc.write(@TypeOf(self.ambientLight), self.ambientLight);
 		try ipc.write(@TypeOf(self.overridenViewTransform), self.overridenViewTransform);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.TransformsUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.MeshRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.SkinnedMeshRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.LightRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.CameraRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.CameraPortalsRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.ReflectionProbeRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.ReflectionProbeSH2Tasks>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.LayerUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.BillboardRenderBufferUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.MeshRenderBufferUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.TrailsRendererUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.LightsBufferRendererUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.RenderTransformOverridesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.RenderMaterialOverridesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.BlitToDisplayRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.LODGroupRenderablesUpdate>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.GaussianSplatRenderablesUpdate>(T)
+		try self.transformsUpdate.write(ipc);
+		try self.meshRenderersUpdate.write(ipc);
+		try self.skinnedMeshRenderersUpdate.write(ipc);
+		try self.lightsUpdate.write(ipc);
+		try self.camerasUpdate.write(ipc);
+		try self.cameraPortalsUpdate.write(ipc);
+		try self.reflectionProbesUpdate.write(ipc);
+		try self.reflectionProbeSH2Taks.write(ipc);
+		try self.layersUpdate.write(ipc);
+		try self.billboardBuffersUpdate.write(ipc);
+		try self.meshRenderBuffersUpdate.write(ipc);
+		try self.trailRenderersUpdate.write(ipc);
+		try self.lightsBufferRenderersUpdate.write(ipc);
+		try self.renderTransformOverridesUpdate.write(ipc);
+		try self.renderMaterialOverridesUpdate.write(ipc);
+		try self.blitToDisplaysUpdate.write(ipc);
+		try self.lodGroupUpdate.write(ipc);
+		try self.gaussianSplatRenderersUpdate.write(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.ReflectionProbeRenderTask>(System.Collections.Generic.List`1<T>)
 	}
 
@@ -2359,24 +2359,24 @@ pub const RenderSpaceUpdate = struct {
 		self.skyboxMaterialAssetId = try ipc.read(@TypeOf(self.skyboxMaterialAssetId));
 		self.ambientLight = try ipc.read(@TypeOf(self.ambientLight));
 		self.overridenViewTransform = try ipc.read(@TypeOf(self.overridenViewTransform));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.TransformsUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.MeshRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.SkinnedMeshRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.LightRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.CameraRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.CameraPortalsRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.ReflectionProbeRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.ReflectionProbeSH2Tasks>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.LayerUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.BillboardRenderBufferUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.MeshRenderBufferUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.TrailsRendererUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.LightsBufferRendererUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.RenderTransformOverridesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.RenderMaterialOverridesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.BlitToDisplayRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.LODGroupRenderablesUpdate>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.GaussianSplatRenderablesUpdate>(T&)
+		self.transformsUpdate = try .read(ipc);
+		self.meshRenderersUpdate = try .read(ipc);
+		self.skinnedMeshRenderersUpdate = try .read(ipc);
+		self.lightsUpdate = try .read(ipc);
+		self.camerasUpdate = try .read(ipc);
+		self.cameraPortalsUpdate = try .read(ipc);
+		self.reflectionProbesUpdate = try .read(ipc);
+		self.reflectionProbeSH2Taks = try .read(ipc);
+		self.layersUpdate = try .read(ipc);
+		self.billboardBuffersUpdate = try .read(ipc);
+		self.meshRenderBuffersUpdate = try .read(ipc);
+		self.trailRenderersUpdate = try .read(ipc);
+		self.lightsBufferRenderersUpdate = try .read(ipc);
+		self.renderTransformOverridesUpdate = try .read(ipc);
+		self.renderMaterialOverridesUpdate = try .read(ipc);
+		self.blitToDisplaysUpdate = try .read(ipc);
+		self.lodGroupUpdate = try .read(ipc);
+		self.gaussianSplatRenderersUpdate = try .read(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.ReflectionProbeRenderTask>(System.Collections.Generic.List`1<T>&)
 		return self;
 	}
@@ -2415,15 +2415,15 @@ pub const ViveHandTrackingInputState = struct {
 
 	pub fn write(self: ViveHandTrackingInputState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.ViveHandState>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.ViveHandState>(T)
+		try self.left.write(ipc);
+		try self.right.write(ipc);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !ViveHandTrackingInputState {
 		var self: ViveHandTrackingInputState = undefined;
 		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.ViveHandState>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.ViveHandState>(T&)
+		self.left = try .read(ipc);
+		self.right = try .read(ipc);
 		return self;
 	}
 };
@@ -2580,28 +2580,24 @@ pub const InputState = struct {
 	displays: []const DisplayState,
 
 	pub fn write(self: InputState, ipc: IpcSerializer) !void {
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.MouseState>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.KeyboardState>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.WindowState>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.VR_InputsState>(T)
+		try self.mouse.write(ipc);
+		try self.keyboard.write(ipc);
+		try self.window.write(ipc);
+		try self.vr.write(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.GamepadState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TouchState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.DisplayState>(System.Collections.Generic.List`1<T>)
-		_ = self;
-		_ = ipc;
 	}
 
 	pub fn read(ipc: IpcDeserializer) !InputState {
 		var self: InputState = undefined;
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.MouseState>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.KeyboardState>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.WindowState>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_InputsState>(T&)
+		self.mouse = try .read(ipc);
+		self.keyboard = try .read(ipc);
+		self.window = try .read(ipc);
+		self.vr = try .read(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.GamepadState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TouchState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.DisplayState>(System.Collections.Generic.List`1<T>&)
-		_ = &self; // FIXME: Type not generating any members
-		_ = ipc;
 		return self;
 	}
 };
@@ -3298,23 +3294,23 @@ pub const VR_InputsState = struct {
 
 	pub fn write(self: VR_InputsState, ipc: IpcSerializer) !void {
 		try ipc.write8PackedBools(self.userPresentInHeadset, self.dashboardOpen, false, false, false, false, false, false);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.HeadsetState>(T)
+		try self.headsetState.write(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WritePolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.TrackingReferenceState>(System.Collections.Generic.List`1<T>)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.ViveHandTrackingInputState>(T)
+		try self.viveHandTracking.write(ipc);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !VR_InputsState {
 		var self: VR_InputsState = undefined;
 		self.userPresentInHeadset, self.dashboardOpen, _, _, _, _, _, _ = try ipc.read8PackedBools();
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.HeadsetState>(T&)
+		self.headsetState = try .read(ipc);
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadPolymorphicList<Renderite.Shared.VR_ControllerState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackerState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.TrackingReferenceState>(System.Collections.Generic.List`1<T>&)
 		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObjectList<Renderite.Shared.HandState>(System.Collections.Generic.List`1<T>&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.ViveHandTrackingInputState>(T&)
+		self.viveHandTracking = try .read(ipc);
 		return self;
 	}
 };
@@ -3331,7 +3327,7 @@ pub const WindowState = struct {
 		try ipc.write(@TypeOf(self.isFullscreen), self.isFullscreen);
 		try ipc.write(@TypeOf(self.windowResolution), self.windowResolution);
 		try ipc.write(@TypeOf(self.resolutionSettingsApplied), self.resolutionSettingsApplied);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.DragAndDropEvent>(T)
+		try self.dragAndDropEvent.write(ipc);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !WindowState {
@@ -3340,7 +3336,7 @@ pub const WindowState = struct {
 		self.isFullscreen = try ipc.read(@TypeOf(self.isFullscreen));
 		self.windowResolution = try ipc.read(@TypeOf(self.windowResolution));
 		self.resolutionSettingsApplied = try ipc.read(@TypeOf(self.resolutionSettingsApplied));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.DragAndDropEvent>(T&)
+		self.dragAndDropEvent = try .read(ipc);
 		return self;
 	}
 };
@@ -3355,7 +3351,7 @@ pub const OutputState = struct {
 		try ipc.write(@TypeOf(self.lockCursor), self.lockCursor);
 		try ipc.write(@TypeOf(self.lockCursorPosition), self.lockCursorPosition);
 		try ipc.write(@TypeOf(self.keyboardInputActive), self.keyboardInputActive);
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.VR_OutputState>(T)
+		try self.vr.write(ipc);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !OutputState {
@@ -3363,7 +3359,7 @@ pub const OutputState = struct {
 		self.lockCursor = try ipc.read(@TypeOf(self.lockCursor));
 		self.lockCursorPosition = try ipc.read(@TypeOf(self.lockCursorPosition));
 		self.keyboardInputActive = try ipc.read(@TypeOf(self.keyboardInputActive));
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_OutputState>(T&)
+		self.vr = try .read(ipc);
 		return self;
 	}
 };
@@ -3394,15 +3390,15 @@ pub const VR_OutputState = struct {
 	useViveHandTracking: bool,
 
 	pub fn write(self: VR_OutputState, ipc: IpcSerializer) !void {
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.VR_ControllerOutputState>(T)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryPacker::WriteObject<Renderite.Shared.VR_ControllerOutputState>(T)
+		try self.leftController.write(ipc);
+		try self.rightController.write(ipc);
 		try ipc.write(@TypeOf(self.useViveHandTracking), self.useViveHandTracking);
 	}
 
 	pub fn read(ipc: IpcDeserializer) !VR_OutputState {
 		var self: VR_OutputState = undefined;
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_ControllerOutputState>(T&)
-		// FIXME: Unknown GenericInstanceMethod System.Void Renderite.Shared.MemoryUnpacker::ReadObject<Renderite.Shared.VR_ControllerOutputState>(T&)
+		self.leftController = try .read(ipc);
+		self.rightController = try .read(ipc);
 		self.useViveHandTracking = try ipc.read(@TypeOf(self.useViveHandTracking));
 		return self;
 	}

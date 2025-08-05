@@ -259,6 +259,13 @@ public class Generator : IDisposable
                         written = true;
                         break;
                     }
+                    case "WriteObject":
+                    {
+                        string name = names.DequeueLast();
+                        this._writer.WriteLine($"\t\ttry self.{name}.write(ipc);");
+                        written = true;
+                        break;
+                    }
                     case "Write" when callRef.Parameters.All(p => p.ParameterType.Name == "Boolean"):
                     {
                         List<string> paramsList = names.Select(n => "self." + n).ToList();
@@ -276,6 +283,13 @@ public class Generator : IDisposable
                     {
                         string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
+                        written = true;
+                        break;
+                    }
+                    case "ReadObject":
+                    {
+                        string name = names.DequeueLast();
+                        this._writer.WriteLine($"\t\tself.{name} = try .read(ipc);");
                         written = true;
                         break;
                     }
