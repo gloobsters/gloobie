@@ -231,24 +231,20 @@ pub const QueueManager = struct {
         const trace = tracy.traceNamed(@src(), "Send Data");
         defer trace.end();
 
-        var data: [1024]u8 = undefined;
+        var data: [8192]u8 = undefined;
         var writer: std.io.Writer = std.io.Writer.fixed(&data);
 
         const serializer = IpcSerializer.init(&writer);
-
-        // _ = self;
 
         switch (command) {
             inline else => |command_struct| {
                 try serializer.writeInt(i32, @intFromEnum(std.meta.stringToEnum(shared.RendererCommandTypes, @tagName(command)).?));
                 log.debug("Sending message {s}", .{@tagName(command)});
 
-                // const info = @typeInfo().@"struct";
+                // Not all messages have data attached. Only write if the type has a write function.
                 if (@hasDecl(@TypeOf(command_struct), "write")) {
-                    // Commands that support reading
                     try command_struct.write(serializer);
                 }
-                // Empty commands have no data
             },
         }
 
