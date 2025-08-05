@@ -187,28 +187,37 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         var sampler_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
         var cubemap_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
         for (std.enums.values(renderite.Shared.TextureFormat)) |renderite_format| {
-            const gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format) orelse continue;
+            const srgb_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .sRGB) orelse continue;
+            const linear_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .Linear) orelse continue;
 
             if (gpu_device.textureSupportsFormat(
-                gpu_format,
+                srgb_gpu_format,
+                .two_dimensional,
+                .{ .sampler = true },
+            ) and gpu_device.textureSupportsFormat(
+                linear_gpu_format,
                 .two_dimensional,
                 .{ .sampler = true },
             )) {
                 sampler_supported_formats.insert(renderite_format);
-                log.debug("GPU supports {s} for samplers", .{@tagName(gpu_format)});
+                log.debug("GPU supports {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             } else {
-                log.debug("GPU does not support {s} for samplers", .{@tagName(gpu_format)});
+                log.debug("GPU does not support {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             }
 
             if (gpu_device.textureSupportsFormat(
-                gpu_format,
+                srgb_gpu_format,
+                .cube,
+                .{ .sampler = true },
+            ) and gpu_device.textureSupportsFormat(
+                linear_gpu_format,
                 .cube,
                 .{ .sampler = true },
             )) {
                 cubemap_supported_formats.insert(renderite_format);
-                log.debug("GPU supports {s} for cubemaps", .{@tagName(gpu_format)});
+                log.debug("GPU supports {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             } else {
-                log.debug("GPU does not support {s} for cubemaps", .{@tagName(gpu_format)});
+                log.debug("GPU does not support {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             }
         }
 
@@ -327,7 +336,7 @@ pub fn deinit(self: *App) void {
     self.messaging.deinit();
     if (self.imgui) |imgui| imgui.deinit();
     if (self.xr) |xr| xr.deinit(gpa);
-    self.assets.deinit(gpa);
+    self.assets.deinit(gpa, self.graphics.device);
     self.graphics.deinit();
     self.window.deinit();
 
@@ -412,7 +421,7 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, set_texture_2d_properties);
         },
         .SetTexture2DFormat => |set_texture_2d_format| {
-            try self.assets.setTexture2dFormat(set_texture_2d_format);
+            try self.assets.setTexture2dFormat(set_texture_2d_format, self.graphics.device);
         },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
