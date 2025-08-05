@@ -107,6 +107,7 @@ pub const IpcSerializer = struct {
             // .@"struct" => return try self.writeStruct(T),
             .bool => return try self.writeBool(value),
             .@"enum" => return try self.writeEnum(T, value),
+            .vector => return try self.writeVector(T, value),
             // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for serialization", .{@typeName(T)})),
             else => return error.TypeNotSupported,
         }
@@ -146,6 +147,13 @@ pub const IpcSerializer = struct {
     pub fn write8PackedBools(self: IpcSerializer, b0: bool, b1: bool, b2: bool, b3: bool, b4: bool, b5: bool, b6: bool, b7: bool) !void {
         try self.writer.writeByte(@as(u8, @intFromBool(b0)) | @as(u8, @intFromBool(b1)) << 1 | @as(u8, @intFromBool(b2)) << 2 | @as(u8, @intFromBool(b3)) << 3 |
             @as(u8, @intFromBool(b4)) << 4 | @as(u8, @intFromBool(b5)) << 5 | @as(u8, @intFromBool(b6)) << 6 | @as(u8, @intFromBool(b7)) << 7);
+    }
+
+    pub fn writeVector(self: IpcSerializer, comptime T: type, value: T) !void {
+        const info = @typeInfo(T).vector;
+        inline for (0..info.len) |i| {
+            try self.writeFloat(info.child, value[i]);
+        }
     }
 
     pub fn writeString(self: IpcSerializer, value: []const u16) !void {
