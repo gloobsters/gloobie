@@ -6,7 +6,7 @@ A cross-platform experimental renderer for Resonite.
 
 - [x] ImGui initialization and rendering
 - [x] Begin reading from FE
-- [ ] Begin writing to FE
+- [x] Begin writing to FE
 - [ ] Finish struct generator
 - [x] Desktop mode graphics initialization
 - [ ] Desktop mode frame loop
