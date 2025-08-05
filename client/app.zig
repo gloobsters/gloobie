@@ -56,6 +56,7 @@ const MessagingData = struct {
     letter_allocation_mutex: std.Thread.Mutex,
 
     pub fn deinit(self: *MessagingData) void {
+        self.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {};
         self.host.deinit();
 
         var envelopes = self.to_render.close();
@@ -85,14 +86,18 @@ const ImGuiData = struct {
     }
 };
 
-const LoadState = enum(i32) {
-    awaiting_engine = 0,
-    processing_startup_commands = 1,
-    scanning_locales = 2,
-    loading_config_json = 3,
-    computing_compatibility_hash = 4,
-    initializing_frooxengine = 5,
-    initializing_input_interface = 6,
+const total_load_phases = 25;
+
+const LoadPhase = struct {
+    phase_index: u8,
+    phase_name: std.BoundedArray(u8, 128),
+    sub_phase_name: std.BoundedArray(u8, 128),
+};
+
+const LoadState = struct {
+    phase: LoadPhase,
+    init: bool,
+    full_init: bool,
 };
 
 const GameData = struct {
@@ -280,12 +285,23 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     };
     errdefer if (imgui_data) |imgui| imgui.deinit();
 
-    const game_data: GameData = .{
+    var game_data: GameData = .{
         .run_loop = true,
         .head_output_device = .UNKNOWN,
         .main_process_pid = null,
-        .load_state = .awaiting_engine,
+        .load_state = .{
+            .phase = .{
+                .phase_index = 0,
+                .phase_name = .{},
+                .sub_phase_name = .{},
+            },
+            .init = false,
+            .full_init = false,
+        },
     };
+
+    // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
+    game_data.load_state.phase.phase_name.appendSlice("Awaiting engine...") catch unreachable;
 
     app.* = .{
         .gpa = gpa,
@@ -347,6 +363,8 @@ fn handleMessages(self: *App) !void {
 
                 switch (command) {
                     .RendererInitData => |renderer_init_data| {
+                        self.game.load_state.init = true;
+
                         var title_buf: [128]u8 = undefined;
                         const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
 
@@ -359,16 +377,49 @@ fn handleMessages(self: *App) !void {
 
                         log.debug("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
                         log.debug("Main process PID {d}", .{renderer_init_data.mainProcessId});
+
+                        const formats = comptime std.enums.values(renderite.Shared.TextureFormat);
+
+                        const supported_formats = self.graphics.sampler_supported_formats.unionWith(self.graphics.cubemap_supported_formats);
+                        const supported_formats_len = supported_formats.count();
+
+                        var supported_formats_buf: [formats.len]renderite.Shared.TextureFormat = undefined;
+                        var i: usize = 0;
+                        for (formats) |format| {
+                            if (supported_formats.contains(format)) {
+                                supported_formats_buf[i] = format;
+                                i += 1;
+                            }
+                        }
+
+                        try self.messaging.host.primary.send(.{
+                            .RendererInitResult = .{
+                                .actualOutputDevice = self.game.head_output_device,
+                                .stereoRenderingMode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
+                                .isGPUTexturePOTByteAligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
+                                .maxTextureSize = 16384, // TODO: determine this from GPU code
+                                .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
+                            },
+                        });
                     },
                     .RendererInitProgressUpdate => |renderer_init_progress_update| {
-                        self.game.load_state = @enumFromInt(renderer_init_progress_update.phaseIndex);
+                        self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
 
-                        log.debug("Renderer init progress update: force show: {}, phase: \"{f}\", phase index: {d}, sub phase: \"{f}\"", .{
+                        var phase = self.game.load_state.phase;
+
+                        phase.phase_name.len = try std.unicode.utf16LeToUtf8(&phase.phase_name.buffer, renderer_init_progress_update.phase);
+                        phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(&phase.sub_phase_name.buffer, renderer_init_progress_update.subPhase);
+
+                        log.debug("Renderer init progress update: force show: {}, phase: \"{s}\", phase index: {d}, sub phase: \"{s}\"", .{
                             renderer_init_progress_update.forceShow,
-                            std.unicode.fmtUtf16Le(renderer_init_progress_update.phase),
+                            phase.phase_name.constSlice(),
                             renderer_init_progress_update.phaseIndex,
-                            std.unicode.fmtUtf16Le(renderer_init_progress_update.subPhase),
+                            phase.sub_phase_name.constSlice(),
                         });
+                    },
+                    .RendererShutdown => |_| {
+                        log.debug("Engine is requesting that we shut down, beginning exit", .{});
+                        self.beginExit();
                     },
                     else => {
                         log.warn("Unhandled command type {s}", .{@tagName(command)});
