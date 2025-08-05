@@ -411,6 +411,9 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
         .SetTexture2DProperties => |set_texture_2d_properties| {
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, set_texture_2d_properties);
         },
+        .SetTexture2DFormat => |set_texture_2d_format| {
+            try self.assets.setTexture2dFormat(set_texture_2d_format);
+        },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
         },

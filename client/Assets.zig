@@ -36,9 +36,23 @@ pub fn setTexture2dPropertiesOrCreate(self: *Assets, gpa: std.mem.Allocator, pro
     const texture = result.value_ptr;
     if (result.found_existing) {
         texture.setProperties(properties);
-        log.info("Updated properties of Texture 2D {d}", .{properties.assetId});
+        log.debug("Updated properties of Texture 2D {d}", .{properties.assetId});
     } else {
         texture.* = .create(properties);
-        log.info("Created Texture 2D with ID {d}", .{properties.assetId});
+        log.debug("Created Texture 2D with ID {d}", .{properties.assetId});
     }
+}
+
+pub fn setTexture2dFormat(self: *Assets, format: renderite.Shared.SetTexture2DFormat) !void {
+    const texture = self.texture_2ds.getPtr(.from(format.assetId)) orelse return error.MissingAsset;
+
+    texture.setFormat(format);
+
+    log.debug("Updated Texture ({d}) format to {s} ({s}), size {d}x{d}", .{
+        format.assetId,
+        @tagName(format.format),
+        @tagName(format.profile),
+        format.width,
+        format.height,
+    });
 }

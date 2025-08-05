@@ -8,6 +8,13 @@ aniso_level: i32,
 wrap_u: renderite.Shared.TextureWrapMode,
 wrap_v: renderite.Shared.TextureWrapMode,
 mipmap_bias: f32,
+format: ?struct {
+    width: u32,
+    height: u32,
+    texture_format: renderite.Shared.TextureFormat,
+    profile: renderite.Shared.ColorProfile,
+    mipmap_count: u32,
+},
 
 pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
     return .{
@@ -16,6 +23,7 @@ pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
         .wrap_u = properties.wrapU,
         .wrap_v = properties.wrapV,
         .mipmap_bias = properties.mipmapBias,
+        .format = null,
     };
 }
 
@@ -25,6 +33,16 @@ pub fn setProperties(self: *Texture, properties: renderite.Shared.SetTexture2DPr
     self.wrap_u = properties.wrapU;
     self.wrap_v = properties.wrapV;
     self.mipmap_bias = properties.mipmapBias;
+}
+
+pub fn setFormat(self: *Texture, format: renderite.Shared.SetTexture2DFormat) void {
+    self.format = .{
+        .width = @intCast(format.width),
+        .height = @intCast(format.height),
+        .mipmap_count = @intCast(format.mipmapCount),
+        .profile = format.profile,
+        .texture_format = format.format,
+    };
 }
 
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat) ?gpu.TextureFormat {
