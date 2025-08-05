@@ -47,6 +47,26 @@ pub fn render() void {
     return c.igRender();
 }
 
+pub fn begin(name: [:0]const u8, open: *bool, flags: c.ImGuiWindowFlags) bool {
+    return c.igBegin(name.ptr, open, flags);
+}
+
+pub fn end() void {
+    return c.igEnd();
+}
+
+pub fn collapsingHeader(name: [:0]const u8, flags: c.ImGuiTreeNodeFlags) bool {
+    return c.igCollapsingHeader_TreeNodeFlags(name.ptr, flags);
+}
+
+pub fn separator() void {
+    return c.igSeparator();
+}
+
+pub fn text(str: [:0]const u8) void {
+    return c.igText(str.ptr);
+}
+
 pub fn getDrawData() *DrawData {
     return c.igGetDrawData();
 }

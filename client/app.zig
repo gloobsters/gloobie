@@ -82,6 +82,8 @@ const MessagingData = struct {
 const ImGuiData = struct {
     context: imgui_t.Context,
 
+    assets_open: bool,
+
     pub fn deinit(self: ImGuiData) void {
         imgui_t.gpu.shutdown();
         imgui_t.sdl3.shutdown();
@@ -294,6 +296,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
         break :create_imgui_data .{
             .context = context,
+            .assets_open = true,
         };
     };
     errdefer if (imgui_data) |imgui| imgui.deinit();
@@ -498,8 +501,10 @@ pub fn frameLoop(self: *App) !void {
 
             // Poll SDL3 events
             while (sdl3.events.poll()) |event| {
-                // ignore ret, doesnt help us
-                _ = imgui_t.sdl3.processEvent(event);
+                if (self.imgui != null) {
+                    // ignore ret, doesnt help us
+                    _ = imgui_t.sdl3.processEvent(event);
+                }
 
                 switch (event) {
                     .quit => {
@@ -516,7 +521,7 @@ pub fn frameLoop(self: *App) !void {
             }
         }
 
-        {
+        if (self.imgui) |*imgui| {
             const trace = tracy.traceNamed(@src(), "ImGui start frame");
             defer trace.end();
 
@@ -524,10 +529,47 @@ pub fn frameLoop(self: *App) !void {
             imgui_t.gpu.newFrame();
             imgui_t.sdl3.newFrame();
             imgui_t.newFrame();
-        }
 
-        var show_demo_window: bool = true;
-        imgui_t.showDemoWindow(&show_demo_window);
+            {
+                const assets_render = imgui_t.begin("Assets", &imgui.assets_open, 0);
+                defer imgui_t.end();
+                if (assets_render) {
+                    self.assets.lock.lockShared();
+                    defer self.assets.lock.unlockShared();
+
+                    {
+                        _ = imgui_t.collapsingHeader("Textures", 0);
+
+                        var texture_iter = self.assets.texture_2ds.iterator();
+                        while (texture_iter.next()) |texture_entry| {
+                            defer imgui_t.separator();
+
+                            const id, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
+
+                            imgui_t.c.igText("Texture %d", @intFromEnum(id));
+                            imgui_t.c.igText("Filter Mode: %s", @tagName(texture.filter_mode).ptr);
+                            imgui_t.c.igText("Anisotropicsy Level: %d", texture.aniso_level);
+                            imgui_t.c.igText("Wrap U/V: %s/%s", @tagName(texture.wrap_u).ptr, @tagName(texture.wrap_v).ptr);
+                            imgui_t.c.igText("Mipmap bias: %f", texture.mipmap_bias);
+                            if (texture.format) |format| {
+                                imgui_t.c.igText("Extents: %ux%u", format.width, format.height);
+                                imgui_t.c.igText("Format/Color Profile: %s %s", @tagName(format.texture_format).ptr, @tagName(format.profile).ptr);
+                                imgui_t.c.igText("Mipmap count: %u", format.mipmap_count);
+                            } else {
+                                imgui_t.c.igText("No format");
+                            }
+                        }
+                    }
+
+                    {
+                        _ = imgui_t.collapsingHeader("Meshes", 0);
+                    }
+                }
+            }
+
+            var show_demo_window: bool = true;
+            imgui_t.showDemoWindow(&show_demo_window);
+        }
 
         if (self.xr) |xr| {
             const trace = tracy.traceNamed(@src(), "XR event handling");
@@ -552,22 +594,27 @@ pub fn frameLoop(self: *App) !void {
         _ = swapchain_height;
         _ = swapchain_width;
 
-        {
+        if (self.imgui != null) {
             const trace = tracy.traceNamed(@src(), "ImGui render");
             defer trace.end();
 
             imgui_t.render();
         }
-        const draw_data = imgui_t.getDrawData();
-        const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
 
         if (maybe_swapchain_texture) |swapchain_texture| {
-            const trace = tracy.traceNamed(@src(), "Render Frame");
-            defer trace.end();
+            const render_trace = tracy.traceNamed(@src(), "Render Frame");
+            defer render_trace.end();
 
-            if (!is_minimized) {
-                imgui_t.gpu.prepareDrawData(draw_data, command_buffer);
-            }
+            const imgui_draw_data = if (self.imgui != null) create_draw_data: {
+                const draw_data = imgui_t.getDrawData();
+                const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
+
+                if (!is_minimized) {
+                    imgui_t.gpu.prepareDrawData(draw_data, command_buffer);
+                }
+
+                break :create_draw_data if (is_minimized) null else draw_data;
+            } else null;
 
             const render_pass = command_buffer.beginRenderPass(&.{.{
                 .texture = swapchain_texture,
@@ -575,7 +622,7 @@ pub fn frameLoop(self: *App) !void {
                 .load = .clear,
             }}, null);
 
-            if (!is_minimized) {
+            if (imgui_draw_data) |draw_data| {
                 imgui_t.gpu.renderDrawData(
                     draw_data,
                     command_buffer,
