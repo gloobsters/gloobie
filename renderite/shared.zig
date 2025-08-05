@@ -1109,7 +1109,7 @@ pub const PointRenderBufferUpload = struct {
 	sizesOffset: i32,
 	colorsOffset: i32,
 	frameIndexesOffset: i32,
-	frameGridSize: @Vector(2, i32),
+	frameGridSize: math.Vector2i,
 	buffer: SharedMemoryBufferDescriptor,
 	assetId: i32,
 
@@ -1254,7 +1254,7 @@ pub const ShaderUploadResult = struct {
 pub const SetCubemapData = struct {
 	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
-	mipMapSizes: []const @Vector(2, i32),
+	mipMapSizes: []const math.Vector2i,
 	mipStarts: []const []const i32,
 	flipY: bool,
 	highPriority: bool,
@@ -1373,7 +1373,7 @@ pub const UnloadCubemap = struct {
 };
 
 pub const DesktopTexturePropertiesUpdate = struct {
-	size: @Vector(2, i32),
+	size: math.Vector2i,
 	assetId: i32,
 
 	pub fn write(self: DesktopTexturePropertiesUpdate, ipc: IpcSerializer) !void {
@@ -1438,7 +1438,7 @@ pub const RenderTextureResult = struct {
 };
 
 pub const SetRenderTextureFormat = struct {
-	size: @Vector(2, i32),
+	size: math.Vector2i,
 	depth: i32,
 	filterMode: TextureFilterMode,
 	anisoLevel: i32,
@@ -1486,7 +1486,7 @@ pub const UnloadRenderTexture = struct {
 pub const SetTexture2DData = struct {
 	data: SharedMemoryBufferDescriptor,
 	startMipLevel: i32,
-	mipMapSizes: []const @Vector(2, i32),
+	mipMapSizes: []const math.Vector2i,
 	mipStarts: []const i32,
 	flipY: bool,
 	hint: TextureUploadHint,
@@ -1849,7 +1849,7 @@ pub const VideoTextureProperties = struct {
 
 pub const VideoTextureReady = struct {
 	length: f64,
-	size: @Vector(2, i32),
+	size: math.Vector2i,
 	hasAlpha: bool,
 	playbackEngine: []const u16,
 	instanceChanged: bool,
@@ -2010,7 +2010,7 @@ pub const QualityConfig = struct {
 };
 
 pub const ResolutionConfig = struct {
-	resolution: @Vector(2, i32),
+	resolution: math.Vector2i,
 	fullscreen: bool,
 
 	pub fn write(self: ResolutionConfig, ipc: IpcSerializer) !void {
@@ -2027,7 +2027,7 @@ pub const ResolutionConfig = struct {
 };
 
 pub const CameraRenderParameters = struct {
-	resolution: @Vector(2, i32),
+	resolution: math.Vector2i,
 	textureFormat: TextureFormat,
 	projection: CameraProjection,
 	fov: f32,
@@ -2076,7 +2076,7 @@ pub const CameraRenderParameters = struct {
 pub const CameraRenderTask = struct {
 	renderSpaceId: i32,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	parameters: CameraRenderParameters,
 	resultData: SharedMemoryBufferDescriptor,
 	onlyRenderList: []const i32,
@@ -2387,7 +2387,7 @@ pub const RenderSpaceUpdate = struct {
 pub const ViveHandState = struct {
 	confidence: f32,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	pinchStrength: f32,
 	points: []const math.Vector3f,
 
@@ -2432,8 +2432,8 @@ pub const ViveHandTrackingInputState = struct {
 
 pub const DisplayState = struct {
 	displayIndex: i32,
-	resolution: @Vector(2, i32),
-	offset: @Vector(2, i32),
+	resolution: math.Vector2i,
+	offset: math.Vector2i,
 	refreshRate: f64,
 	orientation: RectOrientation,
 	dpi: math.Vector2f,
@@ -2464,7 +2464,7 @@ pub const DisplayState = struct {
 
 pub const DragAndDropEvent = struct {
 	paths: []const []const u16,
-	dropPoint: @Vector(2, i32),
+	dropPoint: math.Vector2i,
 
 	pub fn write(self: DragAndDropEvent, ipc: IpcSerializer) !void {
 		// FIXME: Unknown MethodDefinition System.Void Renderite.Shared.MemoryPacker::WriteStringList(System.Collections.Generic.List`1<System.String>)
@@ -2541,9 +2541,9 @@ pub const HandState = struct {
 	tracksMetacarpals: bool,
 	confidence: f32,
 	wristPosition: math.Vector3f,
-	wristRotation: math.Vector4f,
+	wristRotation: math.Quaternionf,
 	segmentPositions: []const math.Vector3f,
-	segmentRotations: []const math.Vector4f,
+	segmentRotations: []const math.Quaternionf,
 
 	pub fn write(self: HandState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
@@ -2694,10 +2694,10 @@ pub const CosmosControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2756,10 +2756,10 @@ pub const GenericControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2819,10 +2819,10 @@ pub const HP_ReverbControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2890,10 +2890,10 @@ pub const IndexControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -2960,10 +2960,10 @@ pub const PicoNeo2ControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3027,10 +3027,10 @@ pub const TouchControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3093,10 +3093,10 @@ pub const ViveControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3155,10 +3155,10 @@ pub const WindowsMR_ControllerState = struct {
 	isDeviceActive: bool,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	hasBoundHand: bool,
 	handPosition: math.Vector3f,
-	handRotation: math.Vector4f,
+	handRotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3204,7 +3204,7 @@ pub const WindowsMR_ControllerState = struct {
 pub const HeadsetState = struct {
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 	connectionType: HeadsetConnection,
@@ -3238,7 +3238,7 @@ pub const TrackerState = struct {
 	uniqueId: []const u16,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 	batteryLevel: f32,
 	batteryCharging: bool,
 
@@ -3265,7 +3265,7 @@ pub const TrackingReferenceState = struct {
 	uniqueId: []const u16,
 	isTracking: bool,
 	position: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 
 	pub fn write(self: TrackingReferenceState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
@@ -3320,7 +3320,7 @@ pub const VR_InputsState = struct {
 pub const WindowState = struct {
 	isWindowFocused: bool,
 	isFullscreen: bool,
-	windowResolution: @Vector(2, i32),
+	windowResolution: math.Vector2i,
 	resolutionSettingsApplied: bool,
 	dragAndDropEvent: DragAndDropEvent,
 
@@ -3345,7 +3345,7 @@ pub const WindowState = struct {
 
 pub const OutputState = struct {
 	lockCursor: bool,
-	lockCursorPosition: ?@Vector(2, i32),
+	lockCursorPosition: ?math.Vector2i,
 	keyboardInputActive: bool,
 	vr: VR_OutputState,
 
@@ -3975,7 +3975,7 @@ pub const RenderableHandle = struct {
 pub const RenderTransform = struct {
 	position: math.Vector3f,
 	scale: math.Vector3f,
-	rotation: math.Vector4f,
+	rotation: math.Quaternionf,
 };
 
 pub const RenderSH2 = struct {

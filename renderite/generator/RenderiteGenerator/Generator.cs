@@ -440,15 +440,17 @@ public class Generator : IDisposable
             case "RenderVector2":
                 return "math.Vector2f";
             case "RenderVector2i":
-                return "@Vector(2, i32)";
+                return "math.Vector2i";
             case "RenderVector3":
                 return "math.Vector3f";
             case "RenderVector3i":
-                return "@Vector(3, i32)";
-            case "RenderVector4" or "RenderQuaternion":
+                return "math.Vector3i";
+            case "RenderVector4":
                 return "math.Vector4f";
             case "RenderVector4i":
-                return "@Vector(4, i32)";
+                return "math.Vector4i";
+            case "RenderQuaternion":
+                return "math.Quaternionf";
         }
 
         if (typeof(IEnumerable).IsAssignableFrom(type))
