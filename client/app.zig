@@ -395,6 +395,7 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
                 .RendererInitResult = .{
                     .actualOutputDevice = self.game.head_output_device,
                     .stereoRenderingMode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
+                    .rendererIdentifier = std.unicode.utf8ToUtf16LeStringLiteral("Gloobie"),
                     .isGPUTexturePOTByteAligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
                     .maxTextureSize = 16384, // TODO: determine this from GPU code
                     .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
@@ -406,8 +407,8 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
 
             const phase = &self.game.load_state.phase;
 
-            phase.phase_name.len = try std.unicode.utf16LeToUtf8(phase.phase_name.buffer[0..phase.phase_name.buffer.len - 1], renderer_init_progress_update.phase);
-            phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(phase.sub_phase_name.buffer[0..phase.sub_phase.buffer.len - 1], renderer_init_progress_update.subPhase);
+            phase.phase_name.len = try std.unicode.utf16LeToUtf8(phase.phase_name.buffer[0 .. phase.phase_name.buffer.len - 1], renderer_init_progress_update.phase);
+            phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(phase.sub_phase_name.buffer[0 .. phase.sub_phase_name.buffer.len - 1], renderer_init_progress_update.subPhase);
 
             // null terminate strings
             phase.phase_name.buffer[phase.phase_name.len] = 0;
@@ -578,9 +579,9 @@ pub fn frameLoop(self: *App) !void {
                 const loadstate_render = imgui_t.begin("Loading...", &imgui.loadstate_open, 0);
                 defer imgui_t.end();
                 if (loadstate_render) {
-                    imgui_t.text(phase.phase_name.buffer[0..phase.phase_name.len:0]);
+                    imgui_t.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
                     if (phase.sub_phase_name.len != 0)
-                        imgui_t.text(phase.sub_phase.len.buffer[0..phase.sub_phase.len:0]);
+                        imgui_t.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
 
                     const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
                     imgui_t.progressBar(progress, .{ .x = 0, .y = 0 }, "");
