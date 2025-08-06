@@ -103,7 +103,7 @@ pub const SharedMemoryAccessor = struct {
         for (self.views.items) |*view| {
             if (view.descriptor.buffer_id == descriptor.buffer_id) {
                 view.accesses += 1;
-                log.debug("Got view id {d}, with {d} accesses", .{ descriptor.buffer_id, view.accesses });
+                // log.debug("Got view id {d}, with {d} accesses", .{ descriptor.buffer_id, view.accesses });
                 return view.*;
             }
         }
@@ -112,12 +112,10 @@ pub const SharedMemoryAccessor = struct {
     }
 
     pub fn getOrCreateView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
-        log.debug("prefix: {s}", .{self.prefix});
-        // TODO: this function returns results even when there's no views. why?
-        // const view = self.getView(descriptor);
-        // if (view != null) {
-        //     return view.?;
-        // }
+        const view = self.getView(descriptor);
+        if (view != null) {
+            return view.?;
+        }
 
         return try self.createView(descriptor);
     }
