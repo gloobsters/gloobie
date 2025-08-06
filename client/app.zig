@@ -393,6 +393,7 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
                 .RendererInitResult = .{
                     .actualOutputDevice = self.game.head_output_device,
                     .stereoRenderingMode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
+                    .rendererIdentifier = std.unicode.utf8ToUtf16LeStringLiteral("Gloobie"),
                     .isGPUTexturePOTByteAligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
                     .maxTextureSize = 16384, // TODO: determine this from GPU code
                     .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
