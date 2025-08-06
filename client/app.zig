@@ -83,6 +83,7 @@ const ImGuiData = struct {
     context: imgui_t.Context,
 
     assets_open: bool,
+    loadstate_open: bool,
 
     pub fn deinit(self: ImGuiData) void {
         imgui_t.gpu.shutdown();
@@ -297,6 +298,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         break :create_imgui_data .{
             .context = context,
             .assets_open = true,
+            .loadstate_open = true,
         };
     };
     errdefer if (imgui_data) |imgui| imgui.deinit();
@@ -402,10 +404,14 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
         .RendererInitProgressUpdate => |renderer_init_progress_update| {
             self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
 
-            var phase = self.game.load_state.phase;
+            const phase = &self.game.load_state.phase;
 
-            phase.phase_name.len = try std.unicode.utf16LeToUtf8(&phase.phase_name.buffer, renderer_init_progress_update.phase);
-            phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(&phase.sub_phase_name.buffer, renderer_init_progress_update.subPhase);
+            phase.phase_name.len = try std.unicode.utf16LeToUtf8(phase.phase_name.buffer[0..phase.phase_name.buffer.len - 1], renderer_init_progress_update.phase);
+            phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(phase.sub_phase_name.buffer[0..phase.sub_phase.buffer.len - 1], renderer_init_progress_update.subPhase);
+
+            // null terminate strings
+            phase.phase_name.buffer[phase.phase_name.len] = 0;
+            phase.sub_phase_name.buffer[phase.sub_phase_name.len] = 0;
 
             log.debug("Renderer init progress update: force show: {}, phase: \"{s}\", phase index: {d}, sub phase: \"{s}\"", .{
                 renderer_init_progress_update.forceShow,
@@ -564,6 +570,20 @@ pub fn frameLoop(self: *App) !void {
                     {
                         _ = imgui_t.collapsingHeader("Meshes", 0);
                     }
+                }
+            }
+
+            if (!self.game.load_state.full_init) {
+                const phase = &self.game.load_state.phase;
+                const loadstate_render = imgui_t.begin("Loading...", &imgui.loadstate_open, 0);
+                defer imgui_t.end();
+                if (loadstate_render) {
+                    imgui_t.text(phase.phase_name.buffer[0..phase.phase_name.len:0]);
+                    if (phase.sub_phase_name.len != 0)
+                        imgui_t.text(phase.sub_phase.len.buffer[0..phase.sub_phase.len:0]);
+
+                    const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
+                    imgui_t.progressBar(progress, .{ .x = 0, .y = 0 }, "");
                 }
             }
 
