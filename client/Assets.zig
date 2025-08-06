@@ -70,3 +70,9 @@ pub fn setTexture2dFormat(self: *Assets, format: renderite.Shared.SetTexture2DFo
         format.height,
     });
 }
+
+pub fn setTexture2dData(self: *Assets, data: renderite.Shared.SetTexture2DData, accessor: *renderite.SharedMemoryAccessor) !void {
+    const view = try accessor.getOrCreateView(data.data);
+    _ = view.view.data; // []u8
+    _ = self;
+}

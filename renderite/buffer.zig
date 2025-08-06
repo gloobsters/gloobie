@@ -7,6 +7,8 @@ const IpcDeserializer = serialization.IpcDeserializer;
 const zinterprocess = @import("zinterprocess");
 const MemoryView = zinterprocess.MemoryView;
 
+const log = std.log.scoped(.shmem);
+
 pub const SharedMemoryBufferDescriptor = extern struct {
     buffer_id: i32,
     buffer_capacity: i32,
@@ -42,7 +44,7 @@ pub const SharedMemoryView = struct {
 
         const view = try MemoryView.init(.{
             .side = .Subscriber,
-            .capacity = descriptor.buffer_capacity,
+            .capacity = @intCast(descriptor.buffer_capacity),
             .memory_view_name = memory_view_name,
         });
 
@@ -65,33 +67,34 @@ pub const SharedMemoryAccessor = struct {
     views: std.ArrayList(SharedMemoryView),
     prefix: []const u8,
 
-    pub fn init(prefix: []const u8, gpa: std.mem.Allocator) !SharedMemoryAccessor {
-        return .{
+    pub fn init(prefix: []const u8, gpa: std.mem.Allocator) *SharedMemoryAccessor {
+        var accessor: SharedMemoryAccessor = .{
             .prefix = prefix,
             .views = .init(gpa),
         };
+        return &accessor;
     }
 
-    fn createView(self: SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
+    fn createView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
         var view = try SharedMemoryView.init(self.prefix, descriptor);
         view.accesses = 1;
-        try self.views.addOne(view);
+        try self.views.append(view);
 
         return view;
     }
 
     fn getView(self: SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) ?SharedMemoryView {
-        for (self.views.items) |view| {
+        for (self.views.items) |*view| {
             if (view.descriptor.buffer_id == descriptor.buffer_id) {
                 view.accesses += 1;
-                return view;
+                return view.*;
             }
         }
 
         return null;
     }
 
-    fn getOrCreateView(self: SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
+    pub fn getOrCreateView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
         const view = self.getView(descriptor);
         if (view != null) {
             return view.?;
@@ -100,7 +103,7 @@ pub const SharedMemoryAccessor = struct {
         return try self.createView(descriptor);
     }
 
-    pub fn deinit(self: SharedMemoryAccessor) void {
+    pub fn deinit(self: *SharedMemoryAccessor) void {
         for (self.views.items) |*view| {
             view.accesses = 0;
             view.deinit();

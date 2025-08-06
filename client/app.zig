@@ -53,7 +53,8 @@ pub const ToRenderLetter = union(enum) { renderer_command: renderite.ParsedComma
 
 const MessagingData = struct {
     host: MessagingHost,
-    accessor: ?SharedMemoryAccessor = null,
+    accessor: ?*SharedMemoryAccessor,
+    shmem_prefix: std.BoundedArray(u8, 128),
 
     to_render: ToRenderMailbox,
     to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
@@ -143,6 +144,8 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
         break :create_messaging_data .{
             .host = host,
+            .accessor = null,
+            .shmem_prefix = .{},
             .to_render = .{},
             .to_render_envelope_pool = .init(gpa),
             .letter_allocation_mutex = .{},
@@ -369,8 +372,6 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
 
     switch (command) {
         .RendererInitData => |renderer_init_data| {
-            self.game.load_state.init = true;
-
             var title_buf: [128]u8 = undefined;
             const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
 
@@ -398,6 +399,9 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
                 }
             }
 
+            const shmem_prefix_len = try std.unicode.utf16LeToUtf8(&self.messaging.shmem_prefix.buffer, renderer_init_data.sharedMemoryPrefix);
+            self.messaging.accessor = SharedMemoryAccessor.init(self.messaging.shmem_prefix.buffer[0..shmem_prefix_len], self.gpa);
+
             try self.messaging.host.primary.send(.{
                 .RendererInitResult = .{
                     .actualOutputDevice = self.game.head_output_device,
@@ -408,6 +412,8 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
                     .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
                 },
             });
+
+            self.game.load_state.init = true;
         },
         .RendererInitProgressUpdate => |renderer_init_progress_update| {
             self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
@@ -441,6 +447,9 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
         },
         .SetTexture2DFormat => |set_texture_2d_format| {
             try self.assets.setTexture2dFormat(set_texture_2d_format, self.graphics.device);
+        },
+        .SetTexture2DData => |set_texture_2d_data| {
+            try self.assets.setTexture2dData(set_texture_2d_data, self.messaging.accessor.?);
         },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
