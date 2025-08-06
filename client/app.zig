@@ -14,6 +14,7 @@ const Assets = @import("Assets.zig");
 const Texture = @import("Texture.zig");
 
 const MessagingHost = renderite.MessagingHost(*App);
+const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
 
 const log = std.log.scoped(.app);
 
@@ -52,6 +53,7 @@ pub const ToRenderLetter = union(enum) { renderer_command: renderite.ParsedComma
 
 const MessagingData = struct {
     host: MessagingHost,
+    accessor: ?SharedMemoryAccessor = null,
 
     to_render: ToRenderMailbox,
     to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
@@ -61,6 +63,10 @@ const MessagingData = struct {
     pub fn deinit(self: *MessagingData) void {
         self.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {};
         self.host.deinit();
+
+        if (self.accessor != null) {
+            self.accessor.?.deinit();
+        }
 
         var envelopes = self.to_render.close();
         while (envelopes) |envelope| {
@@ -92,6 +98,7 @@ const ImGuiData = struct {
     }
 };
 
+// TODO: warn when we need to update this (when this differs on full load)
 const total_load_phases = 25;
 
 const LoadPhase = struct {
