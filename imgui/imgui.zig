@@ -3,6 +3,7 @@ const std = @import("std");
 pub const c = @import("c");
 pub const Io = c.ImGuiIO;
 pub const DrawData = c.ImDrawData;
+pub const ImVec2 = c.ImVec2;
 const GuiStyle = c.ImGuiStyle;
 const gpu_t = @import("gpu");
 const sdl3_t = @import("sdl3");
@@ -65,6 +66,10 @@ pub fn separator() void {
 
 pub fn text(str: [:0]const u8) void {
     return c.igText(str.ptr);
+}
+
+pub fn progressBar(fraction: f32, size_arg: ImVec2, overlay: [:0]const u8) void {
+    return c.igProgressBar(fraction, size_arg, overlay.ptr);
 }
 
 pub fn getDrawData() *DrawData {
