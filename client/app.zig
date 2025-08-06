@@ -399,8 +399,12 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
                 }
             }
 
-            const shmem_prefix_len = try std.unicode.utf16LeToUtf8(&self.messaging.shmem_prefix.buffer, renderer_init_data.sharedMemoryPrefix);
-            self.messaging.accessor = SharedMemoryAccessor.init(self.messaging.shmem_prefix.buffer[0..shmem_prefix_len], self.gpa);
+            var shmem_prefix = &self.messaging.shmem_prefix;
+
+            shmem_prefix.len = try std.unicode.utf16LeToUtf8(&shmem_prefix.buffer, renderer_init_data.sharedMemoryPrefix);
+            self.messaging.accessor = try SharedMemoryAccessor.init(shmem_prefix.constSlice(), self.gpa);
+
+            log.debug("Set shmem prefix to {s} (len {d})", .{ shmem_prefix.constSlice(), shmem_prefix.len });
 
             try self.messaging.host.primary.send(.{
                 .RendererInitResult = .{

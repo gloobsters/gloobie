@@ -32,15 +32,26 @@ pub const SharedMemoryBufferDescriptor = extern struct {
     }
 };
 
+comptime {
+    if (@sizeOf(SharedMemoryBufferDescriptor) != 16) {
+        @compileError("Shared memory buffer descriptor has wrong length defined");
+    }
+}
+
 pub const SharedMemoryView = struct {
     view: MemoryView,
     descriptor: SharedMemoryBufferDescriptor,
+    data: []const u8,
+
+    // TODO: thread safe incrementing
     /// For reference counting.
     accesses: u8,
 
     pub fn init(prefix: []const u8, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
-        var memory_view_buf: [std.fs.max_name_bytes]u8 = undefined;
-        const memory_view_name = std.fmt.bufPrintZ(&memory_view_buf, "{s}{d}", .{ prefix, descriptor.buffer_id }) catch unreachable;
+        var memory_view_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const memory_view_name = std.fmt.bufPrintZ(&memory_view_buf, "{s}_{X}", .{ prefix, descriptor.buffer_id }) catch unreachable;
+
+        log.debug("Initializing shared memory view {s}", .{memory_view_name});
 
         const view = try MemoryView.init(.{
             .side = .Subscriber,
@@ -48,9 +59,12 @@ pub const SharedMemoryView = struct {
             .memory_view_name = memory_view_name,
         });
 
+        const data = view.data[@intCast(descriptor.offset)..@intCast(descriptor.offset + descriptor.length)];
+
         return .{
             .view = view,
             .descriptor = descriptor,
+            .data = data,
             .accesses = 0,
         };
     }
@@ -66,13 +80,15 @@ pub const SharedMemoryView = struct {
 pub const SharedMemoryAccessor = struct {
     views: std.ArrayList(SharedMemoryView),
     prefix: []const u8,
+    gpa: std.mem.Allocator,
 
-    pub fn init(prefix: []const u8, gpa: std.mem.Allocator) *SharedMemoryAccessor {
-        var accessor: SharedMemoryAccessor = .{
-            .prefix = prefix,
-            .views = .init(gpa),
-        };
-        return &accessor;
+    pub fn init(prefix: []const u8, gpa: std.mem.Allocator) !*SharedMemoryAccessor {
+        var accessor = try gpa.create(SharedMemoryAccessor);
+        errdefer gpa.destroy(accessor);
+        accessor.gpa = gpa;
+        accessor.prefix = prefix;
+        accessor.views = .init(gpa);
+        return accessor;
     }
 
     fn createView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
@@ -87,6 +103,7 @@ pub const SharedMemoryAccessor = struct {
         for (self.views.items) |*view| {
             if (view.descriptor.buffer_id == descriptor.buffer_id) {
                 view.accesses += 1;
+                log.debug("Got view id {d}, with {d} accesses", .{ descriptor.buffer_id, view.accesses });
                 return view.*;
             }
         }
@@ -95,10 +112,12 @@ pub const SharedMemoryAccessor = struct {
     }
 
     pub fn getOrCreateView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
-        const view = self.getView(descriptor);
-        if (view != null) {
-            return view.?;
-        }
+        log.debug("prefix: {s}", .{self.prefix});
+        // TODO: this function returns results even when there's no views. why?
+        // const view = self.getView(descriptor);
+        // if (view != null) {
+        //     return view.?;
+        // }
 
         return try self.createView(descriptor);
     }
@@ -110,5 +129,6 @@ pub const SharedMemoryAccessor = struct {
         }
 
         self.views.deinit();
+        self.gpa.destroy(self);
     }
 };
