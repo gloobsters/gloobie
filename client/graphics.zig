@@ -56,9 +56,14 @@ pub const TransferBufferPool = struct {
         }
 
         return if (smallest_index == none_found) create_entry: {
+            var buffer_name_buf: [64]u8 = undefined;
+            // SAFETY: it's big enough
+            const buffer_name = std.fmt.bufPrintZ(&buffer_name_buf, "Pooled Transfer Buffer (size {d})", .{size}) catch unreachable;
+
             const transfer_buffer = try self.device.createTransferBuffer(.{
                 .usage = usage,
                 .size = size,
+                .props = .{ .name = buffer_name },
             });
             errdefer self.device.releaseTransferBuffer(transfer_buffer);
 
