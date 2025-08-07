@@ -6,6 +6,7 @@ const imgui_t = @import("imgui");
 const mailbox = @import("mailbox");
 const math = @import("math");
 const renderite = @import("renderite");
+const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr_t = @import("xr");
@@ -14,8 +15,6 @@ const Assets = @import("Assets.zig");
 const Texture = @import("Texture.zig");
 
 const MessagingHost = renderite.MessagingHost(*App);
-const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
-
 const log = std.log.scoped(.app);
 
 const App = @This();
@@ -53,7 +52,7 @@ pub const ToRenderLetter = union(enum) { renderer_command: renderite.ParsedComma
 
 const MessagingData = struct {
     host: MessagingHost,
-    accessor: ?*SharedMemoryAccessor,
+    accessor: ?SharedMemoryAccessor,
     shmem_prefix: std.BoundedArray(u8, 128),
 
     to_render: ToRenderMailbox,
@@ -61,11 +60,11 @@ const MessagingData = struct {
 
     letter_allocation_mutex: std.Thread.Mutex,
 
-    pub fn deinit(self: *MessagingData) void {
+    pub fn deinit(self: *MessagingData, gpa: std.mem.Allocator) void {
         self.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {};
         self.host.deinit();
 
-        if (self.accessor) |accessor| accessor.deinit();
+        if (self.accessor) |*accessor| accessor.deinit(gpa);
 
         var envelopes = self.to_render.close();
         while (envelopes) |envelope| {
@@ -318,8 +317,8 @@ pub fn init(gpa: std.mem.Allocator) !*App {
         .load_state = .{
             .phase = .{
                 .phase_index = 0,
-                .phase_name = .{},
-                .sub_phase_name = .{},
+                .phase_name = .{ .buffer = @splat(0) },
+                .sub_phase_name = .{ .buffer = @splat(0) },
             },
             .init = false,
             .full_init = false,
@@ -346,7 +345,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 pub fn deinit(self: *App) void {
     const gpa = self.gpa;
 
-    self.messaging.deinit();
+    self.messaging.deinit(gpa);
     if (self.imgui) |imgui| imgui.deinit();
     if (self.xr) |xr| xr.deinit(gpa);
     self.assets.deinit(gpa, self.graphics.device);
@@ -400,7 +399,7 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
             var shmem_prefix = &self.messaging.shmem_prefix;
 
             shmem_prefix.len = try std.unicode.utf16LeToUtf8(&shmem_prefix.buffer, renderer_init_data.sharedMemoryPrefix);
-            self.messaging.accessor = try SharedMemoryAccessor.init(shmem_prefix.constSlice(), self.gpa);
+            self.messaging.accessor = try SharedMemoryAccessor.init(self.gpa, self.messaging.shmem_prefix.constSlice());
 
             log.debug("Set shmem prefix to {s} (len {d})", .{ shmem_prefix.constSlice(), shmem_prefix.len });
 
@@ -451,7 +450,11 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
             try self.assets.setTexture2dFormat(set_texture_2d_format, self.graphics.device);
         },
         .SetTexture2DData => |set_texture_2d_data| {
-            try self.assets.setTexture2dData(set_texture_2d_data, self.messaging.accessor.?, self.graphics.device);
+            if (self.messaging.accessor) |*accessor| {
+                try self.assets.setTexture2dData(self.gpa, set_texture_2d_data, accessor, self.graphics.device);
+            } else {
+                std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
+            }
         },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
@@ -490,6 +493,8 @@ fn handleMessages(self: *App) !void {
 }
 
 fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, message: renderite.ParsedCommand) void {
+    log.debug("Got message {s} on queue {s}", .{ @tagName(message.command), @tagName(queue_type) });
+
     switch (queue_type) {
         // messages coming in the primary queue need to be processed ASAP by the main thread
         .primary => self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),

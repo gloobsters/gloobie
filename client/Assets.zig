@@ -71,9 +71,17 @@ pub fn setTexture2dFormat(self: *Assets, format: renderite.Shared.SetTexture2DFo
     });
 }
 
-pub fn setTexture2dData(self: *Assets, data: renderite.Shared.SetTexture2DData, accessor: *renderite.SharedMemoryAccessor, device: gpu.Device) !void {
-    const view = try accessor.getOrCreateView(data.data);
-    log.debug("Got texture data of size {d}", .{view.data.len});
+pub fn setTexture2dData(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    data: renderite.Shared.SetTexture2DData,
+    accessor: *renderite.SharedMemoryAccessor,
+    device: gpu.Device,
+) !void {
+    const data_slice = try accessor.getOrCreate(gpa, data.data);
+    defer data_slice.release(accessor);
+
     const texture = self.texture_2ds.getPtr(.from(data.assetId)) orelse return error.MissingAsset;
-    try texture.setData(view.data, device);
+
+    try texture.setData(data_slice.data, device);
 }
