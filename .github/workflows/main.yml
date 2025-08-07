@@ -19,7 +19,7 @@ jobs:
         if: matrix.target == 'native'
         run: zig build -Dtarget=${{ matrix.target }} test
       - name: Upload Build
-        if: matrix.os == 'ubuntu-latest' && matrix.target != 'native' && (matrix.mode == 'ReleaseSafe' || matrix.mode == 'Debug')
+        if: matrix.os == 'ubuntu-latest' && matrix.target != 'native' && (matrix.optimize == 'ReleaseSafe' || matrix.optimize == 'Debug')
         uses: actions/upload-artifact@v4
         with:
           path: zig-out/bin
