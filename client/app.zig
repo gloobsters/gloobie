@@ -625,6 +625,12 @@ pub fn frameLoop(self: *App) !void {
         // handle any messages from the queues, happens before processing most of the frame/rendering
         try handleMessages(self);
 
+        // temporary code to tell FE to draw stuff
+        if (self.game.load_state.full_init and true) {
+            try self.messaging.host.primary.send(.{ .FrameStartData = undefined });
+            std.Thread.sleep(16 * std.time.ns_per_ms);
+        }
+
         const command_buffer = try self.graphics.device.acquireCommandBuffer();
 
         const swapchain_texture_result = acquire_swapchain_texture: {
