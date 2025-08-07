@@ -40,8 +40,7 @@ comptime {
 
 pub const SharedMemoryView = struct {
     view: MemoryView,
-    descriptor: SharedMemoryBufferDescriptor,
-    data: []const u8,
+    buffer_id: i32,
 
     // TODO: thread safe incrementing
     /// For reference counting.
@@ -59,12 +58,9 @@ pub const SharedMemoryView = struct {
             .memory_view_name = memory_view_name,
         });
 
-        const data = view.data[@intCast(descriptor.offset)..@intCast(descriptor.offset + descriptor.length)];
-
         return .{
             .view = view,
-            .descriptor = descriptor,
-            .data = data,
+            .buffer_id = descriptor.buffer_id,
             .accesses = 0,
         };
     }
@@ -73,6 +69,23 @@ pub const SharedMemoryView = struct {
         if (self.accesses == 0) {
             self.view.deinit();
         }
+    }
+};
+
+pub const SharedMemoryViewSlice = struct {
+    view: *SharedMemoryView,
+    data: []const u8,
+
+    pub fn init(view: *SharedMemoryView, descriptor: SharedMemoryBufferDescriptor) SharedMemoryViewSlice {
+        view.accesses += 1;
+        return .{
+            .view = view,
+            .data = view.view.data[@intCast(descriptor.offset)..@intCast(descriptor.offset + descriptor.length)],
+        };
+    }
+
+    pub fn deinit(self: *SharedMemoryViewSlice) void {
+        self.view.accesses -= 1;
     }
 };
 
@@ -91,27 +104,25 @@ pub const SharedMemoryAccessor = struct {
         return accessor;
     }
 
-    fn createView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
+    fn createView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryViewSlice {
         var view = try SharedMemoryView.init(self.prefix, descriptor);
-        view.accesses = 1;
         try self.views.append(view);
 
-        return view;
+        return SharedMemoryViewSlice.init(&view, descriptor);
     }
 
-    fn getView(self: SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) ?SharedMemoryView {
+    fn getView(self: SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) ?SharedMemoryViewSlice {
         for (self.views.items) |*view| {
-            if (view.descriptor.buffer_id == descriptor.buffer_id) {
-                view.accesses += 1;
+            if (view.buffer_id == descriptor.buffer_id) {
                 // log.debug("Got view id {d}, with {d} accesses", .{ descriptor.buffer_id, view.accesses });
-                return view.*;
+                return SharedMemoryViewSlice.init(view, descriptor);
             }
         }
 
         return null;
     }
 
-    pub fn getOrCreateView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryView {
+    pub fn getOrCreateView(self: *SharedMemoryAccessor, descriptor: SharedMemoryBufferDescriptor) !SharedMemoryViewSlice {
         const view = self.getView(descriptor);
         if (view != null) {
             return view.?;

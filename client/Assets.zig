@@ -74,5 +74,6 @@ pub fn setTexture2dFormat(self: *Assets, format: renderite.Shared.SetTexture2DFo
 pub fn setTexture2dData(self: *Assets, data: renderite.Shared.SetTexture2DData, accessor: *renderite.SharedMemoryAccessor) !void {
     const view = try accessor.getOrCreateView(data.data);
     log.debug("Got texture data of size {d}", .{view.data.len});
+    log.debug("Texture data: {X}", .{view.data});
     _ = self;
 }
