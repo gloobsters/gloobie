@@ -140,36 +140,81 @@ public class Generator : IDisposable
         if(this._verbose)
             Console.WriteLine($"\tWriting enum {t.FullName}");
 
-        Array values = Enum.GetValues(t);
-
+            
         FieldInfo valueField = t.GetField("value__")!;
         Type underlyingType = valueField.FieldType;
 
-        string enumName = t.Name;
+        Array values = Enum.GetValues(t);
 
+        EnumInfo info = new()
+        {
+            Name = t.Name,
+            UnderlyingType = underlyingType,
+            BitSize = Marshal.SizeOf(underlyingType) * 8,
+        };
+        
         if (t.DeclaringType != null)
         {
-            enumName = t.DeclaringType.Name + '_' + enumName;
+            info.Name = t.DeclaringType.Name + '_' + info.Name;
         }
-        
-        this._writer.WriteLine($"pub const {enumName} = enum({MapToZigType(underlyingType)}) {{");
 
-        List<string> names = [];
-        foreach (object enumVal in values)
+        List<EnumItemInfo> itemInfo = [];
+        foreach (object value in values)
         {
-            string name = enumVal.ToString()!;
-            
-            if(names.Contains(name))
+            string? name = value.ToString();
+            Debug.Assert(name != null);
+
+            if(itemInfo.Any(i => i.Name == name))
                 continue;
-            
-            names.Add(name);
-            
+
             // workaround for enums that aren't int. this effectively casts to the underlying enum type
-            object num = valueField.GetValue(enumVal)!;
-            
-            this._writer.WriteLine($"\t{name} = {num},");
+            object? num = valueField.GetValue(value);
+            Debug.Assert(num != null);
+
+            itemInfo.Add(new EnumItemInfo
+            {
+                Name = name,
+                Value = num,
+            });
+        }
+
+        info.Items = itemInfo;
+        
+        bool flags = t.GetCustomAttribute<FlagsAttribute>() != null;
+
+        if(flags)
+            WriteFlagEnum(t, info);
+        else
+            WriteValueEnum(t, info);
+    }
+
+    private void WriteValueEnum(Type t, EnumInfo info)
+    {
+        this._writer.WriteLine($"pub const {info.Name} = enum({MapToZigType(info.UnderlyingType)}) {{");
+
+        foreach (EnumItemInfo value in info.Items)
+        {
+            this._writer.WriteLine($"\t{value.Name} = {value.Value},");
         }
         
+        this._writer.WriteLine("};\n");
+    }
+    
+    private void WriteFlagEnum(Type t, EnumInfo info)
+    {
+        this._writer.WriteLine($"pub const {info.Name} = packed struct({MapToZigType(info.UnderlyingType)}) {{");
+        int bits = info.BitSize;
+        foreach (EnumItemInfo value in info.Items)
+        {
+            this._writer.WriteLine($"\t{value.Name}: bool, // = {value.Value}");
+            bits--;
+        }
+
+        if (bits != 0)
+        {
+            this._writer.WriteLine($"\tpadding: u{bits} = 0,");
+        }
+
         this._writer.WriteLine("};\n");
     }
     

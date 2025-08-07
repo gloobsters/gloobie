@@ -203,11 +203,12 @@ pub const GaussianSHFormat = enum(i32) {
 	Cluster4k = 7,
 };
 
-pub const BlendshapeDataFlags = enum(i32) {
-	NONE = 0,
-	Positions = 1,
-	Normals = 2,
-	Tangets = 4,
+pub const BlendshapeDataFlags = packed struct(i32) {
+	NONE: bool, // = 0
+	Positions: bool, // = 1
+	Normals: bool, // = 2
+	Tangets: bool, // = 4
+	padding: u28 = 0,
 };
 
 pub const IndexBufferFormat = enum(i32) {
@@ -754,28 +755,29 @@ pub const FingerType = enum(i32) {
 	Pinky = 4,
 };
 
-pub const MeshUploadHint_Flag = enum(i32) {
-	VertexLayout = 1,
-	SubmeshLayout = 2,
-	Geometry = 4,
-	Positions = 8,
-	Normals = 16,
-	Tangents = 32,
-	Colors = 64,
-	UV0s = 128,
-	UV1s = 256,
-	UV2s = 512,
-	UV3s = 1024,
-	UV4s = 2048,
-	UV5s = 4096,
-	UV6s = 8192,
-	UV7s = 16384,
-	BindPoses = 32768,
-	BoneWeights = 65536,
-	Blendshapes = 131072,
-	Dynamic = 262144,
-	Readable = 524288,
-	Debug = 1048576,
+pub const MeshUploadHint_Flag = packed struct(i32) {
+	VertexLayout: bool, // = 1
+	SubmeshLayout: bool, // = 2
+	Geometry: bool, // = 4
+	Positions: bool, // = 8
+	Normals: bool, // = 16
+	Tangents: bool, // = 32
+	Colors: bool, // = 64
+	UV0s: bool, // = 128
+	UV1s: bool, // = 256
+	UV2s: bool, // = 512
+	UV3s: bool, // = 1024
+	UV4s: bool, // = 2048
+	UV5s: bool, // = 4096
+	UV6s: bool, // = 8192
+	UV7s: bool, // = 16384
+	BindPoses: bool, // = 32768
+	BoneWeights: bool, // = 65536
+	Blendshapes: bool, // = 131072
+	Dynamic: bool, // = 262144
+	Readable: bool, // = 524288
+	Debug: bool, // = 1048576
+	padding: u11 = 0,
 };
 
 // Generated Structs
