@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.0-dev.1283+1fcaf90dd
       - name: Build & Install
         run: zig build -Dtarget=${{ matrix.target }} install
       - name: Run Tests
