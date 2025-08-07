@@ -65,9 +65,7 @@ const MessagingData = struct {
         self.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {};
         self.host.deinit();
 
-        if (self.accessor != null) {
-            self.accessor.?.deinit();
-        }
+        if (self.accessor) |accessor| accessor.deinit();
 
         var envelopes = self.to_render.close();
         while (envelopes) |envelope| {
