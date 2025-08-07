@@ -453,7 +453,7 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
             try self.assets.setTexture2dFormat(set_texture_2d_format, self.graphics.device);
         },
         .SetTexture2DData => |set_texture_2d_data| {
-            try self.assets.setTexture2dData(set_texture_2d_data, self.messaging.accessor.?);
+            try self.assets.setTexture2dData(set_texture_2d_data, self.messaging.accessor.?, self.graphics.device);
         },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
