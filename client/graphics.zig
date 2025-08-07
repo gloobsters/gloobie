@@ -44,7 +44,7 @@ pub const TransferBufferPool = struct {
         var smallest_size: usize = none_found;
         // find the first buffer which is small enough
         for (self.buffers.items, 0..) |entry, i| {
-            if (entry.size >= size and entry.size < smallest_size) {
+            if (entry.size >= size and entry.size < smallest_size and entry.usage == usage) {
                 smallest_index = i;
                 smallest_size = entry.size;
 
