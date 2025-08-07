@@ -6,3 +6,6 @@ const serialization = @import("serialization.zig");
 pub const IpcDeserializer = serialization.IpcDeserializer;
 pub const IpcSerializer = serialization.IpcSerializer;
 pub const Shared = @import("shared.zig");
+const buffer = @import("buffer.zig");
+pub const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;
+pub const SharedMemoryAccessor = buffer.SharedMemoryAccessor;

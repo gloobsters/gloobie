@@ -94,6 +94,12 @@ pub fn setFormat(self: *Texture, renderite_format: renderite.Shared.SetTexture2D
     };
 }
 
+pub fn setData(self: *Texture, data: []const u8, device: gpu.Device) !void {
+    _ = self;
+    _ = data;
+    _ = device;
+}
+
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {
     // TODO: Add all missing formats to GPU
     return switch (profile) {

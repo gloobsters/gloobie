@@ -2417,6 +2417,8 @@ pub const ViveHandTrackingInputState = struct {
 
 	pub fn write(self: ViveHandTrackingInputState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0012: brfalse.s IL_002c
 		try self.left.write(ipc);
 		try self.right.write(ipc);
 	}
@@ -2424,6 +2426,8 @@ pub const ViveHandTrackingInputState = struct {
 	pub fn read(ipc: IpcDeserializer) !ViveHandTrackingInputState {
 		var self: ViveHandTrackingInputState = undefined;
 		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0012: brfalse.s IL_002c
 		self.left = try .read(ipc);
 		self.right = try .read(ipc);
 		return self;
@@ -2551,6 +2555,8 @@ pub const HandState = struct {
 		try ipc.write(@TypeOf(self.chirality), self.chirality);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.tracksMetacarpals, false, false, false, false, false);
 		try ipc.write(@TypeOf(self.confidence), self.confidence);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_0085
 		try ipc.write(@TypeOf(self.wristPosition), self.wristPosition);
 		try ipc.write(@TypeOf(self.wristRotation), self.wristRotation);
 		try ipc.writeList(@TypeOf(self.segmentPositions), self.segmentPositions);
@@ -2564,6 +2570,8 @@ pub const HandState = struct {
 		self.chirality = try ipc.read(@TypeOf(self.chirality));
 		self.isDeviceActive, self.isTracking, self.tracksMetacarpals, _, _, _, _, _ = try ipc.read8PackedBools();
 		self.confidence = try ipc.read(@TypeOf(self.confidence));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_0080
 		self.wristPosition = try ipc.read(@TypeOf(self.wristPosition));
 		self.wristRotation = try ipc.read(@TypeOf(self.wristRotation));
 		self.segmentPositions = try ipc.readList(@TypeOf(self.segmentPositions));
@@ -2707,8 +2715,12 @@ pub const CosmosControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -2726,8 +2738,12 @@ pub const CosmosControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -2769,8 +2785,12 @@ pub const GenericControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -2787,8 +2807,12 @@ pub const GenericControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -2832,8 +2856,12 @@ pub const HP_ReverbControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -2851,8 +2879,12 @@ pub const HP_ReverbControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -2903,8 +2935,12 @@ pub const IndexControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -2925,8 +2961,12 @@ pub const IndexControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -2973,8 +3013,12 @@ pub const PicoNeo2ControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -2991,8 +3035,12 @@ pub const PicoNeo2ControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -3040,8 +3088,12 @@ pub const TouchControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -3061,8 +3113,12 @@ pub const TouchControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -3106,8 +3162,12 @@ pub const ViveControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -3124,8 +3184,12 @@ pub const ViveControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -3168,8 +3232,12 @@ pub const WindowsMR_ControllerState = struct {
 		try ipc.write(@TypeOf(self.side), self.side);
 		try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
 		try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0053: brfalse.s IL_00a5
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0073: brfalse.s IL_008d
 		try ipc.write(@TypeOf(self.handPosition), self.handPosition);
 		try ipc.write(@TypeOf(self.handRotation), self.handRotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -3187,8 +3255,12 @@ pub const WindowsMR_ControllerState = struct {
 		self.side = try ipc.read(@TypeOf(self.side));
 		self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
 		self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_004e: brfalse.s IL_00a0
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_006e: brfalse.s IL_0088
 		self.handPosition = try ipc.read(@TypeOf(self.handPosition));
 		self.handRotation = try ipc.read(@TypeOf(self.handRotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -3213,6 +3285,8 @@ pub const HeadsetState = struct {
 
 	pub fn write(self: HeadsetState, ipc: IpcSerializer) !void {
 		try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_001e: brfalse.s IL_0044
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -3224,6 +3298,8 @@ pub const HeadsetState = struct {
 	pub fn read(ipc: IpcDeserializer) !HeadsetState {
 		var self: HeadsetState = undefined;
 		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0018: brfalse.s IL_003e
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -3245,6 +3321,8 @@ pub const TrackerState = struct {
 	pub fn write(self: TrackerState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
 		try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_002a: brfalse.s IL_0044
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
 		try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
@@ -3254,6 +3332,8 @@ pub const TrackerState = struct {
 		var self: TrackerState = undefined;
 		self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
 		self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_0024: brfalse.s IL_003e
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
@@ -3270,6 +3350,8 @@ pub const TrackingReferenceState = struct {
 	pub fn write(self: TrackingReferenceState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
 		try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_001e: brfalse.s IL_0038
 		try ipc.write(@TypeOf(self.position), self.position);
 		try ipc.write(@TypeOf(self.rotation), self.rotation);
 	}
@@ -3278,6 +3360,8 @@ pub const TrackingReferenceState = struct {
 		var self: TrackingReferenceState = undefined;
 		self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
 		self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+		// FIXME: Unknown Cond_Branch instruction:
+		// IL_001e: brfalse.s IL_0038
 		self.position = try ipc.read(@TypeOf(self.position));
 		self.rotation = try ipc.read(@TypeOf(self.rotation));
 		return self;

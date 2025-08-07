@@ -256,17 +256,20 @@ public class Generator : IDisposable
         foreach (Instruction instruction in methodDef.Body.Instructions)
         {
             // if (this._ilVerbose)
-            // {
-            //     this._writer.Write("\t\t// ");
-            //     this._writer.WriteLine(instruction.ToString());
-            // }
+                // this._writer.WriteLine($"\t\t// {instruction} ({instruction.OpCode.FlowControl})");
+
+            FlowControl flow = instruction.OpCode.FlowControl;
+            if (flow != FlowControl.Next && flow != FlowControl.Call && flow != FlowControl.Return)
+            {
+                this._writer.WriteLine($"\t\t// FIXME: Unknown {flow} instruction:\n\t\t// {instruction}");
+            }
 
             if (instruction.OpCode.Code is Code.Ldfld or Code.Ldflda)
             {
                 string name = ((FieldReference)instruction.Operand).Name;
                 names.Enqueue(name);
-                if (this._ilVerbose)
-                    this._writer.WriteLine($"\t\t// {instruction.OpCode.Code} {name}");
+                // if (this._ilVerbose)
+                    // this._writer.WriteLine($"\t\t// {instruction.OpCode.Code} {name}");
             }
 
             if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodReference callRef)

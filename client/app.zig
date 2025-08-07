@@ -14,6 +14,7 @@ const Assets = @import("Assets.zig");
 const Texture = @import("Texture.zig");
 
 const MessagingHost = renderite.MessagingHost(*App);
+const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
 
 const log = std.log.scoped(.app);
 
@@ -52,6 +53,8 @@ pub const ToRenderLetter = union(enum) { renderer_command: renderite.ParsedComma
 
 const MessagingData = struct {
     host: MessagingHost,
+    accessor: ?*SharedMemoryAccessor,
+    shmem_prefix: std.BoundedArray(u8, 128),
 
     to_render: ToRenderMailbox,
     to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
@@ -61,6 +64,8 @@ const MessagingData = struct {
     pub fn deinit(self: *MessagingData) void {
         self.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {};
         self.host.deinit();
+
+        if (self.accessor) |accessor| accessor.deinit();
 
         var envelopes = self.to_render.close();
         while (envelopes) |envelope| {
@@ -92,6 +97,7 @@ const ImGuiData = struct {
     }
 };
 
+// TODO: warn when we need to update this (when this differs on full load)
 const total_load_phases = 25;
 
 const LoadPhase = struct {
@@ -136,6 +142,8 @@ pub fn init(gpa: std.mem.Allocator) !*App {
 
         break :create_messaging_data .{
             .host = host,
+            .accessor = null,
+            .shmem_prefix = .{},
             .to_render = .{},
             .to_render_envelope_pool = .init(gpa),
             .letter_allocation_mutex = .{},
@@ -362,8 +370,6 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
 
     switch (command) {
         .RendererInitData => |renderer_init_data| {
-            self.game.load_state.init = true;
-
             var title_buf: [128]u8 = undefined;
             const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
 
@@ -391,6 +397,13 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
                 }
             }
 
+            var shmem_prefix = &self.messaging.shmem_prefix;
+
+            shmem_prefix.len = try std.unicode.utf16LeToUtf8(&shmem_prefix.buffer, renderer_init_data.sharedMemoryPrefix);
+            self.messaging.accessor = try SharedMemoryAccessor.init(shmem_prefix.constSlice(), self.gpa);
+
+            log.debug("Set shmem prefix to {s} (len {d})", .{ shmem_prefix.constSlice(), shmem_prefix.len });
+
             try self.messaging.host.primary.send(.{
                 .RendererInitResult = .{
                     .actualOutputDevice = self.game.head_output_device,
@@ -401,6 +414,8 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
                     .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
                 },
             });
+
+            self.game.load_state.init = true;
         },
         .RendererInitProgressUpdate => |renderer_init_progress_update| {
             self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
@@ -434,6 +449,9 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
         },
         .SetTexture2DFormat => |set_texture_2d_format| {
             try self.assets.setTexture2dFormat(set_texture_2d_format, self.graphics.device);
+        },
+        .SetTexture2DData => |set_texture_2d_data| {
+            try self.assets.setTexture2dData(set_texture_2d_data, self.messaging.accessor.?, self.graphics.device);
         },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
