@@ -518,7 +518,7 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
         .primary => self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),
         .background => {
             // FIXME: push resource uploads onto another thread!
-            var frame_context: graphics.FrameContext = .init(self.graphics_data.device, &self.graphics_data.background_transfer_buffer_pool, &self.assets, false);
+            var frame_context: graphics.FrameContext = .init(self.graphics_data.device, &self.graphics_data.background_transfer_buffer_pool, &self.assets);
             defer frame_context.end(self.gpa) catch |err| std.debug.panic("Failed to end frame context: {s}", .{@errorName(err)});
 
             self.handleRendererCommand(message, &frame_context) catch |err| {
@@ -655,12 +655,12 @@ pub fn frameLoop(self: *App) !void {
             try xr.backend.handleEvents();
         }
 
-        var frame_context: graphics.FrameContext = .init(self.graphics_data.device, &self.graphics_data.primary_transfer_buffer_pool, &self.assets, true);
+        const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
+
+        var frame_context: graphics.FrameContext = .initMain(self.graphics_data.device, &self.graphics_data.primary_transfer_buffer_pool, &self.assets, command_buffer);
 
         // handle any messages from the queues, happens before processing most of the frame/rendering
         try handleMessages(self, &frame_context);
-
-        const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
 
         const swapchain_texture_result = acquire_swapchain_texture: {
             const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
@@ -725,5 +725,9 @@ pub fn frameLoop(self: *App) !void {
 
             try command_buffer.submit();
         }
+
+        // tick the buffer pools
+        self.graphics_data.primary_transfer_buffer_pool.frameTick();
+        self.graphics_data.background_transfer_buffer_pool.frameTick();
     }
 }

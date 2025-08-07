@@ -218,6 +218,8 @@ pub fn setData(
             }, cycle);
 
             read_offset += mip_byte_size;
+
+            // don't cycle twice!
             cycle = false;
 
             graphics_data.data_available[mip_level] = true;
