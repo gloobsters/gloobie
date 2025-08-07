@@ -1853,7 +1853,7 @@ pub const VideoTextureReady = struct {
 	hasAlpha: bool,
 	playbackEngine: []const u16,
 	instanceChanged: bool,
-	audioTracks: []const ?VideoAudioTrack,
+	audioTracks: []const VideoAudioTrack,
 	assetId: i32,
 
 	pub fn write(self: VideoTextureReady, ipc: IpcSerializer) !void {
@@ -2136,8 +2136,8 @@ pub const FrameSubmitData = struct {
 	farClip: f32,
 	desktopFOV: f32,
 	outputState: ?OutputState,
-	renderSpaces: []const ?RenderSpaceUpdate,
-	renderTasks: []const ?CameraRenderTask,
+	renderSpaces: []const RenderSpaceUpdate,
+	renderTasks: []const CameraRenderTask,
 
 	pub fn write(self: FrameSubmitData, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.frameIndex), self.frameIndex);
@@ -2315,7 +2315,7 @@ pub const RenderSpaceUpdate = struct {
 	blitToDisplaysUpdate: ?BlitToDisplayRenderablesUpdate,
 	lodGroupUpdate: ?LODGroupRenderablesUpdate,
 	gaussianSplatRenderersUpdate: ?GaussianSplatRenderablesUpdate,
-	reflectionProbeRenderTasks: []const ?ReflectionProbeRenderTask,
+	reflectionProbeRenderTasks: []const ReflectionProbeRenderTask,
 
 	pub fn write(self: RenderSpaceUpdate, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.id), self.id);
@@ -2585,9 +2585,9 @@ pub const InputState = struct {
 	keyboard: ?KeyboardState,
 	window: ?WindowState,
 	vr: ?VR_InputsState,
-	gamepads: []const ?GamepadState,
-	touches: []const ?TouchState,
-	displays: []const ?DisplayState,
+	gamepads: []const GamepadState,
+	touches: []const TouchState,
+	displays: []const DisplayState,
 
 	pub fn write(self: InputState, ipc: IpcSerializer) !void {
 		try ipc.write(@TypeOf(self.mouse), self.mouse);
@@ -3372,10 +3372,10 @@ pub const VR_InputsState = struct {
 	userPresentInHeadset: bool,
 	dashboardOpen: bool,
 	headsetState: ?HeadsetState,
-	controllers: []const ?VR_ControllerState,
-	trackers: []const ?TrackerState,
-	trackingReferences: []const ?TrackingReferenceState,
-	hands: []const ?HandState,
+	controllers: []const VR_ControllerState,
+	trackers: []const TrackerState,
+	trackingReferences: []const TrackingReferenceState,
+	hands: []const HandState,
 	viveHandTracking: ?ViveHandTrackingInputState,
 
 	pub fn write(self: VR_InputsState, ipc: IpcSerializer) !void {

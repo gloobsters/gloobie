@@ -458,7 +458,7 @@ public class Generator : IDisposable
         this._writer.WriteLine("};\n");
     }
 
-    private string MapToZigType(Type type)
+    private string MapToZigType(Type type, bool inList = false)
     {
         if (type == typeof(string))
             return "[]const u16";
@@ -514,20 +514,23 @@ public class Generator : IDisposable
                 return "math.Quaternionf";
         }
 
+        // set inList so we don't end up with nullable types in lists
         if (typeof(IEnumerable).IsAssignableFrom(type))
-            return $"[]const {MapToZigType(type.GenericTypeArguments.First())}";
+            return $"[]const {MapToZigType(type.GenericTypeArguments.First(), true)}";
         
         if(type.Name == "Nullable`1")
-            return $"?{MapToZigType(type.GenericTypeArguments.First())}";
+            return $"?{MapToZigType(type.GenericTypeArguments.First(), inList)}";
 
-        if (type.IsClass)
+        // all c# classes are nullable
+        // they're also always written with WriteObject as Write only works for unmanaged types
+        if (type.IsClass && !inList)
             return $"?{type.Name}";
 
         if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
             return "SharedMemoryBufferDescriptor";
 
         if (type.IsGenericType)
-            return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(MapToZigType))})";
+            return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(t => MapToZigType(t, inList)))})";
 
         if (!this._generatedTypes.Contains(type))
         {
