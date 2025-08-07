@@ -3,15 +3,25 @@ const std = @import("std");
 const gpu = @import("gpu");
 const renderite = @import("renderite");
 
+const graphics = @import("graphics.zig");
+
 const log = std.log.scoped(.texture);
 
 const Texture = @This();
 
-const Graphics = struct {
+const GraphicsData = struct {
     texture: gpu.Texture,
+    // FIXME: do not create one sampler per texture! pool samplers between all textures!
+    sampler: gpu.Sampler,
+    binding: gpu.TextureSamplerBinding,
+    /// Stores whether a mipmap has data, all mipmaps must have valid data before texture can be used
+    data_available: []bool,
+    ready: bool,
 
-    pub fn deinit(self: Graphics, device: gpu.Device) void {
+    pub fn deinit(self: GraphicsData, gpa: std.mem.Allocator, device: gpu.Device) void {
         device.releaseTexture(self.texture);
+        device.releaseSampler(self.sampler);
+        gpa.free(self.data_available);
     }
 };
 
@@ -27,7 +37,7 @@ format: ?struct {
     profile: renderite.Shared.ColorProfile,
     mipmap_count: u32,
 },
-graphics: ?Graphics,
+graphics_data: ?GraphicsData,
 
 pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
     return .{
@@ -37,13 +47,13 @@ pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
         .wrap_v = properties.wrapV,
         .mipmap_bias = properties.mipmapBias,
         .format = null,
-        .graphics = null,
+        .graphics_data = null,
     };
 }
 
-pub fn deinit(self: Texture, device: gpu.Device) void {
-    if (self.graphics) |graphics| {
-        graphics.deinit(device);
+pub fn deinit(self: Texture, gpa: std.mem.Allocator, device: gpu.Device) void {
+    if (self.graphics_data) |graphics_data| {
+        graphics_data.deinit(gpa, device);
     }
 }
 
@@ -55,7 +65,7 @@ pub fn setProperties(self: *Texture, properties: renderite.Shared.SetTexture2DPr
     self.mipmap_bias = properties.mipmapBias;
 }
 
-pub fn setFormat(self: *Texture, renderite_format: renderite.Shared.SetTexture2DFormat, device: gpu.Device) !void {
+pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, renderite_format: renderite.Shared.SetTexture2DFormat) !void {
     self.format = .{
         .width = @intCast(renderite_format.width),
         .height = @intCast(renderite_format.height),
@@ -64,8 +74,8 @@ pub fn setFormat(self: *Texture, renderite_format: renderite.Shared.SetTexture2D
         .texture_format = renderite_format.format,
     };
 
-    if (self.graphics) |graphics| {
-        graphics.deinit(device);
+    if (self.graphics_data) |graphics_data| {
+        graphics_data.deinit(gpa, device);
     }
 
     // SAFETY: we just assigned it above
@@ -87,17 +97,130 @@ pub fn setFormat(self: *Texture, renderite_format: renderite.Shared.SetTexture2D
     });
     errdefer device.releaseTexture(texture);
 
+    const sampler = try device.createSampler(renderiteSamplerParametersToGpuParameters(
+        self.wrap_u,
+        self.wrap_v,
+        self.filter_mode,
+        self.aniso_level,
+        self.mipmap_bias,
+    ));
+    errdefer device.releaseSampler(sampler);
+
     log.debug("Created GPU texture for Texture {d}", .{renderite_format.assetId});
 
-    self.graphics = .{
+    const data_available: []bool = try gpa.alloc(bool, format.mipmap_count);
+    errdefer gpa.free(data_available);
+    @memset(data_available, false);
+
+    self.graphics_data = .{
         .texture = texture,
+        .sampler = sampler,
+        .binding = .{
+            .texture = texture,
+            .sampler = sampler,
+        },
+        .data_available = data_available,
+        .ready = false,
     };
 }
 
-pub fn setData(self: *Texture, data: []const u8, device: gpu.Device) !void {
-    _ = self;
-    _ = data;
-    _ = device;
+pub fn setData(
+    self: *Texture,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    data: renderite.Shared.SetTexture2DData,
+    accessor: *renderite.SharedMemoryAccessor,
+) !void {
+    const data_slice = try accessor.getOrCreate(gpa, data.data);
+    defer data_slice.release(accessor);
+
+    // std.debug.print("Texture upload details: {any}\n", .{data});
+
+    const format = self.format orelse return error.TextureMissingFormat;
+
+    //SAFETY: engine should only ever give formats that we support
+    const gpu_format = renderiteFormatToGpuFormat(format.texture_format, format.profile).?;
+
+    const start_mip_level: u32 = @intCast(data.startMipLevel);
+    const num_mips: u32 = @intCast(data.mipMapSizes.len);
+
+    if (num_mips == 0) {
+        log.warn("FE sent a texture upload with no mips!", .{});
+        return;
+    }
+
+    var total_memory_needed: u32 = 0;
+    for (data.mipMapSizes) |mipmap_size| {
+        total_memory_needed += gpu_format.calculateSize(@intCast(mipmap_size.x), @intCast(mipmap_size.y), 1);
+    }
+
+    const copy_pass = try frame_context.getCopyPass();
+
+    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(total_memory_needed, .upload);
+    errdefer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
+
+    if (self.graphics_data) |*graphics_data| {
+        {
+            const transfer_buffer_memory = try frame_context.device.mapTransferBuffer(
+                transfer_buffer_entry.transfer_buffer,
+                true,
+            );
+
+            var write_ptr = transfer_buffer_memory;
+            for (data.mipStarts, data.mipMapSizes) |mip_start_num, mip_pixel_size| {
+                const mip_byte_start: usize = @intCast(mip_start_num);
+                const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
+
+                @memcpy(write_ptr, data_slice.data[mip_byte_start .. mip_byte_start + mip_byte_size]);
+
+                write_ptr += mip_byte_size;
+            }
+
+            frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
+        }
+
+        // if we have an upload region, we can't cycle
+        var cycle: bool = !data.hint.hasRegion;
+        var read_offset: u32 = 0;
+        for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, mip_pixel_size| {
+            const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
+
+            // FIXME: Renderite.Unity doesn't handle hint.hasRegion, and *presumedly* FE wont send it, but if it does, we need to start handling that!!!
+            copy_pass.uploadToTexture(.{
+                .offset = read_offset,
+                .pixels_per_row = @intCast(mip_pixel_size.x),
+                .rows_per_layer = @intCast(mip_pixel_size.y),
+                .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+            }, .{
+                .depth = 1,
+                .width = @intCast(mip_pixel_size.x),
+                .height = @intCast(mip_pixel_size.y),
+                .mip_level = @intCast(mip_level),
+                .texture = graphics_data.texture,
+            }, cycle);
+
+            read_offset += mip_byte_size;
+            cycle = false;
+
+            graphics_data.data_available[mip_level] = true;
+        }
+
+        var all_ready: bool = true;
+        for (graphics_data.data_available) |available| {
+            all_ready |= available;
+        }
+
+        if (all_ready) {
+            try frame_context.texture_readiness_queue.append(gpa, .{
+                .ready = all_ready,
+                .texture = self,
+            });
+        }
+
+        try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
+    } else {
+        return error.TextureMissingGraphicsData;
+    }
 }
 
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {
@@ -173,5 +296,45 @@ pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profil
             .ASTC_10x10 => gpu.TextureFormat.astc_10x10_unorm_srgb_compressed,
             .ASTC_12x12 => gpu.TextureFormat.astc_12x12_unorm_srgb_compressed,
         },
+    };
+}
+
+fn renderiteTextureWrapModeToGpuAddressMode(wrap_mode: renderite.Shared.TextureWrapMode) gpu.SamplerAddressMode {
+    return switch (wrap_mode) {
+        .Clamp => .clamp_to_edge,
+        .Repeat => .repeat,
+        .Mirror => .mirrored_repeat,
+        .MirrorOnce => .mirrored_repeat, // FIXME: we need to add this to GPU!
+    };
+}
+
+fn resoniteTextureFilterModeToGpuFilter(texture_filter_mode: renderite.Shared.TextureFilterMode) gpu.Filter {
+    return switch (texture_filter_mode) {
+        .Point => .nearest,
+        .Bilinear => .linear, // FIXME: this needs to be made correct!
+        .Trilinear => .linear,
+        .Anisotropic => .linear, // FIXME: is this correct?
+    };
+}
+
+pub fn renderiteSamplerParametersToGpuParameters(
+    wrap_u: renderite.Shared.TextureWrapMode,
+    wrap_v: renderite.Shared.TextureWrapMode,
+    filter_mode: renderite.Shared.TextureFilterMode,
+    aniso_level: i32,
+    mipmap_bias: f32,
+) gpu.SamplerCreateInfo {
+    return .{
+        .address_mode_u = renderiteTextureWrapModeToGpuAddressMode(wrap_u),
+        .address_mode_v = renderiteTextureWrapModeToGpuAddressMode(wrap_v),
+        .address_mode_w = .repeat, // FIXME: 3d textures will need this
+        .compare = .less_or_equal, // FIXME: is this correct?
+        .mag_filter = resoniteTextureFilterModeToGpuFilter(filter_mode),
+        .min_filter = resoniteTextureFilterModeToGpuFilter(filter_mode),
+        .max_anisotropy = if (aniso_level > 0) @floatFromInt(aniso_level) else null, // FIXME: is this correct?
+        .mip_lod_bias = mipmap_bias,
+        // FIXME: are these two correct?
+        .min_lod = 0,
+        .max_lod = 1000, // Eqivalent to VK_LOD_CLAMP_NONE
     };
 }

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
-const imgui_t = @import("imgui");
+const imgui = @import("imgui");
 const mailbox = @import("mailbox");
 const math = @import("math");
 const renderite = @import("renderite");
@@ -12,6 +12,7 @@ const tracy = @import("tracy");
 const xr_t = @import("xr");
 
 const Assets = @import("Assets.zig");
+const graphics = @import("graphics.zig");
 const Texture = @import("Texture.zig");
 
 const MessagingHost = renderite.MessagingHost(*App);
@@ -32,7 +33,13 @@ const GraphicsData = struct {
     sampler_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
     cubemap_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
 
-    pub fn deinit(self: GraphicsData) void {
+    primary_transfer_buffer_pool: graphics.TransferBufferPool,
+    background_transfer_buffer_pool: graphics.TransferBufferPool,
+
+    pub fn deinit(self: *GraphicsData, gpa: std.mem.Allocator) void {
+        self.primary_transfer_buffer_pool.deinit(gpa);
+        self.background_transfer_buffer_pool.deinit(gpa);
+
         self.device.deinit();
     }
 };
@@ -84,14 +91,14 @@ const MessagingData = struct {
 };
 
 const ImGuiData = struct {
-    context: imgui_t.Context,
+    context: imgui.Context,
 
     assets_open: bool,
     loadstate_open: bool,
 
     pub fn deinit(self: ImGuiData) void {
-        imgui_t.gpu.shutdown();
-        imgui_t.sdl3.shutdown();
+        imgui.gpu.shutdown();
+        imgui.sdl3.shutdown();
         self.context.destroy();
     }
 };
@@ -122,10 +129,10 @@ gpa: std.mem.Allocator,
 
 game: GameData,
 xr: ?XrData,
-graphics: GraphicsData,
+graphics_data: GraphicsData,
 window: WindowData,
 messaging: MessagingData,
-imgui: ?ImGuiData,
+imgui_data: ?ImGuiData,
 assets: Assets,
 
 pub fn init(gpa: std.mem.Allocator) !*App {
@@ -186,7 +193,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     };
     errdefer window_data.deinit();
 
-    const graphics_data: GraphicsData = create_graphics_data: {
+    var graphics_data: GraphicsData = create_graphics_data: {
         const gpu_device = if (xr_data) |xr| xr.backend.getGpuDevice() else try gpu.Device.initWithProperties(.{
             .debug_mode = build_options.safety,
             // TODO: Once we get the ability to transpile to other shader types, specify them here!
@@ -238,9 +245,11 @@ pub fn init(gpa: std.mem.Allocator) !*App {
             .device = gpu_device,
             .sampler_supported_formats = sampler_supported_formats,
             .cubemap_supported_formats = cubemap_supported_formats,
+            .primary_transfer_buffer_pool = .init(gpu_device),
+            .background_transfer_buffer_pool = .init(gpu_device),
         };
     };
-    errdefer graphics_data.deinit();
+    errdefer graphics_data.deinit(gpa);
 
     try graphics_data.device.claimWindow(window_data.window);
 
@@ -271,34 +280,34 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     log.debug("Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
 
     // TODO: make ImGui an optional build dependency
-    const imgui_data: ?ImGuiData = create_imgui_data: {
-        const context = try imgui_t.Context.create(null);
+    const maybe_imgui_data: ?ImGuiData = create_imgui_data: {
+        const context = try imgui.Context.create(null);
         errdefer context.destroy();
 
         context.setCurrent();
 
-        const style = imgui_t.getStyle();
+        const style = imgui.getStyle();
         // Go through every colour and convert it to linear
         // This is because ImGui uses linear colours but we are using sRGB
         // This is a simple approximation of the conversion
-        for (0..imgui_t.c.ImGuiCol_COUNT) |i| {
+        for (0..imgui.c.ImGuiCol_COUNT) |i| {
             const col = &style.Colors[i];
             col.x = math.srgbToLinear(f32, col.x);
             col.y = math.srgbToLinear(f32, col.y);
             col.z = math.srgbToLinear(f32, col.z);
         }
 
-        try imgui_t.sdl3.initForOther(window_data.window);
-        errdefer imgui_t.sdl3.shutdown();
+        try imgui.sdl3.initForOther(window_data.window);
+        errdefer imgui.sdl3.shutdown();
 
         log.info("Initialized ImGui SDL3 backend", .{});
 
-        try imgui_t.gpu.init(.{
+        try imgui.gpu.init(.{
             .color_target_format = window_data.swapchain_format,
             .device = graphics_data.device,
             .msaa_samples = .no_multisampling,
         });
-        errdefer imgui_t.gpu.shutdown();
+        errdefer imgui.gpu.shutdown();
 
         log.info("Initialized ImGui GPU backend", .{});
 
@@ -308,7 +317,7 @@ pub fn init(gpa: std.mem.Allocator) !*App {
             .loadstate_open = true,
         };
     };
-    errdefer if (imgui_data) |imgui| imgui.deinit();
+    errdefer if (maybe_imgui_data) |imgui_data| imgui_data.deinit();
 
     var game_data: GameData = .{
         .run_loop = true,
@@ -331,10 +340,10 @@ pub fn init(gpa: std.mem.Allocator) !*App {
     app.* = .{
         .gpa = gpa,
         .xr = xr_data,
-        .graphics = graphics_data,
+        .graphics_data = graphics_data,
         .window = window_data,
         .messaging = messaging_data,
-        .imgui = imgui_data,
+        .imgui_data = maybe_imgui_data,
         .game = game_data,
         .assets = .empty,
     };
@@ -346,10 +355,10 @@ pub fn deinit(self: *App) void {
     const gpa = self.gpa;
 
     self.messaging.deinit(gpa);
-    if (self.imgui) |imgui| imgui.deinit();
+    if (self.imgui_data) |imgui_data| imgui_data.deinit();
     if (self.xr) |xr| xr.deinit(gpa);
-    self.assets.deinit(gpa, self.graphics.device);
-    self.graphics.deinit();
+    self.assets.deinit(gpa, self.graphics_data.device);
+    self.graphics_data.deinit(gpa);
     self.window.deinit();
 
     gpa.destroy(self);
@@ -359,7 +368,11 @@ fn beginExit(self: *App) void {
     self.game.run_loop = false;
 }
 
-fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) !void {
+fn handleRendererCommand(
+    self: *App,
+    renderer_command: renderite.ParsedCommand,
+    frame_context: *graphics.FrameContext,
+) !void {
     // NOTE: this could be called from multiple threads!!! be aware of threading here
     // any command which _could be sent from both queues_ needs to have some kind of locking!
 
@@ -384,7 +397,7 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
 
             const formats = comptime std.enums.values(renderite.Shared.TextureFormat);
 
-            const supported_formats = self.graphics.sampler_supported_formats.unionWith(self.graphics.cubemap_supported_formats);
+            const supported_formats = self.graphics_data.sampler_supported_formats.unionWith(self.graphics_data.cubemap_supported_formats);
             const supported_formats_len = supported_formats.count();
 
             var supported_formats_buf: [formats.len]renderite.Shared.TextureFormat = undefined;
@@ -447,11 +460,16 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, set_texture_2d_properties);
         },
         .SetTexture2DFormat => |set_texture_2d_format| {
-            try self.assets.setTexture2dFormat(set_texture_2d_format, self.graphics.device);
+            try self.assets.setTexture2dFormat(self.gpa, set_texture_2d_format, self.graphics_data.device);
         },
         .SetTexture2DData => |set_texture_2d_data| {
             if (self.messaging.accessor) |*accessor| {
-                try self.assets.setTexture2dData(self.gpa, set_texture_2d_data, accessor, self.graphics.device);
+                try self.assets.setTexture2dData(
+                    self.gpa,
+                    frame_context,
+                    set_texture_2d_data,
+                    accessor,
+                );
             } else {
                 std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
             }
@@ -462,7 +480,7 @@ fn handleRendererCommand(self: *App, renderer_command: renderite.ParsedCommand) 
     }
 }
 
-fn handleMessages(self: *App) !void {
+fn handleMessages(self: *App, frame_context: *graphics.FrameContext) !void {
     const trace = tracy.traceNamed(@src(), "Handle messages");
     defer trace.end();
 
@@ -486,7 +504,7 @@ fn handleMessages(self: *App) !void {
         // process the letter in the envelope
         switch (envelope.letter) {
             .renderer_command => |renderer_command| {
-                try self.handleRendererCommand(renderer_command);
+                try self.handleRendererCommand(renderer_command, frame_context);
             },
         }
     }
@@ -499,7 +517,11 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
         // messages coming in the primary queue need to be processed ASAP by the main thread
         .primary => self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),
         .background => {
-            self.handleRendererCommand(message) catch |err| {
+            // FIXME: push resource uploads onto another thread!
+            var frame_context: graphics.FrameContext = .init(self.graphics_data.device, &self.graphics_data.background_transfer_buffer_pool, &self.assets, false);
+            defer frame_context.end(self.gpa) catch |err| std.debug.panic("Failed to end frame context: {s}", .{@errorName(err)});
+
+            self.handleRendererCommand(message, &frame_context) catch |err| {
                 std.debug.panic("Failed to handle background command got err {s}", .{@errorName(err)});
             };
         },
@@ -531,9 +553,9 @@ pub fn frameLoop(self: *App) !void {
 
             // Poll SDL3 events
             while (sdl3.events.poll()) |event| {
-                if (self.imgui != null) {
+                if (self.imgui_data != null) {
                     // ignore ret, doesnt help us
-                    _ = imgui_t.sdl3.processEvent(event);
+                    _ = imgui.sdl3.processEvent(event);
                 }
 
                 switch (event) {
@@ -551,68 +573,79 @@ pub fn frameLoop(self: *App) !void {
             }
         }
 
-        if (self.imgui) |*imgui| {
+        if (self.imgui_data) |*imgui_data| {
             const trace = tracy.traceNamed(@src(), "ImGui start frame");
             defer trace.end();
 
             // imgui new frame
-            imgui_t.gpu.newFrame();
-            imgui_t.sdl3.newFrame();
-            imgui_t.newFrame();
+            imgui.gpu.newFrame();
+            imgui.sdl3.newFrame();
+            imgui.newFrame();
 
             {
-                const assets_render = imgui_t.begin("Assets", &imgui.assets_open, 0);
-                defer imgui_t.end();
+                const assets_render = imgui.begin("Assets", &imgui_data.assets_open, 0);
+                defer imgui.end();
                 if (assets_render) {
                     self.assets.lock.lockShared();
                     defer self.assets.lock.unlockShared();
 
                     {
-                        _ = imgui_t.collapsingHeader("Textures", 0);
+                        _ = imgui.collapsingHeader("Textures", 0);
 
                         var texture_iter = self.assets.texture_2ds.iterator();
                         while (texture_iter.next()) |texture_entry| {
-                            defer imgui_t.separator();
+                            defer imgui.separator();
 
                             const id, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
 
-                            imgui_t.c.igText("Texture %d", @intFromEnum(id));
-                            imgui_t.c.igText("Filter Mode: %s", @tagName(texture.filter_mode).ptr);
-                            imgui_t.c.igText("Anisotropicsy Level: %d", texture.aniso_level);
-                            imgui_t.c.igText("Wrap U/V: %s/%s", @tagName(texture.wrap_u).ptr, @tagName(texture.wrap_v).ptr);
-                            imgui_t.c.igText("Mipmap bias: %f", texture.mipmap_bias);
+                            imgui.c.igText("Texture %d", @intFromEnum(id));
+                            imgui.c.igText("Filter Mode: %s", @tagName(texture.filter_mode).ptr);
+                            imgui.c.igText("Anisotropicsy Level: %d", texture.aniso_level);
+                            imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.wrap_u).ptr, @tagName(texture.wrap_v).ptr);
+                            imgui.c.igText("Mipmap bias: %f", texture.mipmap_bias);
                             if (texture.format) |format| {
-                                imgui_t.c.igText("Extents: %ux%u", format.width, format.height);
-                                imgui_t.c.igText("Format/Color Profile: %s %s", @tagName(format.texture_format).ptr, @tagName(format.profile).ptr);
-                                imgui_t.c.igText("Mipmap count: %u", format.mipmap_count);
+                                imgui.c.igText("Extents: %ux%u", format.width, format.height);
+                                imgui.c.igText("Format/Color Profile: %s %s", @tagName(format.texture_format).ptr, @tagName(format.profile).ptr);
+                                imgui.c.igText("Mipmap count: %u", format.mipmap_count);
+
+                                if (texture.graphics_data) |*graphics_data| {
+                                    if (graphics_data.ready) {
+                                        const render_scale = 200.0 / @as(f32, @floatFromInt(format.width));
+
+                                        const width = render_scale * @as(f32, @floatFromInt(format.width));
+                                        const height = render_scale * @as(f32, @floatFromInt(format.height));
+
+                                        imgui.image(&graphics_data.binding, width, height);
+                                    }
+                                }
                             } else {
-                                imgui_t.c.igText("No format");
+                                imgui.c.igText("No format");
                             }
                         }
                     }
 
                     {
-                        _ = imgui_t.collapsingHeader("Meshes", 0);
+                        _ = imgui.collapsingHeader("Meshes", 0);
                     }
                 }
             }
 
             if (!self.game.load_state.full_init) {
                 const phase = &self.game.load_state.phase;
-                const loadstate_render = imgui_t.begin("Loading...", &imgui.loadstate_open, 0);
-                defer imgui_t.end();
+                const loadstate_render = imgui.begin("Loading...", &imgui_data.loadstate_open, 0);
+                defer imgui.end();
                 if (loadstate_render) {
-                    imgui_t.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
+                    imgui.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
                     if (phase.sub_phase_name.len != 0)
-                        imgui_t.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
+                        imgui.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
 
                     const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
-                    imgui_t.progressBar(progress, .{ .x = 0, .y = 0 }, "");
+                    imgui.progressBar(progress, .{ .x = 0, .y = 0 }, "");
                 }
             }
 
             var show_demo_window: bool = true;
-            imgui_t.showDemoWindow(&show_demo_window);
+            imgui.showDemoWindow(&show_demo_window);
         }
 
         if (self.xr) |xr| {
@@ -622,8 +655,10 @@ pub fn frameLoop(self: *App) !void {
             try xr.backend.handleEvents();
         }
 
+        var frame_context: graphics.FrameContext = .init(self.graphics_data.device, &self.graphics_data.primary_transfer_buffer_pool, &self.assets, true);
+
         // handle any messages from the queues, happens before processing most of the frame/rendering
-        try handleMessages(self);
+        try handleMessages(self, &frame_context);
 
         // temporary code to tell FE to draw stuff
         if (self.game.load_state.full_init and true) {
@@ -631,7 +666,7 @@ pub fn frameLoop(self: *App) !void {
             std.Thread.sleep(16 * std.time.ns_per_ms);
         }
 
-        const command_buffer = try self.graphics.device.acquireCommandBuffer();
+        const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
 
         const swapchain_texture_result = acquire_swapchain_texture: {
             const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
@@ -644,23 +679,29 @@ pub fn frameLoop(self: *App) !void {
         _ = swapchain_height;
         _ = swapchain_width;
 
-        if (self.imgui != null) {
+        // end frame context, frame is over
+        try frame_context.end(self.gpa);
+
+        // tick assets
+        self.assets.mainThreadTick(self.gpa, self.graphics_data.device);
+
+        if (self.imgui_data != null) {
             const trace = tracy.traceNamed(@src(), "ImGui render");
             defer trace.end();
 
-            imgui_t.render();
+            imgui.render();
         }
 
         if (maybe_swapchain_texture) |swapchain_texture| {
             const render_trace = tracy.traceNamed(@src(), "Render Frame");
             defer render_trace.end();
 
-            const imgui_draw_data = if (self.imgui != null) create_draw_data: {
-                const draw_data = imgui_t.getDrawData();
+            const imgui_draw_data = if (self.imgui_data != null) create_draw_data: {
+                const draw_data = imgui.getDrawData();
                 const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
 
                 if (!is_minimized) {
-                    imgui_t.gpu.prepareDrawData(draw_data, command_buffer);
+                    imgui.gpu.prepareDrawData(draw_data, command_buffer);
                 }
 
                 break :create_draw_data if (is_minimized) null else draw_data;
@@ -673,7 +714,7 @@ pub fn frameLoop(self: *App) !void {
             }}, null);
 
             if (imgui_draw_data) |draw_data| {
-                imgui_t.gpu.renderDrawData(
+                imgui.gpu.renderDrawData(
                     draw_data,
                     command_buffer,
                     render_pass,

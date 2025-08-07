@@ -84,6 +84,15 @@ pub fn getStyle() *GuiStyle {
     return c.igGetStyle();
 }
 
+pub fn image(binding: *const gpu_t.TextureSamplerBinding, tex_width: f32, tex_height: f32) void {
+    return c.igImage(
+        .{ ._TexID = @intFromPtr(binding) },
+        .{ .x = tex_width, .y = tex_height },
+        .{ .x = 0, .y = 0 },
+        .{ .x = 1, .y = 1 },
+    );
+}
+
 pub const sdl3 = struct {
     pub fn initForOther(window: sdl3_t.video.Window) !void {
         // SAFETY: These should be compatible values of "window"
