@@ -207,7 +207,7 @@ public class Generator : IDisposable
             this._writer.WriteLine();
             this._writer.WriteLine($"\tpub fn write(self: {structName}, ipc: IpcSerializer) !void {{");
             if(isExplicitPackable)
-                generated = WriteExplicitPackFunction(type, fields);
+                generated = WriteExplicitPackFunction(type, fields, false);
             else
                 generated = WritePackFunction(type, type.GetMethod("Pack")!);
             if(!generated) WritePackDiscard();
@@ -216,7 +216,7 @@ public class Generator : IDisposable
             this._writer.WriteLine($"\tpub fn read(ipc: IpcDeserializer) !{structName} {{");
             this._writer.WriteLine($"\t\tvar self: {structName} = undefined;");
             if(isExplicitPackable)
-                generated = WriteExplicitPackFunction(type, fields);
+                generated = WriteExplicitPackFunction(type, fields, true);
             else
                 generated = WritePackFunction(type, type.GetMethod("Unpack")!);
             if(!generated) WritePackDiscard(false);
@@ -376,9 +376,12 @@ public class Generator : IDisposable
         return written;
     }
     
-    private bool WriteExplicitPackFunction(Type type, FieldInfo[] fields)
+    private bool WriteExplicitPackFunction(Type type, FieldInfo[] fields, bool read)
     {
+        const bool ipcStruct = false;
+        
         int last = 0;
+        bool written = false;
         foreach (FieldInfo field in fields)
         {
             FieldOffsetAttribute? offset = field.GetCustomAttribute<FieldOffsetAttribute>();
@@ -395,11 +398,33 @@ public class Generator : IDisposable
             int gap = offset.Value - last;
 
             if (gap != 0) this._writer.WriteLine($"\t\t// NOTE: field with gap/overlap, {field.Name} = offset:{offset.Value}, size:{size}, gap:{gap}");
+
+            string name = field.Name;
+
+            if (!ipcStruct)
+            {
+                if (read)
+                    this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
+                else
+                    this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
+
+                written = true;
+            }
             
             last = offset.Value + size;
         }
 
-        return false;
+        if (ipcStruct)
+        {
+            if(read)
+                this._writer.WriteLine($"\t\tself = try ipc.readStruct({type.Name});");
+            else
+                this._writer.WriteLine($"\t\ttry ipc.writeStruct({type.Name}, self);");
+
+            written = true;
+        }
+
+        return written;
     }
 
     private void WritePackDiscard(bool self = true)
