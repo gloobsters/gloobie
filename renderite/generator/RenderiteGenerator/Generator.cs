@@ -278,16 +278,10 @@ public class Generator : IDisposable
                 {
                     // Write single value or packed boolean
                     case "Write" when callRef.Parameters.Count == 1:
-                    {
-                        string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
-                        written = true;
-                        break;
-                    }
                     case "WriteObject":
                     {
                         string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\ttry self.{name}.write(ipc);");
+                        this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
                     }
@@ -305,16 +299,10 @@ public class Generator : IDisposable
                     }
                     // Read single value or packed boolean
                     case "Read" when callRef.Parameters.Count == 1:
-                    {
-                        string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
-                        written = true;
-                        break;
-                    }
                     case "ReadObject":
                     {
                         string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\tself.{name} = try .read(ipc);");
+                        this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
                         written = true;
                         break;
                     }
@@ -531,6 +519,9 @@ public class Generator : IDisposable
         
         if(type.Name == "Nullable`1")
             return $"?{MapToZigType(type.GenericTypeArguments.First())}";
+
+        if (type.IsClass)
+            return $"?{type.Name}";
 
         if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
             return "SharedMemoryBufferDescriptor";
