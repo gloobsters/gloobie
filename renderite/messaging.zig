@@ -56,6 +56,8 @@ pub fn MessagingHost(comptime Context: type) type {
         pub fn initFromArgs(comptime receive_callback: Callback, context: Context, args: []const []const u8) !Self {
             // -QueueName randomString -QueueCapacity 8388608
 
+            // 5: Includes process name, e.g. "Renderite.Renderer.exe -QueueName ..."
+            // 4: Injected from Bootstrap. Just "-QueueName ..."
             if (args.len != 5 and args.len != 4)
                 return error.InvalidNumberOfArguments;
 
