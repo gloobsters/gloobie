@@ -9,3 +9,4 @@ pub const Shared = @import("shared.zig");
 const buffer = @import("buffer.zig");
 pub const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;
 pub const SharedMemoryAccessor = buffer.SharedMemoryAccessor;
+pub const Bootstrap = @import("Bootstrap.zig");

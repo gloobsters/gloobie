@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
-const renderite = @import("renderite").Shared;
+const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr = @import("xr");
@@ -52,6 +52,23 @@ fn start() !void {
         }
     };
 
+    var maybe_bootstrap: ?renderite.Bootstrap = init_bootstrap: {
+        const trace = tracy.traceNamed(@src(), "Bootstrap");
+        defer trace.end();
+
+        const args = try std.process.argsAlloc(gpa);
+        defer std.process.argsFree(gpa, args);
+        if (args.len <= 1) {
+            log.info("Started without args, bootstrapping Resonite...", .{});
+            var bootstrap = try renderite.Bootstrap.init();
+            try bootstrap.startResonite(gpa);
+            break :init_bootstrap bootstrap;
+        }
+
+        break :init_bootstrap null;
+    };
+    defer if (maybe_bootstrap) |*bootstrap| bootstrap.deinit();
+
     const app = init_app: {
         const trace = tracy.traceNamed(@src(), "Init application");
         defer trace.end();
@@ -80,6 +97,6 @@ pub fn panic(
 }
 
 test {
-    _ = renderite.ColorProfile;
+    _ = renderite.Shared.ColorProfile;
     _ = zinterprocess.Queue;
 }
