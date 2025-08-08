@@ -206,6 +206,12 @@ public class Generator : IDisposable
         int bits = info.BitSize;
         foreach (EnumItemInfo value in info.Items)
         {
+            if (Convert.ToInt32(value.Value) == 0)
+            {
+                this._writer.WriteLine($"\t// Skipped {value.Name}");
+                continue;
+            }
+            
             this._writer.WriteLine($"\t{value.Name}: bool, // = {value.Value}");
             bits--;
         }
