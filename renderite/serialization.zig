@@ -30,8 +30,8 @@ pub const IpcDeserializer = struct {
             .bool => return try self.readBool(),
             .@"enum" => return try self.readEnum(T),
             .optional => return try self.readNullable(T),
-            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
-            else => return error.TypeNotSupported,
+            else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
+            // else => return error.TypeNotSupported,
         }
     }
 
@@ -143,8 +143,9 @@ pub const IpcSerializer = struct {
             .bool => return try self.writeBool(value),
             .@"enum" => return try self.writeEnum(T, value),
             .vector => return try self.writeVector(T, value),
-            // else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for serialization", .{@typeName(T)})),
-            else => return error.TypeNotSupported,
+            .optional => return try self.writeNullable(T, value),
+            else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for serialization", .{@typeName(T)})),
+            // else => return error.TypeNotSupported,
         }
     }
 
@@ -162,6 +163,16 @@ pub const IpcSerializer = struct {
         }
 
         try self.writeValueList(BaseType, value);
+    }
+
+    pub fn writeNullable(self: IpcSerializer, comptime T: type, value: T) !void {
+        if (value == null) {
+            try self.writeBool(false);
+            return;
+        }
+
+        try self.writeBool(true);
+        try self.write(@typeInfo(T).optional.child, value.?);
     }
 
     pub fn writeObject(self: IpcSerializer, comptime T: type, value: T) !void {
