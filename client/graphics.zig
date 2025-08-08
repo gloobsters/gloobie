@@ -9,7 +9,7 @@ const log = std.log.scoped(.graphics);
 
 pub const TransferBufferPool = struct {
     // The amount of frames to keep an entry before releasing it
-    const frames_to_keep_entry = 10;
+    const frames_to_keep_entry = 120;
 
     pub const Entry = struct {
         frames_since_usage: u32,
@@ -44,7 +44,7 @@ pub const TransferBufferPool = struct {
         var smallest_size: usize = none_found;
         // find the first buffer which is small enough
         for (self.buffers.items, 0..) |entry, i| {
-            if (entry.size >= size and entry.size < smallest_size) {
+            if (entry.size >= size and entry.size < smallest_size and entry.usage == usage) {
                 smallest_index = i;
                 smallest_size = entry.size;
 
@@ -56,9 +56,14 @@ pub const TransferBufferPool = struct {
         }
 
         return if (smallest_index == none_found) create_entry: {
+            var buffer_name_buf: [64]u8 = undefined;
+            // SAFETY: it's big enough
+            const buffer_name = std.fmt.bufPrintZ(&buffer_name_buf, "Pooled Transfer Buffer (size {d})", .{size}) catch unreachable;
+
             const transfer_buffer = try self.device.createTransferBuffer(.{
                 .usage = usage,
                 .size = size,
+                .props = .{ .name = buffer_name },
             });
             errdefer self.device.releaseTransferBuffer(transfer_buffer);
 
@@ -79,6 +84,7 @@ pub const TransferBufferPool = struct {
 
         entry_to_append.frames_since_usage = 0;
         try self.buffers.append(gpa, entry_to_append);
+        log.debug("Released buffer {*} back into pool", .{entry.transfer_buffer.value});
     }
 
     pub fn frameTick(self: *TransferBufferPool) void {
@@ -86,7 +92,7 @@ pub const TransferBufferPool = struct {
         defer self.lock.unlock();
 
         var i: usize = 0;
-        while (i < self.buffers.items.len) : (i += 1) {
+        while (i < self.buffers.items.len) {
             const entry = &self.buffers.items[i];
 
             entry.frames_since_usage += 1;
@@ -95,7 +101,9 @@ pub const TransferBufferPool = struct {
                 log.debug("Releasing transfer buffer {*} because it's been unused for {d} frames", .{ entry.transfer_buffer.value, frames_to_keep_entry });
                 self.device.releaseTransferBuffer(entry.transfer_buffer);
                 _ = self.buffers.swapRemove(i);
-                i -= 1;
+            } else {
+                // if we *didnt* remove, add 1
+                i += 1;
             }
         }
     }
@@ -122,11 +130,22 @@ pub const FrameContext = struct {
     texture_readiness_queue: std.ArrayListUnmanaged(Assets.TextureReadynessState),
     main_thread: bool,
 
+    pub fn initMain(device: gpu.Device, transfer_buffer_pool: *TransferBufferPool, assets: *Assets, command_buffer: gpu.CommandBuffer) FrameContext {
+        return .{
+            .device = device,
+            .command_buffer = command_buffer,
+            .copy_pass = null,
+            .transfer_buffer_pool = transfer_buffer_pool,
+            .assets = assets,
+            .texture_readiness_queue = .empty,
+            .main_thread = true,
+        };
+    }
+
     pub fn init(
         device: gpu.Device,
         transfer_buffer_pool: *TransferBufferPool,
         assets: *Assets,
-        main_thread: bool,
     ) FrameContext {
         return .{
             .device = device,
@@ -135,7 +154,7 @@ pub const FrameContext = struct {
             .transfer_buffer_pool = transfer_buffer_pool,
             .assets = assets,
             .texture_readiness_queue = .empty,
-            .main_thread = main_thread,
+            .main_thread = false,
         };
     }
 
@@ -176,32 +195,27 @@ pub const FrameContext = struct {
             copy_pass.end();
         }
 
-        if (self.command_buffer) |command_buffer| {
+        if (self.main_thread) {
+            // on the main thread, this copy pass is guarenteed to end before any render pass takes place.
+            for (self.texture_readiness_queue.items) |textures| {
+                textures.texture.graphics_data.?.ready = textures.ready;
+            }
+        } else if (self.command_buffer) |command_buffer| {
             if (self.commandBufferUsed()) {
                 // if we have textures that will be ready after this data is submit,
-                // then we need to acquire the fence and ship it off to the assets manager,
-                // but only do this when not on the main thread
+                // then we need to acquire the fence and ship it off to the asset manager so it gets polled by the main thread
                 if (self.texture_readiness_queue.items.len > 0) {
-                    // on the main thread we have guarentees that the copy pass will finish before rendering
-                    if (self.main_thread) {
-                        try command_buffer.submit();
+                    const fence = try command_buffer.submitAndAcquireFence();
+                    errdefer self.device.releaseFence(fence);
 
-                        for (self.texture_readiness_queue.items) |textures| {
-                            textures.texture.graphics_data.?.ready = textures.ready;
-                        }
-                    } else {
-                        const fence = try command_buffer.submitAndAcquireFence();
-                        errdefer self.device.releaseFence(fence);
+                    self.assets.lock.lock();
+                    defer self.assets.lock.unlock();
 
-                        self.assets.lock.lock();
-                        defer self.assets.lock.unlock();
-
-                        try self.assets.texture_2ds_readyness.append(gpa, .{
-                            .fence = fence,
-                            .items = self.texture_readiness_queue,
-                        });
-                        self.texture_readiness_queue = .empty;
-                    }
+                    try self.assets.texture_2ds_readyness.append(gpa, .{
+                        .fence = fence,
+                        .items = self.texture_readiness_queue,
+                    });
+                    self.texture_readiness_queue = .empty;
                 } else {
                     try command_buffer.submit();
                 }
@@ -212,7 +226,5 @@ pub const FrameContext = struct {
 
         self.copy_pass = null;
         self.command_buffer = null;
-
-        self.transfer_buffer_pool.frameTick();
     }
 };

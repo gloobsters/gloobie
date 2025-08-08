@@ -9,7 +9,7 @@ A cross-platform experimental renderer for Resonite.
 - [x] Begin writing to FE
 - [ ] Finish struct generator
 - [x] Desktop mode graphics initialization
-- [ ] Desktop mode frame loop
+- [x] Desktop mode frame loop
 - [x] OpenXR graphics init
 - [ ] OpenXR frame loop
 - [ ] OpenVR graphics init
@@ -17,7 +17,7 @@ A cross-platform experimental renderer for Resonite.
 - [ ] Desktop mode input
 - [ ] OpenXR input
 - [ ] OpenVR input
-- [ ] Upload textures to GPU
+- [x] Upload textures to GPU
 - [ ] Upload meshes to GPU
 - [ ] Basic shaders
 - [ ] Use actual resonite shaders

@@ -87,6 +87,10 @@ pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, ren
         return error.InvalidFormat;
     };
 
+    var texture_name_buf: [64]u8 = undefined;
+    // SAFETY: it's big enough
+    const texture_name = std.fmt.bufPrintZ(&texture_name_buf, "Resonite Texture ({d})", .{renderite_format.assetId}) catch unreachable;
+
     const texture = try device.createTexture(.{
         .width = format.width,
         .height = format.height,
@@ -94,16 +98,30 @@ pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, ren
         .usage = .{ .sampler = true },
         .num_levels = format.mipmap_count,
         .layer_count_or_depth = 1,
+        .props = .{ .name = texture_name },
     });
     errdefer device.releaseTexture(texture);
 
-    const sampler = try device.createSampler(renderiteSamplerParametersToGpuParameters(
+    var sampler_name_buf: [128]u8 = undefined;
+    // SAFETY: it's big enough
+    const sampler_name = std.fmt.bufPrintZ(&sampler_name_buf, "Created Sampler ({s}/{s}/{s}/{d}/{d})", .{
+        @tagName(self.wrap_u),
+        @tagName(self.wrap_v),
+        @tagName(self.filter_mode),
+        self.aniso_level,
+        self.mipmap_bias,
+    }) catch unreachable;
+
+    var sampler_parameters = renderiteSamplerParametersToGpuParameters(
         self.wrap_u,
         self.wrap_v,
         self.filter_mode,
         self.aniso_level,
         self.mipmap_bias,
-    ));
+    );
+    sampler_parameters.props = .{ .name = sampler_name };
+
+    const sampler = try device.createSampler(sampler_parameters);
     errdefer device.releaseSampler(sampler);
 
     log.debug("Created GPU texture for Texture {d}", .{renderite_format.assetId});
@@ -200,6 +218,8 @@ pub fn setData(
             }, cycle);
 
             read_offset += mip_byte_size;
+
+            // don't cycle twice!
             cycle = false;
 
             graphics_data.data_available[mip_level] = true;
