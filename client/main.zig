@@ -61,19 +61,22 @@ fn start() !void {
         if (args.len <= 1) {
             log.info("Started without args, bootstrapping Resonite...", .{});
             var bootstrap = try renderite.Bootstrap.init();
+            errdefer bootstrap.deinit(gpa);
+
             try bootstrap.startResonite(gpa);
+            try bootstrap.waitForMessage(gpa);
             break :init_bootstrap bootstrap;
         }
 
         break :init_bootstrap null;
     };
-    defer if (maybe_bootstrap) |*bootstrap| bootstrap.deinit();
+    defer if (maybe_bootstrap) |*bootstrap| bootstrap.deinit(gpa);
 
     const app = init_app: {
         const trace = tracy.traceNamed(@src(), "Init application");
         defer trace.end();
 
-        break :init_app try App.init(gpa);
+        break :init_app try App.init(gpa, maybe_bootstrap);
     };
     defer app.deinit();
 

@@ -135,12 +135,32 @@ messaging: MessagingData,
 imgui_data: ?ImGuiData,
 assets: Assets,
 
-pub fn init(gpa: std.mem.Allocator) !*App {
+pub fn init(gpa: std.mem.Allocator, maybe_bootstrap: ?renderite.Bootstrap) !*App {
     const app = try gpa.create(App);
     errdefer gpa.destroy(app);
 
     const messaging_data: MessagingData = create_messaging_data: {
-        const host = MessagingHost.initFromArgs(messagingCallback, app, gpa) catch |err| debug_queue: {
+        const args: []const []const u8 = init_args: {
+            if (maybe_bootstrap) |bootstrap| {
+                var iterator = std.mem.splitAny(u8, bootstrap.args.?, " ");
+                const max_part = 4;
+                var parts: [max_part][]const u8 = undefined;
+
+                var i: usize = 0;
+                while (iterator.next()) |part| {
+                    std.debug.assert(i < max_part);
+
+                    parts[i] = part;
+                    i += 1;
+                }
+
+                break :init_args parts[0..max_part];
+            } else {
+                break :init_args try std.process.argsAlloc(gpa);
+            }
+        };
+
+        const host = MessagingHost.initFromArgs(messagingCallback, app, args) catch |err| debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
             break :debug_queue try MessagingHost.init("gloopie", 8388608, messagingCallback, app);
         };

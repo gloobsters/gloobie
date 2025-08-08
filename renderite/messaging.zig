@@ -53,24 +53,23 @@ pub fn MessagingHost(comptime Context: type) type {
             };
         }
 
-        pub fn initFromArgs(comptime receive_callback: Callback, context: Context, gpa: std.mem.Allocator) !Self {
-            const args = try std.process.argsAlloc(gpa);
-            defer std.process.argsFree(gpa, args);
-
+        pub fn initFromArgs(comptime receive_callback: Callback, context: Context, args: []const []const u8) !Self {
             // -QueueName randomString -QueueCapacity 8388608
 
-            if (args.len != 5)
+            if (args.len != 5 and args.len != 4)
                 return error.InvalidNumberOfArguments;
 
-            if (!std.mem.eql(u8, args[1], "-QueueName"))
+            const offset: usize = if (args.len == 5) 1 else 0;
+
+            if (!std.mem.eql(u8, args[offset], "-QueueName"))
                 return error.InvalidQueueName;
 
-            const queue_name = args[2];
+            const queue_name = args[1 + offset];
 
-            if (!std.mem.eql(u8, args[3], "-QueueCapacity"))
+            if (!std.mem.eql(u8, args[2 + offset], "-QueueCapacity"))
                 return error.InvalidQueueLength;
 
-            const queue_length = try std.fmt.parseInt(u32, args[4], 10);
+            const queue_length = try std.fmt.parseInt(u32, args[3 + offset], 10);
 
             return try Self.init(queue_name, queue_length, receive_callback, context);
         }

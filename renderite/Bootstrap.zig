@@ -11,6 +11,7 @@ queue_in: Queue,
 queue_out: Queue,
 prefix: std.BoundedArray(u8, 16),
 child: ?std.process.Child,
+args: ?[]const u8,
 
 pub fn init() !Bootstrap {
     const safe_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -43,6 +44,7 @@ pub fn init() !Bootstrap {
         }),
         .prefix = prefix,
         .child = null,
+        .args = null,
     };
 
     return bootstrap;
@@ -74,7 +76,31 @@ pub fn startResonite(self: *Bootstrap, gpa: std.mem.Allocator) !void {
     self.child = child;
 }
 
-pub fn deinit(self: *Bootstrap) void {
+pub fn waitForMessage(self: *Bootstrap, gpa: std.mem.Allocator) !void {
+    const message = try self.queue_in.dequeue(gpa);
+    log.debug("Received queue message: {s}", .{message});
+
+    const expected_header = "-QueueName";
+    std.debug.assert(std.mem.eql(u8, message[0..expected_header.len], expected_header));
+
+    self.args = message;
+
+    const pid = init_pid: switch (builtin.target.os.tag) {
+        .windows => {
+            break :init_pid std.os.windows.GetCurrentProcessId();
+        },
+        else => {
+            break :init_pid std.os.linux.getpid();
+        },
+    };
+
+    var msg_buf: [32]u8 = undefined;
+    const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{pid});
+
+    try self.queue_out.enqueue(msg);
+}
+
+pub fn deinit(self: *Bootstrap, gpa: std.mem.Allocator) void {
     self.queue_in.deinit();
     self.queue_out.deinit();
 
@@ -86,5 +112,9 @@ pub fn deinit(self: *Bootstrap) void {
             log.warn("Failed to kill Resonite: {any}", .{err});
             return;
         };
+    }
+
+    if (self.args) |args| {
+        gpa.free(args);
     }
 }
