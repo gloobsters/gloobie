@@ -160,6 +160,8 @@ pub fn init(gpa: std.mem.Allocator, maybe_bootstrap: ?renderite.Bootstrap) !*App
             }
         };
 
+        defer if (!maybe_bootstrap) std.process.argsFree(gpa, args);
+
         const host = MessagingHost.initFromArgs(messagingCallback, app, args) catch |err| debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
             break :debug_queue try MessagingHost.init("gloopie", 8388608, messagingCallback, app);
