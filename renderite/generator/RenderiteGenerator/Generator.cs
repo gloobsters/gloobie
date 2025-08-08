@@ -140,36 +140,87 @@ public class Generator : IDisposable
         if(this._verbose)
             Console.WriteLine($"\tWriting enum {t.FullName}");
 
-        Array values = Enum.GetValues(t);
-
+            
         FieldInfo valueField = t.GetField("value__")!;
         Type underlyingType = valueField.FieldType;
 
-        string enumName = t.Name;
+        Array values = Enum.GetValues(t);
 
+        EnumInfo info = new()
+        {
+            Name = t.Name,
+            UnderlyingType = underlyingType,
+            BitSize = Marshal.SizeOf(underlyingType) * 8,
+        };
+        
         if (t.DeclaringType != null)
         {
-            enumName = t.DeclaringType.Name + '_' + enumName;
+            info.Name = t.DeclaringType.Name + '_' + info.Name;
         }
-        
-        this._writer.WriteLine($"pub const {enumName} = enum({MapToZigType(underlyingType)}) {{");
 
-        List<string> names = [];
-        foreach (object enumVal in values)
+        List<EnumItemInfo> itemInfo = [];
+        foreach (object value in values)
         {
-            string name = enumVal.ToString()!;
-            
-            if(names.Contains(name))
+            string? name = value.ToString();
+            Debug.Assert(name != null);
+
+            if(itemInfo.Any(i => i.Name == name))
                 continue;
-            
-            names.Add(name);
-            
+
             // workaround for enums that aren't int. this effectively casts to the underlying enum type
-            object num = valueField.GetValue(enumVal)!;
-            
-            this._writer.WriteLine($"\t{name} = {num},");
+            object? num = valueField.GetValue(value);
+            Debug.Assert(num != null);
+
+            itemInfo.Add(new EnumItemInfo
+            {
+                Name = name,
+                Value = num,
+            });
+        }
+
+        info.Items = itemInfo;
+        
+        bool flags = t.GetCustomAttribute<FlagsAttribute>() != null;
+
+        if(flags)
+            WriteFlagEnum(t, info);
+        else
+            WriteValueEnum(t, info);
+    }
+
+    private void WriteValueEnum(Type t, EnumInfo info)
+    {
+        this._writer.WriteLine($"pub const {info.Name} = enum({MapToZigType(info.UnderlyingType)}) {{");
+
+        foreach (EnumItemInfo value in info.Items)
+        {
+            this._writer.WriteLine($"\t{value.Name} = {value.Value},");
         }
         
+        this._writer.WriteLine("};\n");
+    }
+    
+    private void WriteFlagEnum(Type t, EnumInfo info)
+    {
+        this._writer.WriteLine($"pub const {info.Name} = packed struct({MapToZigType(info.UnderlyingType)}) {{");
+        int bits = info.BitSize;
+        foreach (EnumItemInfo value in info.Items)
+        {
+            if (Convert.ToInt32(value.Value) == 0)
+            {
+                this._writer.WriteLine($"\t// Skipped {value.Name}");
+                continue;
+            }
+            
+            this._writer.WriteLine($"\t{value.Name}: bool, // = {value.Value}");
+            bits--;
+        }
+
+        if (bits != 0)
+        {
+            this._writer.WriteLine($"\tpadding: u{bits} = 0,");
+        }
+
         this._writer.WriteLine("};\n");
     }
     
@@ -207,7 +258,7 @@ public class Generator : IDisposable
             this._writer.WriteLine();
             this._writer.WriteLine($"\tpub fn write(self: {structName}, ipc: IpcSerializer) !void {{");
             if(isExplicitPackable)
-                generated = WriteExplicitPackFunction(type, fields);
+                generated = WriteExplicitPackFunction(type, fields, false);
             else
                 generated = WritePackFunction(type, type.GetMethod("Pack")!);
             if(!generated) WritePackDiscard();
@@ -216,7 +267,7 @@ public class Generator : IDisposable
             this._writer.WriteLine($"\tpub fn read(ipc: IpcDeserializer) !{structName} {{");
             this._writer.WriteLine($"\t\tvar self: {structName} = undefined;");
             if(isExplicitPackable)
-                generated = WriteExplicitPackFunction(type, fields);
+                generated = WriteExplicitPackFunction(type, fields, true);
             else
                 generated = WritePackFunction(type, type.GetMethod("Unpack")!);
             if(!generated) WritePackDiscard(false);
@@ -278,16 +329,10 @@ public class Generator : IDisposable
                 {
                     // Write single value or packed boolean
                     case "Write" when callRef.Parameters.Count == 1:
-                    {
-                        string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
-                        written = true;
-                        break;
-                    }
                     case "WriteObject":
                     {
                         string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\ttry self.{name}.write(ipc);");
+                        this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
                     }
@@ -305,16 +350,10 @@ public class Generator : IDisposable
                     }
                     // Read single value or packed boolean
                     case "Read" when callRef.Parameters.Count == 1:
-                    {
-                        string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
-                        written = true;
-                        break;
-                    }
                     case "ReadObject":
                     {
                         string name = names.DequeueLast();
-                        this._writer.WriteLine($"\t\tself.{name} = try .read(ipc);");
+                        this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
                         written = true;
                         break;
                     }
@@ -376,9 +415,12 @@ public class Generator : IDisposable
         return written;
     }
     
-    private bool WriteExplicitPackFunction(Type type, FieldInfo[] fields)
+    private bool WriteExplicitPackFunction(Type type, FieldInfo[] fields, bool read)
     {
+        const bool ipcStruct = false;
+        
         int last = 0;
+        bool written = false;
         foreach (FieldInfo field in fields)
         {
             FieldOffsetAttribute? offset = field.GetCustomAttribute<FieldOffsetAttribute>();
@@ -395,11 +437,33 @@ public class Generator : IDisposable
             int gap = offset.Value - last;
 
             if (gap != 0) this._writer.WriteLine($"\t\t// NOTE: field with gap/overlap, {field.Name} = offset:{offset.Value}, size:{size}, gap:{gap}");
+
+            string name = field.Name;
+
+            if (!ipcStruct)
+            {
+                if (read)
+                    this._writer.WriteLine($"\t\tself.{name} = try ipc.read(@TypeOf(self.{name}));");
+                else
+                    this._writer.WriteLine($"\t\ttry ipc.write(@TypeOf(self.{name}), self.{name});");
+
+                written = true;
+            }
             
             last = offset.Value + size;
         }
 
-        return false;
+        if (ipcStruct)
+        {
+            if(read)
+                this._writer.WriteLine($"\t\tself = try ipc.readStruct({type.Name});");
+            else
+                this._writer.WriteLine($"\t\ttry ipc.writeStruct({type.Name}, self);");
+
+            written = true;
+        }
+
+        return written;
     }
 
     private void WritePackDiscard(bool self = true)
@@ -445,7 +509,7 @@ public class Generator : IDisposable
         this._writer.WriteLine("};\n");
     }
 
-    private string MapToZigType(Type type)
+    private string MapToZigType(Type type, bool inList = false)
     {
         if (type == typeof(string))
             return "[]const u16";
@@ -501,17 +565,23 @@ public class Generator : IDisposable
                 return "math.Quaternionf";
         }
 
+        // set inList so we don't end up with nullable types in lists
         if (typeof(IEnumerable).IsAssignableFrom(type))
-            return $"[]const {MapToZigType(type.GenericTypeArguments.First())}";
+            return $"[]const {MapToZigType(type.GenericTypeArguments.First(), true)}";
         
         if(type.Name == "Nullable`1")
-            return $"?{MapToZigType(type.GenericTypeArguments.First())}";
+            return $"?{MapToZigType(type.GenericTypeArguments.First(), inList)}";
+
+        // all c# classes are nullable
+        // they're also always written with WriteObject as Write only works for unmanaged types
+        if (type.IsClass && !inList)
+            return $"?{type.Name}";
 
         if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
             return "SharedMemoryBufferDescriptor";
 
         if (type.IsGenericType)
-            return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(MapToZigType))})";
+            return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(t => MapToZigType(t, inList)))})";
 
         if (!this._generatedTypes.Contains(type))
         {

@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const tracy = @import("tracy");
 const zinterprocess = @import("zinterprocess");
@@ -196,7 +197,12 @@ pub fn MessagingHost(comptime Context: type) type {
                             continue;
                         }
 
-                        log.err("Error while receiving: {any}", .{err});
+                        const err_format = "Error while receiving: {any}";
+                        if (builtin.mode == .Debug) {
+                            std.debug.panic(err_format, .{err});
+                        } else {
+                            log.err(err_format, .{err});
+                        }
                     };
                 }
             }
