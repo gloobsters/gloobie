@@ -10,3 +10,4 @@ const buffer = @import("buffer.zig");
 pub const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;
 pub const SharedMemoryAccessor = buffer.SharedMemoryAccessor;
 pub const Bootstrap = @import("Bootstrap.zig");
+pub const InitSettings = @import("InitSettings.zig");

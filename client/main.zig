@@ -37,6 +37,9 @@ fn start() !void {
 
     sdl3.errors.error_callback = sdl3ErrorCallback;
 
+    const args = try std.process.argsAlloc(gpa);
+    defer std.process.argsFree(gpa, args);
+
     {
         const trace = tracy.traceNamed(@src(), "Init SDL");
         defer trace.end();
@@ -52,31 +55,27 @@ fn start() !void {
         }
     };
 
-    var maybe_bootstrap: ?renderite.Bootstrap = init_bootstrap: {
+    const bootstrap = init_bootstrap: {
         const trace = tracy.traceNamed(@src(), "Bootstrap");
         defer trace.end();
 
-        const args = try std.process.argsAlloc(gpa);
-        defer std.process.argsFree(gpa, args);
+        var bootstrap = try renderite.Bootstrap.init(args, gpa);
+        errdefer bootstrap.deinit(gpa);
+
         if (args.len <= 1) {
             log.info("Started without args, bootstrapping Resonite...", .{});
-            var bootstrap = try renderite.Bootstrap.init();
-            errdefer bootstrap.deinit(gpa);
 
-            try bootstrap.startResonite(gpa);
-            try bootstrap.waitForMessage(gpa);
             break :init_bootstrap bootstrap;
-        }
+        } else {}
 
-        break :init_bootstrap null;
+        break :init_bootstrap bootstrap;
     };
-    defer if (maybe_bootstrap) |*bootstrap| bootstrap.deinit(gpa);
 
     const app = init_app: {
         const trace = tracy.traceNamed(@src(), "Init application");
         defer trace.end();
 
-        break :init_app try App.init(gpa, maybe_bootstrap);
+        break :init_app try App.init(gpa, bootstrap.init_settings);
     };
     defer app.deinit();
 

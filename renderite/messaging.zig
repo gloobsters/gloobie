@@ -7,6 +7,7 @@ const zinterprocess = @import("zinterprocess");
 const serialization = @import("serialization.zig");
 const IpcDeserializer = serialization.IpcDeserializer;
 const IpcSerializer = serialization.IpcSerializer;
+const InitSettings = @import("InitSettings.zig");
 const shared = @import("shared.zig");
 
 const log = std.log.scoped(.messaging);
@@ -52,29 +53,6 @@ pub fn MessagingHost(comptime Context: type) type {
                 .primary = primary,
                 .background = background,
             };
-        }
-
-        pub fn initFromArgs(comptime receive_callback: Callback, context: Context, args: []const []const u8) !Self {
-            // -QueueName randomString -QueueCapacity 8388608
-
-            // 5: Includes process name, e.g. "Renderite.Renderer.exe -QueueName ..."
-            // 4: Injected from Bootstrap. Just "-QueueName ..."
-            if (args.len != 5 and args.len != 4)
-                return error.InvalidNumberOfArguments;
-
-            const offset: usize = if (args.len == 5) 1 else 0;
-
-            if (!std.mem.eql(u8, args[offset], "-QueueName"))
-                return error.InvalidQueueName;
-
-            const queue_name = args[1 + offset];
-
-            if (!std.mem.eql(u8, args[2 + offset], "-QueueCapacity"))
-                return error.InvalidQueueLength;
-
-            const queue_length = try std.fmt.parseInt(u32, args[3 + offset], 10);
-
-            return try Self.init(queue_name, queue_length, receive_callback, context);
         }
 
         fn queueSuffix(queue_name: []const u8, comptime suffix: []const u8, gpa: std.mem.Allocator) ![]const u8 {

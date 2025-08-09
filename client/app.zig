@@ -14,6 +14,7 @@ const xr_t = @import("xr");
 const Assets = @import("Assets.zig");
 const graphics = @import("graphics.zig");
 const Texture = @import("Texture.zig");
+const InitSettings = renderite.InitSettings;
 
 const MessagingHost = renderite.MessagingHost(*App);
 const log = std.log.scoped(.app);
@@ -135,34 +136,12 @@ messaging: MessagingData,
 imgui_data: ?ImGuiData,
 assets: Assets,
 
-pub fn init(gpa: std.mem.Allocator, maybe_bootstrap: ?renderite.Bootstrap) !*App {
+pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     const app = try gpa.create(App);
     errdefer gpa.destroy(app);
 
     const messaging_data: MessagingData = create_messaging_data: {
-        const args: []const []const u8 = init_args: {
-            if (maybe_bootstrap) |bootstrap| {
-                var iterator = std.mem.splitAny(u8, bootstrap.args.?, " ");
-                const max_part = 4;
-                var parts: [max_part][]const u8 = undefined;
-
-                var i: usize = 0;
-                while (iterator.next()) |part| {
-                    std.debug.assert(i < max_part);
-
-                    parts[i] = part;
-                    i += 1;
-                }
-
-                break :init_args parts[0..max_part];
-            } else {
-                break :init_args try std.process.argsAlloc(gpa);
-            }
-        };
-
-        defer if (!maybe_bootstrap) std.process.argsFree(gpa, args);
-
-        const host = MessagingHost.initFromArgs(messagingCallback, app, args) catch |err| debug_queue: {
+        const host = MessagingHost.init(settings.queue_name, settings.queue_length, messagingCallback, app) catch |err| debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
             break :debug_queue try MessagingHost.init("gloopie", 8388608, messagingCallback, app);
         };
@@ -689,8 +668,6 @@ pub fn frameLoop(self: *App) !void {
             try self.messaging.host.primary.send(.{ .FrameStartData = undefined });
             std.Thread.sleep(16 * std.time.ns_per_ms);
         }
-
-        const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
 
         const swapchain_texture_result = acquire_swapchain_texture: {
             const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
