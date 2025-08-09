@@ -64,9 +64,7 @@ fn start() !void {
 
         if (args.len <= 1) {
             log.info("Started without args, bootstrapping Resonite...", .{});
-
-            break :init_bootstrap bootstrap;
-        } else {}
+        }
 
         break :init_bootstrap bootstrap;
     };
