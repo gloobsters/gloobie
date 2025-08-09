@@ -271,7 +271,7 @@ pub const IpcSerializer = struct {
         }
     }
 
-    pub fn writePolymorphicList(self: IpcSerializer, comptime T: type, list: []T) !void {
+    pub fn writePolymorphicList(self: IpcSerializer, comptime T: type, list: T) !void {
         try self.writer.writeInt(i32, @intCast(list.len), endian);
         for (list) |value| {
             try self.writePolymorphic(std.meta.Child(T), value);
