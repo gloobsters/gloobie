@@ -2,7 +2,7 @@ const std = @import("std");
 
 const gpu = @import("gpu");
 
-const App = @import("app.zig");
+const App = @import("App.zig");
 const Assets = @import("Assets.zig");
 const Texture = @import("Texture.zig");
 

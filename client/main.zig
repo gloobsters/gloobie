@@ -9,7 +9,7 @@ const tracy = @import("tracy");
 const xr = @import("xr");
 const zinterprocess = @import("zinterprocess");
 
-const App = @import("app.zig");
+const App = @import("App.zig");
 
 const log = std.log.scoped(.main);
 
