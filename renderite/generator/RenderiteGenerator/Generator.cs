@@ -380,12 +380,26 @@ public class Generator : IDisposable
                         written = true;
                         break;
                     }
+                    case "WritePolymorphicList":
+                    {
+                        string name = names.DequeueLast();
+                        this._writer.WriteLine($"\t\ttry ipc.writePolymorphicList(@TypeOf(self.{name}), self.{name});");
+                        written = true;
+                        break;
+                    }
                     // Read list
                     case "ReadValueList":
                     case "ReadObjectList":
                     {
                         string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\tself.{name} = try ipc.readList(@TypeOf(self.{name}));");
+                        written = true;
+                        break;
+                    }
+                    case "ReadPolymorphicList":
+                    {
+                        string name = names.DequeueLast();
+                        this._writer.WriteLine($"\t\tself.{name} = try ipc.readPolymorphicList(@TypeOf(self.{name}));");
                         written = true;
                         break;
                     }

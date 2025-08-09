@@ -202,29 +202,12 @@ pub fn MessagingHost(comptime Context: type) type {
                     contents_arena,
                 );
 
-                const message_type = try deserializer.readEnum(shared.RendererCommandTypes);
-                log.debug("Received message of type '{s}'", .{@tagName(message_type)});
+                const command = try deserializer.readPolymorphic(shared.RendererCommand);
+                self.receive_callback(self.context, self.type, .{
+                    .arena = contents_arena_impl,
+                    .command = command,
+                });
 
-                // make RendererCommand from enum value
-
-                const info = @typeInfo(shared.RendererCommand).@"union";
-                switch (message_type) {
-                    inline else => |comptime_type| {
-                        var command: shared.RendererCommand = undefined;
-                        if (@hasDecl(info.fields[@intFromEnum(comptime_type)].type, "read")) {
-                            // Commands that support reading
-                            command = @unionInit(shared.RendererCommand, @tagName(comptime_type), try .read(deserializer));
-                        } else {
-                            // Empty commands
-                            command = @unionInit(shared.RendererCommand, @tagName(comptime_type), .{});
-                        }
-
-                        self.receive_callback(self.context, self.type, .{
-                            .arena = contents_arena_impl,
-                            .command = command,
-                        });
-                    },
-                }
                 errdefer @compileError("cannot error after send else memory will be freed too soon");
             }
 
@@ -237,17 +220,8 @@ pub fn MessagingHost(comptime Context: type) type {
 
                 const serializer = IpcSerializer.init(&writer);
 
-                switch (command) {
-                    inline else => |command_struct| {
-                        try serializer.writeInt(i32, @intFromEnum(std.meta.stringToEnum(shared.RendererCommandTypes, @tagName(command)).?));
-                        log.debug("Sending message {s}", .{@tagName(command)});
-
-                        // Not all messages have data attached. Only write if the type has a write function.
-                        if (@hasDecl(@TypeOf(command_struct), "write")) {
-                            try command_struct.write(serializer);
-                        }
-                    },
-                }
+                log.debug("Sending message {s}", .{@tagName(command)});
+                try serializer.writePolymorphic(shared.RendererCommand, command);
 
                 try self.publisher.enqueue(data[0..writer.end]);
             }
