@@ -130,6 +130,7 @@ const GameData = struct {
     head_output_device: renderite.Shared.HeadOutputDevice,
     main_process_pid: ?i32,
     load_state: LoadState,
+    last_frame_index: i32,
 };
 
 gpa: std.mem.Allocator,
@@ -340,6 +341,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .init = false,
             .full_init = false,
         },
+        .last_frame_index = 0,
     };
 
     // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -685,8 +687,21 @@ pub fn frameLoop(self: *App) !void {
 
         // temporary code to tell FE to draw stuff
         if (self.game.load_state.full_init and true) {
-            // try self.messaging.host.primary.send(.{ .FrameStartData = undefined });
-            // std.Thread.sleep(16 * std.time.ns_per_ms);
+            try self.messaging.host.primary.send(.{ .FrameStartData = .{
+                .lastFrameIndex = 0,
+                .inputs = .{
+                    .displays = &.{},
+                    .gamepads = &.{},
+                    .keyboard = null,
+                    .mouse = null,
+                    .touches = &.{},
+                    .vr = null,
+                    .window = null,
+                },
+                .performance = null,
+                .renderedReflectionProbes = &.{},
+            } });
+            std.Thread.sleep(16 * std.time.ns_per_ms);
         }
 
         const swapchain_texture_result = acquire_swapchain_texture: {
