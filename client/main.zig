@@ -13,6 +13,10 @@ const App = @import("app.zig");
 
 const log = std.log.scoped(.main);
 
+comptime {
+    _ = @import("tests.zig");
+}
+
 pub fn main() !void {
     start() catch |err| {
         log.err("Got error: {s} running, latest SDL error: {?s}\n", .{ @errorName(err), sdl3.errors.get() });
@@ -94,9 +98,4 @@ pub fn panic(
     log.err("Latest SDL error: {?s}\n", .{sdl3.errors.get()});
 
     std.debug.FullPanic(std.debug.defaultPanic).call(msg, ret_addr);
-}
-
-test {
-    _ = renderite.Shared.ColorProfile;
-    _ = zinterprocess.Queue;
 }

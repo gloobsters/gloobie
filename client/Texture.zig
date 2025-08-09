@@ -203,7 +203,7 @@ pub fn setData(
             const mip_pixel_start: u32 = @intCast(mip_start_num);
             const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
 
-            const mip_byte_start = pixelsToBytes(mip_pixel_start, graphics_data.texture_format);
+            const mip_byte_start = pixelToByte(mip_pixel_start, graphics_data.texture_format);
 
             @memcpy(write_ptr, data_slice.data[mip_byte_start .. mip_byte_start + mip_byte_size]);
 
@@ -371,12 +371,16 @@ pub fn renderiteSamplerParametersToGpuParameters(properties: Properties) gpu.Sam
     };
 }
 
-pub fn pixelsToBytes(pixel: u32, format: renderite.Shared.TextureFormat) u32 {
+pub fn pixelToByte(pixel: u32, format: renderite.Shared.TextureFormat) u32 {
     const pixel_float: f64 = @floatFromInt(pixel);
 
     const bit: u64 = @intFromFloat(pixel_float * bitsPerPixel(format));
 
     return @intCast(@divExact(bit, 8));
+}
+
+test pixelToByte {
+    try std.testing.expectEqual(@as(u32, 4), pixelToByte(1, .RGBA32));
 }
 
 pub fn bitsPerPixel(format: renderite.Shared.TextureFormat) f64 {
