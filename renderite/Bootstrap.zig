@@ -63,6 +63,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
 
         log.debug("Waiting for Resonite to say hello...", .{});
         const message = try queue_in.dequeue(gpa);
+        defer gpa.free(message);
         log.debug("Received queue message! '{s}'", .{message});
 
         var iterator = std.mem.splitAny(u8, message, " ");

@@ -141,7 +141,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     errdefer gpa.destroy(app);
 
     const messaging_data: MessagingData = create_messaging_data: {
-        const host = MessagingHost.init(settings.queue_name, settings.queue_length, messagingCallback, app) catch |err| debug_queue: {
+        const host = MessagingHost.init(settings.queue_name.constSlice(), settings.queue_length, messagingCallback, app) catch |err| debug_queue: {
             log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
             break :debug_queue try MessagingHost.init("gloopie", 8388608, messagingCallback, app);
         };

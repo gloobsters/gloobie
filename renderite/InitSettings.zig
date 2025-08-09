@@ -1,7 +1,7 @@
 const std = @import("std");
 pub const InitSettings = @This();
 
-queue_name: []const u8,
+queue_name: std.BoundedArray(u8, 128),
 queue_length: u32,
 
 pub fn init(args: []const []const u8) !InitSettings {
@@ -15,7 +15,9 @@ pub fn init(args: []const []const u8) !InitSettings {
     if (!std.mem.eql(u8, args[offset], "-QueueName"))
         return error.InvalidQueueName;
 
-    const queue_name = args[1 + offset];
+    var queue_name: std.BoundedArray(u8, 128) = .{};
+    // SAFETY: FrooxEngine should never send us a queue this big
+    queue_name.appendSlice(args[1 + offset]) catch @panic("Queue name is too big");
 
     if (!std.mem.eql(u8, args[2 + offset], "-QueueCapacity"))
         return error.InvalidQueueLength;
