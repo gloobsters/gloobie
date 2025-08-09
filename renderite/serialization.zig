@@ -98,9 +98,45 @@ pub const IpcDeserializer = struct {
         return try self.reader.readSliceEndianAlloc(gpa, u16, @intCast(len), endian);
     }
 
+    pub fn readPolymorphic(self: IpcDeserializer, comptime T: type) !T {
+        const info = @typeInfo(T).@"union";
+        const UnionTag = info.tag_type.?;
+        const message_type = try self.readEnum(UnionTag);
+        switch (message_type) {
+            inline else => |comptime_type| {
+                var entity: T = undefined;
+                if (@hasDecl(info.fields[@intFromEnum(comptime_type)].type, "read")) {
+                    // Commands that support reading
+                    entity = @unionInit(T, @tagName(comptime_type), try .read(self));
+                } else {
+                    // Empty commands
+                    entity = @unionInit(T, @tagName(comptime_type), .{});
+                }
+
+                return entity;
+            },
+        }
+    }
+
+    pub fn readPolymorphicList(self: IpcDeserializer, comptime T: type) !T {
+        const len = try self.reader.takeInt(i32, endian);
+        if (len == 0)
+            return &.{};
+
+        const ChildType = std.meta.Child(T);
+
+        var list = try self.gpa.alloc(ChildType, @intCast(len));
+
+        for (0..list.len) |i| {
+            list[i] = try self.readPolymorphic(ChildType);
+        }
+
+        return list;
+    }
+
     pub fn readObjectList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
         const len = try self.reader.takeInt(i32, endian);
-        if (len == 0 or len == -1) // TODO: handle -1 meaning null
+        if (len == 0)
             return &.{};
 
         var list = try gpa.alloc(T, @intCast(len));
@@ -114,7 +150,7 @@ pub const IpcDeserializer = struct {
 
     pub fn readValueList(self: IpcDeserializer, comptime T: type, gpa: std.mem.Allocator) ![]T {
         const len = try self.reader.takeInt(i32, endian);
-        if (len == 0 or len == -1) // TODO: handle -1 meaning null
+        if (len == 0)
             return &.{};
 
         return try self.reader.readSliceEndianAlloc(gpa, T, @intCast(len), endian);
@@ -217,6 +253,29 @@ pub const IpcSerializer = struct {
     pub fn writeString(self: IpcSerializer, value: []const u16) !void {
         try self.writer.writeInt(i32, @intCast(value.len), endian);
         try self.writer.writeSliceEndian(u16, value, endian);
+    }
+
+    pub fn writePolymorphic(self: IpcSerializer, comptime T: type, value: T) !void {
+        const info = @typeInfo(T).@"union";
+        const UnionTag = info.tag_type.?;
+
+        switch (value) {
+            inline else => |command_struct| {
+                try self.writeInt(i32, @intFromEnum(std.meta.stringToEnum(UnionTag, @tagName(value)).?));
+
+                // Not all entities have data attached. Only write if the type has a write function.
+                if (@hasDecl(@TypeOf(command_struct), "write")) {
+                    try command_struct.write(self);
+                }
+            },
+        }
+    }
+
+    pub fn writePolymorphicList(self: IpcSerializer, comptime T: type, list: T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        for (list) |value| {
+            try self.writePolymorphic(std.meta.Child(T), value);
+        }
     }
 
     pub fn writeObjectList(self: IpcSerializer, comptime T: type, list: []const T) !void {
