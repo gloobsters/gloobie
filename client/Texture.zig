@@ -172,7 +172,7 @@ pub fn setData(
         total_memory_needed += gpu_format.calculateSize(@intCast(mipmap_size.x), @intCast(mipmap_size.y), 1);
     }
 
-    const copy_pass = try frame_context.getCopyPass();
+    const copy_pass = try frame_context.getSharedCopyPass();
 
     const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(total_memory_needed, .upload);
     errdefer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
@@ -231,10 +231,7 @@ pub fn setData(
         }
 
         if (all_ready) {
-            try frame_context.texture_readiness_queue.append(gpa, .{
-                .ready = all_ready,
-                .texture = self,
-            });
+            try frame_context.texture_readiness_queue.append(gpa, .from(data.assetId));
         }
 
         try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);

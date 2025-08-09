@@ -22,24 +22,39 @@ pub const AssetId = enum(i32) {
     }
 };
 
-pub const TextureReadynessState = struct {
-    texture: *Texture,
-    ready: bool,
+const TextureReadyFenceHandlerContext = struct {
+    gpa: std.mem.Allocator,
+    assets: *Assets,
+    textures: []const AssetId,
 };
 
-pub const ReadynessList = struct {
-    fence: gpu.Fence,
-    items: std.ArrayListUnmanaged(TextureReadynessState),
-};
+fn textureReadyHandler(context: TextureReadyFenceHandlerContext) !void {
+    context.assets.lock.lock();
+    defer context.assets.lock.unlock();
+
+    for (context.textures) |texture_id| {
+        // SAFETY: textures should never be de-init by this moment!
+        const texture = context.assets.texture_2ds.getPtr(texture_id).?;
+
+        // SAFETY: texture should have graphics data right now!
+        texture.graphics_data.?.ready = true;
+
+        log.debug("Texture {d} is now ready!", .{texture_id.to()});
+    }
+}
+
+fn deinitTextureReadyHandler(context: TextureReadyFenceHandlerContext) void {
+    context.gpa.free(context.textures);
+}
+
+pub const TextureReadyFenceHandler = graphics.FenceHandler(TextureReadyFenceHandlerContext, textureReadyHandler, deinitTextureReadyHandler, "texture_ready_handler");
 
 lock: std.Thread.RwLock,
 texture_2ds: std.AutoHashMapUnmanaged(AssetId, Texture),
-texture_2ds_readyness: std.ArrayListUnmanaged(ReadynessList),
 
 pub const empty: Assets = .{
     .lock = .{},
     .texture_2ds = .empty,
-    .texture_2ds_readyness = .empty,
 };
 
 pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
@@ -51,40 +66,14 @@ pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
         texture.deinit(gpa, device);
     }
 
-    for (self.texture_2ds_readyness.items) |readyness_list| {
-        device.releaseFence(readyness_list.fence);
-    }
-    self.texture_2ds_readyness.deinit(gpa);
-
     self.texture_2ds.deinit(gpa);
 }
 
 /// Called to check for pending fences and apply and needed state
 pub fn mainThreadTick(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
-    self.lock.lock();
-    defer self.lock.unlock();
-
-    var i: usize = 0;
-    // iterate over all the queued things, check if the fences are complete. if so, then release the fence and update the texture states
-    while (i < self.texture_2ds_readyness.items.len) {
-        const readyness_flags = &self.texture_2ds_readyness.items[i];
-        if (!device.queryFence(readyness_flags.fence)) {
-            // only increment when we actually are done with an item, since else we removed so dont increment
-            i += 1;
-            continue;
-        }
-        defer {
-            device.releaseFence(readyness_flags.fence);
-            readyness_flags.items.deinit(gpa);
-            // remove this from the list, preserving order
-            _ = self.texture_2ds_readyness.orderedRemove(i);
-        }
-
-        // the fence is complete, mark all textures as the ready state
-        for (readyness_flags.items.items) |state| {
-            state.texture.graphics_data.?.ready = state.ready;
-        }
-    }
+    _ = self;
+    _ = gpa;
+    _ = device;
 }
 
 pub fn setTexture2dPropertiesOrCreate(self: *Assets, gpa: std.mem.Allocator, properties: renderite.Shared.SetTexture2DProperties) !void {

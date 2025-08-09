@@ -7,6 +7,7 @@ const mailbox = @import("mailbox");
 const math = @import("math");
 const renderite = @import("renderite");
 const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
+const InitSettings = renderite.InitSettings;
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr_t = @import("xr");
@@ -14,7 +15,6 @@ const xr_t = @import("xr");
 const Assets = @import("Assets.zig");
 const graphics = @import("graphics.zig");
 const Texture = @import("Texture.zig");
-const InitSettings = renderite.InitSettings;
 
 const MessagingHost = renderite.MessagingHost(*App);
 const log = std.log.scoped(.app);
@@ -29,6 +29,8 @@ const XrData = struct {
     }
 };
 
+pub const FenceManager = graphics.FenceManager(&.{Assets.TextureReadyFenceHandler});
+
 const GraphicsData = struct {
     device: gpu.Device,
     sampler_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
@@ -37,7 +39,11 @@ const GraphicsData = struct {
     primary_transfer_buffer_pool: graphics.TransferBufferPool,
     background_transfer_buffer_pool: graphics.TransferBufferPool,
 
+    fence_manager: FenceManager,
+
     pub fn deinit(self: *GraphicsData, gpa: std.mem.Allocator) void {
+        self.fence_manager.deinit(gpa);
+
         self.primary_transfer_buffer_pool.deinit(gpa);
         self.background_transfer_buffer_pool.deinit(gpa);
 
@@ -248,6 +254,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .cubemap_supported_formats = cubemap_supported_formats,
             .primary_transfer_buffer_pool = .init(gpu_device),
             .background_transfer_buffer_pool = .init(gpu_device),
+            .fence_manager = .init(gpu_device),
         };
     };
     errdefer graphics_data.deinit(gpa);
@@ -519,7 +526,12 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
         .primary => self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),
         .background => {
             // FIXME: push resource uploads onto another thread!
-            var frame_context: graphics.FrameContext = .init(self.graphics_data.device, &self.graphics_data.background_transfer_buffer_pool, &self.assets);
+            var frame_context: graphics.FrameContext = .init(
+                self.graphics_data.device,
+                &self.graphics_data.background_transfer_buffer_pool,
+                &self.assets,
+                &self.graphics_data.fence_manager,
+            );
             defer frame_context.end(self.gpa) catch |err| std.debug.panic("Failed to end frame context: {s}", .{@errorName(err)});
 
             self.handleRendererCommand(message, &frame_context) catch |err| {
@@ -656,17 +668,26 @@ pub fn frameLoop(self: *App) !void {
             try xr.backend.handleEvents();
         }
 
+        // tick the fence manager, since we're about to start a new frame
+        try self.graphics_data.fence_manager.tick();
+
         const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
 
-        var frame_context: graphics.FrameContext = .initMain(self.graphics_data.device, &self.graphics_data.primary_transfer_buffer_pool, &self.assets, command_buffer);
+        var frame_context: graphics.FrameContext = .initMain(
+            self.graphics_data.device,
+            &self.graphics_data.primary_transfer_buffer_pool,
+            &self.assets,
+            command_buffer,
+            &self.graphics_data.fence_manager,
+        );
 
         // handle any messages from the queues, happens before processing most of the frame/rendering
         try handleMessages(self, &frame_context);
 
         // temporary code to tell FE to draw stuff
         if (self.game.load_state.full_init and true) {
-            try self.messaging.host.primary.send(.{ .FrameStartData = undefined });
-            std.Thread.sleep(16 * std.time.ns_per_ms);
+            // try self.messaging.host.primary.send(.{ .FrameStartData = undefined });
+            // std.Thread.sleep(16 * std.time.ns_per_ms);
         }
 
         const swapchain_texture_result = acquire_swapchain_texture: {
