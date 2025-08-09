@@ -66,7 +66,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
     }
 }
 
-fn initBootstrapQueues() !std.meta.Tuple(&.{ []const u8, Queue, Queue }) {
+fn initBootstrapQueues() !struct { []const u8, Queue, Queue } {
     const safe_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     var prefix: [16]u8 = undefined;
     std.crypto.random.bytes(&prefix);
