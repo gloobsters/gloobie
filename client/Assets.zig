@@ -76,7 +76,12 @@ pub fn mainThreadTick(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device)
     _ = device;
 }
 
-pub fn setTexture2dPropertiesOrCreate(self: *Assets, gpa: std.mem.Allocator, properties: renderite.Shared.SetTexture2DProperties) !void {
+pub fn setTexture2dPropertiesOrCreate(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    properties: renderite.Shared.SetTexture2DProperties,
+) !void {
     self.lock.lock();
     defer self.lock.unlock();
 
@@ -84,21 +89,26 @@ pub fn setTexture2dPropertiesOrCreate(self: *Assets, gpa: std.mem.Allocator, pro
 
     const texture = result.value_ptr;
     if (result.found_existing) {
-        texture.setProperties(properties);
+        try texture.setProperties(frame_context, properties);
         log.debug("Updated properties of Texture 2D {d}", .{properties.assetId});
     } else {
-        texture.* = .create(properties);
+        texture.* = try .create(frame_context, properties);
         log.debug("Created Texture 2D with ID {d}", .{properties.assetId});
     }
 }
 
-pub fn setTexture2dFormat(self: *Assets, gpa: std.mem.Allocator, format: renderite.Shared.SetTexture2DFormat, device: gpu.Device) !void {
+pub fn setTexture2dFormat(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    format: renderite.Shared.SetTexture2DFormat,
+) !void {
     self.lock.lock();
     defer self.lock.unlock();
 
     const texture = self.texture_2ds.getPtr(.from(format.assetId)) orelse return error.MissingAsset;
 
-    try texture.setFormat(gpa, device, format);
+    try texture.setFormat(gpa, frame_context, format);
 
     log.debug("Updated Texture ({d}) format to {s} ({s}), size {d}x{d}", .{
         format.assetId,

@@ -254,6 +254,7 @@ pub const FrameContext = struct {
     texture_readiness_queue: std.ArrayListUnmanaged(Assets.AssetId),
     main_thread: bool,
     fence_manager: *App.FenceManager,
+    messaging_host: *App.MessagingHost,
 
     pub fn initMain(
         device: gpu.Device,
@@ -261,6 +262,7 @@ pub const FrameContext = struct {
         assets: *Assets,
         command_buffer: gpu.CommandBuffer,
         fence_manager: *App.FenceManager,
+        messaging_host: *App.MessagingHost,
     ) FrameContext {
         return .{
             .device = device,
@@ -271,6 +273,7 @@ pub const FrameContext = struct {
             .texture_readiness_queue = .empty,
             .main_thread = true,
             .fence_manager = fence_manager,
+            .messaging_host = messaging_host,
         };
     }
 
@@ -279,6 +282,7 @@ pub const FrameContext = struct {
         transfer_buffer_pool: *TransferBufferPool,
         assets: *Assets,
         fence_manager: *App.FenceManager,
+        messaging_host: *App.MessagingHost,
     ) FrameContext {
         return .{
             .device = device,
@@ -289,6 +293,7 @@ pub const FrameContext = struct {
             .texture_readiness_queue = .empty,
             .main_thread = false,
             .fence_manager = fence_manager,
+            .messaging_host = messaging_host,
         };
     }
 

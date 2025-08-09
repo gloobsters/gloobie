@@ -16,7 +16,7 @@ const Assets = @import("Assets.zig");
 const graphics = @import("graphics.zig");
 const Texture = @import("Texture.zig");
 
-const MessagingHost = renderite.MessagingHost(*App);
+pub const MessagingHost = renderite.MessagingHost(*App);
 const log = std.log.scoped(.app);
 
 const App = @This();
@@ -62,7 +62,12 @@ const WindowData = struct {
 
 pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
 
-pub const ToRenderLetter = union(enum) { renderer_command: renderite.ParsedCommand };
+pub const ToRenderLetter = union(enum) {
+    renderer_command: struct {
+        command: renderite.ParsedCommand,
+        queue_type: MessagingHost.QueueManager.Type,
+    },
+};
 
 const MessagingData = struct {
     host: MessagingHost,
@@ -84,7 +89,7 @@ const MessagingData = struct {
         while (envelopes) |envelope| {
             switch (envelope.letter) {
                 .renderer_command => |renderer_command| {
-                    renderer_command.arena.deinit();
+                    renderer_command.command.arena.deinit();
                 },
             }
 
@@ -382,6 +387,7 @@ fn handleRendererCommand(
     self: *App,
     renderer_command: renderite.ParsedCommand,
     frame_context: *graphics.FrameContext,
+    queue_type: MessagingHost.QueueManager.Type,
 ) !void {
     // NOTE: this could be called from multiple threads!!! be aware of threading here
     // any command which _could be sent from both queues_ needs to have some kind of locking!
@@ -450,13 +456,6 @@ fn handleRendererCommand(
             // null terminate strings
             phase.phase_name.buffer[phase.phase_name.len] = 0;
             phase.sub_phase_name.buffer[phase.sub_phase_name.len] = 0;
-
-            log.debug("Renderer init progress update: force show: {}, phase: \"{s}\", phase index: {d}, sub phase: \"{s}\"", .{
-                renderer_init_progress_update.forceShow,
-                phase.phase_name.constSlice(),
-                renderer_init_progress_update.phaseIndex,
-                phase.sub_phase_name.constSlice(),
-            });
         },
         .RendererShutdown => |_| {
             log.debug("Engine is requesting that we shut down, beginning exit", .{});
@@ -467,10 +466,10 @@ fn handleRendererCommand(
             log.info("Engine is fully loaded!", .{});
         },
         .SetTexture2DProperties => |set_texture_2d_properties| {
-            try self.assets.setTexture2dPropertiesOrCreate(self.gpa, set_texture_2d_properties);
+            try self.assets.setTexture2dPropertiesOrCreate(self.gpa, frame_context, set_texture_2d_properties);
         },
         .SetTexture2DFormat => |set_texture_2d_format| {
-            try self.assets.setTexture2dFormat(self.gpa, set_texture_2d_format, self.graphics_data.device);
+            try self.assets.setTexture2dFormat(self.gpa, frame_context, set_texture_2d_format);
         },
         .SetTexture2DData => |set_texture_2d_data| {
             if (self.messaging.accessor) |*accessor| {
@@ -483,6 +482,13 @@ fn handleRendererCommand(
             } else {
                 std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
             }
+        },
+        .FrameSubmitData => |frame_submit_data| {
+            // threading shenanigans!!
+            std.debug.assert(queue_type == .primary);
+
+            self.game.last_frame_index = frame_submit_data.frameIndex;
+            log.debug("TODO: the rest of the frame submit stuff", .{});
         },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
@@ -514,7 +520,11 @@ fn handleMessages(self: *App, frame_context: *graphics.FrameContext) !void {
         // process the letter in the envelope
         switch (envelope.letter) {
             .renderer_command => |renderer_command| {
-                try self.handleRendererCommand(renderer_command, frame_context);
+                try self.handleRendererCommand(
+                    renderer_command.command,
+                    frame_context,
+                    renderer_command.queue_type,
+                );
             },
         }
     }
@@ -525,7 +535,9 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
 
     switch (queue_type) {
         // messages coming in the primary queue need to be processed ASAP by the main thread
-        .primary => self.sendLetter(.{ .renderer_command = message }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),
+        .primary => self.sendLetter(.{
+            .renderer_command = .{ .command = message, .queue_type = queue_type },
+        }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),
         .background => {
             // FIXME: push resource uploads onto another thread!
             var frame_context: graphics.FrameContext = .init(
@@ -533,10 +545,11 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
                 &self.graphics_data.background_transfer_buffer_pool,
                 &self.assets,
                 &self.graphics_data.fence_manager,
+                &self.messaging.host,
             );
             defer frame_context.end(self.gpa) catch |err| std.debug.panic("Failed to end frame context: {s}", .{@errorName(err)});
 
-            self.handleRendererCommand(message, &frame_context) catch |err| {
+            self.handleRendererCommand(message, &frame_context, queue_type) catch |err| {
                 std.debug.panic("Failed to handle background command got err {s}", .{@errorName(err)});
             };
         },
@@ -588,80 +601,6 @@ pub fn frameLoop(self: *App) !void {
             }
         }
 
-        if (self.imgui_data) |*imgui_data| {
-            const trace = tracy.traceNamed(@src(), "ImGui start frame");
-            defer trace.end();
-
-            // imgui new frame
-            imgui.gpu.newFrame();
-            imgui.sdl3.newFrame();
-            imgui.newFrame();
-
-            {
-                const assets_render = imgui.begin("Assets", &imgui_data.assets_open, 0);
-                defer imgui.end();
-                if (assets_render) {
-                    self.assets.lock.lockShared();
-                    defer self.assets.lock.unlockShared();
-
-                    {
-                        _ = imgui.collapsingHeader("Textures", 0);
-
-                        var texture_iter = self.assets.texture_2ds.iterator();
-                        while (texture_iter.next()) |texture_entry| {
-                            defer imgui.separator();
-
-                            const id, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
-
-                            imgui.c.igText("Texture %d", @intFromEnum(id));
-                            imgui.c.igText("Filter Mode: %s", @tagName(texture.filter_mode).ptr);
-                            imgui.c.igText("Anisotropicsy Level: %d", texture.aniso_level);
-                            imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.wrap_u).ptr, @tagName(texture.wrap_v).ptr);
-                            imgui.c.igText("Mipmap bias: %f", texture.mipmap_bias);
-                            // NOTE: we're pulling a reference because we need a stable pointer to `.binding`!!!
-                            if (texture.graphics_data) |*graphics_data| {
-                                imgui.c.igText("Extents: %ux%u", graphics_data.width, graphics_data.height);
-                                imgui.c.igText("Format/Color Profile: %s %s", @tagName(graphics_data.texture_format).ptr, @tagName(graphics_data.profile).ptr);
-                                imgui.c.igText("Mipmap count: %u", graphics_data.mipmap_count);
-
-                                if (graphics_data.ready) {
-                                    const render_scale = 200.0 / @as(f32, @floatFromInt(graphics_data.width));
-
-                                    const width = render_scale * @as(f32, @floatFromInt(graphics_data.width));
-                                    const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
-
-                                    imgui.image(&graphics_data.binding, width, height);
-                                }
-                            } else {
-                                imgui.c.igText("No graphics data");
-                            }
-                        }
-                    }
-
-                    {
-                        _ = imgui.collapsingHeader("Meshes", 0);
-                    }
-                }
-            }
-
-            if (!self.game.load_state.full_init) {
-                const phase = &self.game.load_state.phase;
-                const loadstate_render = imgui.begin("Loading...", &imgui_data.loadstate_open, 0);
-                defer imgui.end();
-                if (loadstate_render) {
-                    imgui.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
-                    if (phase.sub_phase_name.len != 0)
-                        imgui.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
-
-                    const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
-                    imgui.progressBar(progress, .{ .x = 0, .y = 0 }, "");
-                }
-            }
-
-            var show_demo_window: bool = true;
-            imgui.showDemoWindow(&show_demo_window);
-        }
-
         if (self.xr) |xr| {
             const trace = tracy.traceNamed(@src(), "XR event handling");
             defer trace.end();
@@ -680,6 +619,7 @@ pub fn frameLoop(self: *App) !void {
             &self.assets,
             command_buffer,
             &self.graphics_data.fence_manager,
+            &self.messaging.host,
         );
 
         // handle any messages from the queues, happens before processing most of the frame/rendering
@@ -721,9 +661,81 @@ pub fn frameLoop(self: *App) !void {
         // tick assets
         self.assets.mainThreadTick(self.gpa, self.graphics_data.device);
 
-        if (self.imgui_data != null) {
-            const trace = tracy.traceNamed(@src(), "ImGui render");
+        if (self.imgui_data) |*imgui_data| {
+            const trace = tracy.traceNamed(@src(), "ImGui start frame");
             defer trace.end();
+
+            // imgui new frame
+            imgui.gpu.newFrame();
+            imgui.sdl3.newFrame();
+            imgui.newFrame();
+
+            {
+                const assets_render = imgui.begin("Assets", &imgui_data.assets_open, 0);
+                defer imgui.end();
+                if (assets_render) {
+                    self.assets.lock.lockShared();
+                    defer self.assets.lock.unlockShared();
+
+                    {
+                        _ = imgui.collapsingHeader("Textures", 0);
+
+                        var texture_iter = self.assets.texture_2ds.iterator();
+                        while (texture_iter.next()) |texture_entry| {
+                            defer imgui.separator();
+
+                            const id, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
+
+                            imgui.c.igText("Texture %d", @intFromEnum(id));
+                            imgui.c.igText("Filter Mode: %s", @tagName(texture.properties.filter_mode).ptr);
+                            imgui.c.igText("Anisotropicsy Level: %d", texture.properties.aniso_level);
+                            imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.properties.wrap_u).ptr, @tagName(texture.properties.wrap_v).ptr);
+                            imgui.c.igText("Mipmap bias: %f", texture.properties.mipmap_bias);
+                            // NOTE: we're pulling a reference because we need a stable pointer to `.binding`!!!
+                            if (texture.graphics_data) |*graphics_data| {
+                                imgui.c.igText("Extents: %ux%u", graphics_data.width, graphics_data.height);
+                                imgui.c.igText("Format/Color Profile: %s %s", @tagName(graphics_data.texture_format).ptr, @tagName(graphics_data.profile).ptr);
+                                imgui.c.igText("Mipmap count: %u", graphics_data.mipmap_count);
+
+                                if (graphics_data.ready) {
+                                    const render_scale = 512.0 / @as(f32, @floatFromInt(graphics_data.height));
+
+                                    const width = render_scale * @as(f32, @floatFromInt(graphics_data.width));
+                                    _ = width; // autofix
+                                    const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
+                                    _ = height; // autofix
+
+                                    // FIXME: make this `binding` pointer stable somehow!
+                                    // imgui.image(&graphics_data.binding, width, height);
+                                }
+                            } else {
+                                imgui.c.igText("No graphics data");
+                            }
+                        }
+                    }
+
+                    {
+                        _ = imgui.collapsingHeader("Meshes", 0);
+                    }
+                }
+            }
+
+            if (!self.game.load_state.full_init) {
+                const phase = &self.game.load_state.phase;
+                const loadstate_render = imgui.begin("Loading...", &imgui_data.loadstate_open, 0);
+                defer imgui.end();
+                if (loadstate_render) {
+                    imgui.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
+                    if (phase.sub_phase_name.len != 0)
+                        imgui.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
+
+                    const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
+                    imgui.progressBar(progress, .{ .x = 0, .y = 0 }, "");
+                }
+            }
+
+            var show_demo_window: bool = true;
+            imgui.showDemoWindow(&show_demo_window);
 
             imgui.render();
         }

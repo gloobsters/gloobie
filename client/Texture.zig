@@ -31,22 +31,26 @@ const GraphicsData = struct {
     }
 };
 
-filter_mode: renderite.Shared.TextureFilterMode,
-aniso_level: i32,
-wrap_u: renderite.Shared.TextureWrapMode,
-wrap_v: renderite.Shared.TextureWrapMode,
-mipmap_bias: f32,
+const Properties = struct {
+    filter_mode: renderite.Shared.TextureFilterMode,
+    aniso_level: i32,
+    wrap_u: renderite.Shared.TextureWrapMode,
+    wrap_v: renderite.Shared.TextureWrapMode,
+    mipmap_bias: f32,
+};
+
+properties: Properties,
 graphics_data: ?GraphicsData,
 
-pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
-    return .{
-        .filter_mode = properties.filterMode,
-        .aniso_level = properties.anisoLevel,
-        .wrap_u = properties.wrapU,
-        .wrap_v = properties.wrapV,
-        .mipmap_bias = properties.mipmapBias,
+pub fn create(frame_context: *graphics.FrameContext, properties: renderite.Shared.SetTexture2DProperties) !Texture {
+    var texture: Texture = .{
+        .properties = undefined,
         .graphics_data = null,
     };
+
+    try texture.setProperties(frame_context, properties);
+
+    return texture;
 }
 
 pub fn deinit(self: Texture, gpa: std.mem.Allocator, device: gpu.Device) void {
@@ -55,17 +59,27 @@ pub fn deinit(self: Texture, gpa: std.mem.Allocator, device: gpu.Device) void {
     }
 }
 
-pub fn setProperties(self: *Texture, properties: renderite.Shared.SetTexture2DProperties) void {
-    self.filter_mode = properties.filterMode;
-    self.aniso_level = properties.anisoLevel;
-    self.wrap_u = properties.wrapU;
-    self.wrap_v = properties.wrapV;
-    self.mipmap_bias = properties.mipmapBias;
+pub fn setProperties(self: *Texture, frame_context: *graphics.FrameContext, properties: renderite.Shared.SetTexture2DProperties) !void {
+    self.properties = .{
+        .filter_mode = properties.filterMode,
+        .aniso_level = properties.anisoLevel,
+        .wrap_u = properties.wrapU,
+        .wrap_v = properties.wrapV,
+        .mipmap_bias = properties.mipmapBias,
+    };
+
+    try frame_context.messaging_host.background.send(.{
+        .SetTexture2DResult = .{
+            .assetId = properties.assetId,
+            .instanceChanged = false,
+            .type = .PropertiesSet,
+        },
+    });
 }
 
-pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, renderite_format: renderite.Shared.SetTexture2DFormat) !void {
+pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetTexture2DFormat) !void {
     if (self.graphics_data) |graphics_data| {
-        graphics_data.deinit(gpa, device);
+        graphics_data.deinit(gpa, frame_context.device);
     }
 
     const texture_format = renderiteFormatToGpuFormat(renderite_format.format, renderite_format.profile) orelse {
@@ -78,7 +92,7 @@ pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, ren
     // SAFETY: it's big enough
     const texture_name = std.fmt.bufPrintZ(&texture_name_buf, "Resonite Texture ({d})", .{renderite_format.assetId}) catch unreachable;
 
-    const texture = try device.createTexture(.{
+    const texture = try frame_context.device.createTexture(.{
         .width = @intCast(renderite_format.width),
         .height = @intCast(renderite_format.height),
         .format = texture_format,
@@ -87,29 +101,23 @@ pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, ren
         .layer_count_or_depth = 1,
         .props = .{ .name = texture_name },
     });
-    errdefer device.releaseTexture(texture);
+    errdefer frame_context.device.releaseTexture(texture);
 
     var sampler_name_buf: [128]u8 = undefined;
     // SAFETY: it's big enough
     const sampler_name = std.fmt.bufPrintZ(&sampler_name_buf, "Created Sampler ({s}/{s}/{s}/{d}/{d})", .{
-        @tagName(self.wrap_u),
-        @tagName(self.wrap_v),
-        @tagName(self.filter_mode),
-        self.aniso_level,
-        self.mipmap_bias,
+        @tagName(self.properties.wrap_u),
+        @tagName(self.properties.wrap_v),
+        @tagName(self.properties.filter_mode),
+        self.properties.aniso_level,
+        self.properties.mipmap_bias,
     }) catch unreachable;
 
-    var sampler_parameters = renderiteSamplerParametersToGpuParameters(
-        self.wrap_u,
-        self.wrap_v,
-        self.filter_mode,
-        self.aniso_level,
-        self.mipmap_bias,
-    );
+    var sampler_parameters = renderiteSamplerParametersToGpuParameters(self.properties);
     sampler_parameters.props = .{ .name = sampler_name };
 
-    const sampler = try device.createSampler(sampler_parameters);
-    errdefer device.releaseSampler(sampler);
+    const sampler = try frame_context.device.createSampler(sampler_parameters);
+    errdefer frame_context.device.releaseSampler(sampler);
 
     log.debug("Created GPU texture for Texture {d}", .{renderite_format.assetId});
 
@@ -133,6 +141,14 @@ pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, ren
         .data_available = data_available,
         .ready = false,
     };
+
+    try frame_context.messaging_host.background.send(.{
+        .SetTexture2DResult = .{
+            .assetId = renderite_format.assetId,
+            .instanceChanged = true,
+            .type = .FormatSet,
+        },
+    });
 }
 
 pub fn setData(
@@ -145,7 +161,7 @@ pub fn setData(
     const data_slice = try accessor.getOrCreate(gpa, data.data);
     defer data_slice.release(accessor);
 
-    // std.debug.print("Texture upload details: {any}\n", .{data});
+    std.debug.print("Texture upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
         log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
@@ -184,8 +200,10 @@ pub fn setData(
 
         var write_ptr = transfer_buffer_memory;
         for (data.mipStarts, data.mipMapSizes) |mip_start_num, mip_pixel_size| {
-            const mip_byte_start: usize = @intCast(mip_start_num);
+            const mip_pixel_start: u32 = @intCast(mip_start_num);
             const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
+
+            const mip_byte_start = pixelsToBytes(mip_pixel_start, graphics_data.texture_format);
 
             @memcpy(write_ptr, data_slice.data[mip_byte_start .. mip_byte_start + mip_byte_size]);
 
@@ -233,6 +251,14 @@ pub fn setData(
     }
 
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
+
+    try frame_context.messaging_host.background.send(.{
+        .SetTexture2DResult = .{
+            .assetId = data.assetId,
+            .instanceChanged = false,
+            .type = .DataUpload,
+        },
+    });
 }
 
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {
@@ -329,24 +355,126 @@ fn resoniteTextureFilterModeToGpuFilter(texture_filter_mode: renderite.Shared.Te
     };
 }
 
-pub fn renderiteSamplerParametersToGpuParameters(
-    wrap_u: renderite.Shared.TextureWrapMode,
-    wrap_v: renderite.Shared.TextureWrapMode,
-    filter_mode: renderite.Shared.TextureFilterMode,
-    aniso_level: i32,
-    mipmap_bias: f32,
-) gpu.SamplerCreateInfo {
+pub fn renderiteSamplerParametersToGpuParameters(properties: Properties) gpu.SamplerCreateInfo {
     return .{
-        .address_mode_u = renderiteTextureWrapModeToGpuAddressMode(wrap_u),
-        .address_mode_v = renderiteTextureWrapModeToGpuAddressMode(wrap_v),
+        .address_mode_u = renderiteTextureWrapModeToGpuAddressMode(properties.wrap_u),
+        .address_mode_v = renderiteTextureWrapModeToGpuAddressMode(properties.wrap_v),
         .address_mode_w = .repeat, // FIXME: 3d textures will need this
         .compare = .less_or_equal, // FIXME: is this correct?
-        .mag_filter = resoniteTextureFilterModeToGpuFilter(filter_mode),
-        .min_filter = resoniteTextureFilterModeToGpuFilter(filter_mode),
-        .max_anisotropy = if (aniso_level > 0) @floatFromInt(aniso_level) else null, // FIXME: is this correct?
-        .mip_lod_bias = mipmap_bias,
+        .mag_filter = resoniteTextureFilterModeToGpuFilter(properties.filter_mode),
+        .min_filter = resoniteTextureFilterModeToGpuFilter(properties.filter_mode),
+        .max_anisotropy = if (properties.aniso_level > 0) @floatFromInt(properties.aniso_level) else null, // FIXME: is this correct?
+        .mip_lod_bias = properties.mipmap_bias,
         // FIXME: are these two correct?
         .min_lod = 0,
         .max_lod = 1000, // Eqivalent to VK_LOD_CLAMP_NONE
+    };
+}
+
+pub fn pixelsToBytes(pixel: u32, format: renderite.Shared.TextureFormat) u32 {
+    const pixel_float: f64 = @floatFromInt(pixel);
+
+    const bit: u64 = @intFromFloat(pixel_float * bitsPerPixel(format));
+
+    return @intCast(@divExact(bit, 8));
+}
+
+pub fn bitsPerPixel(format: renderite.Shared.TextureFormat) f64 {
+    return switch (format) {
+        .BC1,
+        .BC4,
+        .ETC2_RGB,
+        .ETC2_RGBA1,
+        => 4,
+
+        .Alpha8,
+        .R8,
+        .BC2,
+        .BC3,
+        .BC5,
+        .BC6H,
+        .BC7,
+        .ETC2_RGBA8,
+        => 8,
+
+        .RGB565,
+        .BGR565,
+        .RHalf,
+        .RGHalf,
+        => 16,
+
+        .RGB24 => 24,
+
+        .ARGB32,
+        .RGBA32,
+        .BGRA32,
+        .RFloat,
+        => 32,
+
+        .RGBAHalf,
+        .ARGBHalf,
+        .RGFloat,
+        => 64,
+
+        .RGBAFloat,
+        .ARGBFloat,
+        => 128,
+
+        inline .ASTC_4x4,
+        .ASTC_5x5,
+        .ASTC_6x6,
+        .ASTC_8x8,
+        .ASTC_10x10,
+        .ASTC_12x12,
+        => |atsc| {
+            const block_width, const block_height = blockSize(atsc);
+
+            return 128.0 / @as(f64, @floatFromInt(block_width * block_height));
+        },
+
+        .Unknown => @panic("invalid texture format"),
+    };
+}
+
+pub fn blockSize(format: renderite.Shared.TextureFormat) struct { u32, u32 } {
+    return switch (format) {
+        .ARGB32,
+        .ARGBFloat,
+        .ARGBHalf,
+        .BGR565,
+        .BGRA32,
+        .R8,
+        .RFloat,
+        .RGB24,
+        .RGB565,
+        .RGBA32,
+        .RGBAFloat,
+        .RGBAHalf,
+        .RGFloat,
+        .RGHalf,
+        .RHalf,
+        .Alpha8,
+        => .{ 1, 1 },
+
+        .BC1,
+        .BC2,
+        .BC3,
+        .BC4,
+        .BC5,
+        .BC6H,
+        .BC7,
+        .ETC2_RGB,
+        .ETC2_RGBA1,
+        .ETC2_RGBA8,
+        .ASTC_4x4,
+        => .{ 4, 4 },
+
+        .ASTC_5x5 => .{ 5, 5 },
+        .ASTC_6x6 => .{ 6, 6 },
+        .ASTC_8x8 => .{ 8, 8 },
+        .ASTC_10x10 => .{ 10, 10 },
+        .ASTC_12x12 => .{ 12, 12 },
+
+        .Unknown => @panic("invalid texture format"),
     };
 }
