@@ -26,8 +26,29 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
         };
     } else {
         log.debug("Renderer args not detected, beginning bootstrap process.", .{});
-        const prefix, const queue_in, const queue_out = try initBootstrapQueues();
-        const child = try startResonite(prefix, gpa);
+        var prefix: [16]u8 = undefined;
+        try initPrefix(&prefix);
+
+        var in_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const in = try std.fmt.bufPrint(&in_buf, "{s}.bootstrapper_in", .{prefix});
+        var out_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const out = try std.fmt.bufPrint(&out_buf, "{s}.bootstrapper_out", .{prefix});
+
+        var queue_in = try Queue.init(.{
+            .capacity = 8192,
+            .destroy_on_deinit = true,
+            .memory_view_name = in,
+            .side = .Subscriber,
+        });
+
+        var queue_out = try Queue.init(.{
+            .capacity = 8192,
+            .destroy_on_deinit = true,
+            .memory_view_name = out,
+            .side = .Publisher,
+        });
+
+        const child = try startResonite(&prefix, gpa);
 
         const pid = switch (builtin.target.os.tag) {
             .windows => std.os.windows.GetCurrentProcessId(),
@@ -69,37 +90,13 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
     }
 }
 
-fn initBootstrapQueues() !struct { []const u8, Queue, Queue } {
+fn initPrefix(prefix: *[16]u8) !void {
     const safe_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    var prefix: [16]u8 = undefined;
-    std.crypto.random.bytes(&prefix);
+    std.crypto.random.bytes(prefix);
 
-    for (&prefix) |*char| {
+    for (prefix) |*char| {
         char.* = safe_chars[char.* % safe_chars.len];
     }
-
-    log.debug("Creating bootstrap queue with prefix {s}", .{&prefix});
-
-    var in_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const in = try std.fmt.bufPrint(&in_buf, "{s}.bootstrapper_in", .{&prefix});
-    var out_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const out = try std.fmt.bufPrint(&out_buf, "{s}.bootstrapper_out", .{&prefix});
-
-    const queue_in = try Queue.init(.{
-        .capacity = 8192,
-        .destroy_on_deinit = true,
-        .memory_view_name = in,
-        .side = .Subscriber,
-    });
-
-    const queue_out = try Queue.init(.{
-        .capacity = 8192,
-        .destroy_on_deinit = true,
-        .memory_view_name = out,
-        .side = .Publisher,
-    });
-
-    return .{ &prefix, queue_in, queue_out };
 }
 
 fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child {
