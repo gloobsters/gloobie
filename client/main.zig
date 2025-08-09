@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
-const renderite = @import("renderite").Shared;
+const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr = @import("xr");
@@ -37,6 +37,9 @@ fn start() !void {
 
     sdl3.errors.error_callback = sdl3ErrorCallback;
 
+    const args = try std.process.argsAlloc(gpa);
+    defer std.process.argsFree(gpa, args);
+
     {
         const trace = tracy.traceNamed(@src(), "Init SDL");
         defer trace.end();
@@ -52,11 +55,25 @@ fn start() !void {
         }
     };
 
+    const bootstrap = init_bootstrap: {
+        const trace = tracy.traceNamed(@src(), "Bootstrap");
+        defer trace.end();
+
+        var bootstrap = try renderite.Bootstrap.init(args, gpa);
+        errdefer bootstrap.deinit(gpa);
+
+        if (args.len <= 1) {
+            log.info("Started without args, bootstrapping Resonite...", .{});
+        }
+
+        break :init_bootstrap bootstrap;
+    };
+
     const app = init_app: {
         const trace = tracy.traceNamed(@src(), "Init application");
         defer trace.end();
 
-        break :init_app try App.init(gpa);
+        break :init_app try App.init(gpa, bootstrap.init_settings);
     };
     defer app.deinit();
 
@@ -80,6 +97,6 @@ pub fn panic(
 }
 
 test {
-    _ = renderite.ColorProfile;
+    _ = renderite.Shared.ColorProfile;
     _ = zinterprocess.Queue;
 }

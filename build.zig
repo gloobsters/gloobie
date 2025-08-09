@@ -417,7 +417,7 @@ pub fn build(b: *std.Build) !void {
         const renderite_root = b.path("renderite/");
 
         const renderite_mod = b.createModule(.{
-            .root_source_file = renderite_root.path(b, "renderite.zig"),
+            .root_source_file = renderite_root.path(b, "root.zig"),
             .imports = &.{
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
                 .{ .name = "tracy", .module = tracy_mod },
