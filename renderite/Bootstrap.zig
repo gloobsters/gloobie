@@ -118,8 +118,8 @@ fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child 
     return child;
 }
 pub fn deinit(self: *Bootstrap, gpa: std.mem.Allocator) void {
-    if (self.queue_in) |q| q.deinit();
-    if (self.queue_out) |q| q.deinit();
+    if (self.queue_in) |queue| queue.deinit();
+    if (self.queue_out) |queue| queue.deinit();
 
     if (self.child) |*child| {
         _ = child.kill() catch |err| {
