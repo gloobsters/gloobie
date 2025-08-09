@@ -16,6 +16,7 @@ init_settings: InitSettings,
 
 pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
     if (args.len > 1 and std.mem.eql(u8, args[1], "-QueueName")) {
+        log.debug("Skipping bootstrap logic, as we've been invoked directly from FE.", .{});
         // If the renderer is launching us directly, we need no special logic.
         return .{
             .queue_in = null,
@@ -24,12 +25,24 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
             .init_settings = try InitSettings.init(args),
         };
     } else {
+        log.debug("Renderer args not detected, beginning bootstrap process.", .{});
         const prefix, const queue_in, const queue_out = try initBootstrapQueues();
         const child = try startResonite(prefix, gpa);
 
-        // wait for resonite's bootstrapper hello message
+        const pid = switch (builtin.target.os.tag) {
+            .windows => std.os.windows.GetCurrentProcessId(),
+            else => std.os.linux.getpid(),
+        };
+
+        var msg_buf: [32]u8 = undefined;
+        const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{pid});
+
+        log.debug("Sending init message: {s}", .{msg});
+        try queue_out.enqueue(msg);
+
+        log.debug("Waiting for Resonite to say hello...", .{});
         const message = try queue_in.dequeue(gpa);
-        log.debug("Received queue message: {s}", .{message});
+        log.debug("Received queue message! '{s}'", .{message});
 
         var iterator = std.mem.splitAny(u8, message, " ");
         const max_part = 4;
@@ -44,16 +57,6 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
         }
 
         const init_settings = try InitSettings.init(parts[0..max_part]);
-
-        const pid = switch (builtin.target.os.tag) {
-            .windows => std.os.windows.GetCurrentProcessId(),
-            else => std.os.linux.getpid(),
-        };
-
-        var msg_buf: [32]u8 = undefined;
-        const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{pid});
-
-        try queue_out.enqueue(msg);
 
         const bootstrap: Bootstrap = .{
             .queue_in = queue_in,
@@ -105,6 +108,8 @@ fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child 
         else => "dotnet-runtime/dotnet",
     };
 
+    log.debug("Starting Resonite with dotnet at '{s}', using shmem prefix '{s}'", .{ dotnet_path, prefix });
+
     var child = std.process.Child.init(&.{
         dotnet_path,
         "Resonite.dll",
@@ -113,6 +118,7 @@ fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child 
     }, gpa);
 
     try child.spawn();
+    log.debug("Process spawned. PID {any}", .{child.id});
     try child.waitForSpawn();
 
     return child;
