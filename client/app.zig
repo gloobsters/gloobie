@@ -616,23 +616,22 @@ pub fn frameLoop(self: *App) !void {
                             imgui.c.igText("Anisotropicsy Level: %d", texture.aniso_level);
                             imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.wrap_u).ptr, @tagName(texture.wrap_v).ptr);
                             imgui.c.igText("Mipmap bias: %f", texture.mipmap_bias);
-                            if (texture.format) |format| {
-                                imgui.c.igText("Extents: %ux%u", format.width, format.height);
-                                imgui.c.igText("Format/Color Profile: %s %s", @tagName(format.texture_format).ptr, @tagName(format.profile).ptr);
-                                imgui.c.igText("Mipmap count: %u", format.mipmap_count);
+                            // NOTE: we're pulling a reference because we need a stable pointer to `.binding`!!!
+                            if (texture.graphics_data) |*graphics_data| {
+                                imgui.c.igText("Extents: %ux%u", graphics_data.width, graphics_data.height);
+                                imgui.c.igText("Format/Color Profile: %s %s", @tagName(graphics_data.texture_format).ptr, @tagName(graphics_data.profile).ptr);
+                                imgui.c.igText("Mipmap count: %u", graphics_data.mipmap_count);
 
-                                if (texture.graphics_data) |*graphics_data| {
-                                    if (graphics_data.ready) {
-                                        const render_scale = 200.0 / @as(f32, @floatFromInt(format.width));
+                                if (graphics_data.ready) {
+                                    const render_scale = 200.0 / @as(f32, @floatFromInt(graphics_data.width));
 
-                                        const width = render_scale * @as(f32, @floatFromInt(format.width));
-                                        const height = render_scale * @as(f32, @floatFromInt(format.height));
+                                    const width = render_scale * @as(f32, @floatFromInt(graphics_data.width));
+                                    const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
 
-                                        imgui.image(&graphics_data.binding, width, height);
-                                    }
+                                    imgui.image(&graphics_data.binding, width, height);
                                 }
                             } else {
-                                imgui.c.igText("No format");
+                                imgui.c.igText("No graphics data");
                             }
                         }
                     }

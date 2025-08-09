@@ -10,6 +10,12 @@ const log = std.log.scoped(.texture);
 const Texture = @This();
 
 const GraphicsData = struct {
+    width: u32,
+    height: u32,
+    texture_format: renderite.Shared.TextureFormat,
+    profile: renderite.Shared.ColorProfile,
+    mipmap_count: u32,
+
     texture: gpu.Texture,
     // FIXME: do not create one sampler per texture! pool samplers between all textures!
     sampler: gpu.Sampler,
@@ -30,13 +36,6 @@ aniso_level: i32,
 wrap_u: renderite.Shared.TextureWrapMode,
 wrap_v: renderite.Shared.TextureWrapMode,
 mipmap_bias: f32,
-format: ?struct {
-    width: u32,
-    height: u32,
-    texture_format: renderite.Shared.TextureFormat,
-    profile: renderite.Shared.ColorProfile,
-    mipmap_count: u32,
-},
 graphics_data: ?GraphicsData,
 
 pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
@@ -46,7 +45,6 @@ pub fn create(properties: renderite.Shared.SetTexture2DProperties) Texture {
         .wrap_u = properties.wrapU,
         .wrap_v = properties.wrapV,
         .mipmap_bias = properties.mipmapBias,
-        .format = null,
         .graphics_data = null,
     };
 }
@@ -66,22 +64,11 @@ pub fn setProperties(self: *Texture, properties: renderite.Shared.SetTexture2DPr
 }
 
 pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, renderite_format: renderite.Shared.SetTexture2DFormat) !void {
-    self.format = .{
-        .width = @intCast(renderite_format.width),
-        .height = @intCast(renderite_format.height),
-        .mipmap_count = @intCast(renderite_format.mipmapCount),
-        .profile = renderite_format.profile,
-        .texture_format = renderite_format.format,
-    };
-
     if (self.graphics_data) |graphics_data| {
         graphics_data.deinit(gpa, device);
     }
 
-    // SAFETY: we just assigned it above
-    const format = self.format.?;
-
-    const texture_format = renderiteFormatToGpuFormat(format.texture_format, format.profile) orelse {
+    const texture_format = renderiteFormatToGpuFormat(renderite_format.format, renderite_format.profile) orelse {
         std.debug.assert(false);
 
         return error.InvalidFormat;
@@ -92,11 +79,11 @@ pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, ren
     const texture_name = std.fmt.bufPrintZ(&texture_name_buf, "Resonite Texture ({d})", .{renderite_format.assetId}) catch unreachable;
 
     const texture = try device.createTexture(.{
-        .width = format.width,
-        .height = format.height,
+        .width = @intCast(renderite_format.width),
+        .height = @intCast(renderite_format.height),
         .format = texture_format,
         .usage = .{ .sampler = true },
-        .num_levels = format.mipmap_count,
+        .num_levels = @intCast(renderite_format.mipmapCount),
         .layer_count_or_depth = 1,
         .props = .{ .name = texture_name },
     });
@@ -126,11 +113,17 @@ pub fn setFormat(self: *Texture, gpa: std.mem.Allocator, device: gpu.Device, ren
 
     log.debug("Created GPU texture for Texture {d}", .{renderite_format.assetId});
 
-    const data_available: []bool = try gpa.alloc(bool, format.mipmap_count);
+    const data_available: []bool = try gpa.alloc(bool, @intCast(renderite_format.mipmapCount));
     errdefer gpa.free(data_available);
     @memset(data_available, false);
 
     self.graphics_data = .{
+        .width = @intCast(renderite_format.width),
+        .height = @intCast(renderite_format.height),
+        .mipmap_count = @intCast(renderite_format.mipmapCount),
+        .profile = renderite_format.profile,
+        .texture_format = renderite_format.format,
+
         .texture = texture,
         .sampler = sampler,
         .binding = .{
@@ -154,10 +147,16 @@ pub fn setData(
 
     // std.debug.print("Texture upload details: {any}\n", .{data});
 
-    const format = self.format orelse return error.TextureMissingFormat;
+    if (self.graphics_data == null) {
+        log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
+
+        return error.TextureMissingGraphicsData;
+    }
+
+    const graphics_data = &self.graphics_data.?;
 
     //SAFETY: engine should only ever give formats that we support
-    const gpu_format = renderiteFormatToGpuFormat(format.texture_format, format.profile).?;
+    const gpu_format = renderiteFormatToGpuFormat(graphics_data.texture_format, graphics_data.profile).?;
 
     const start_mip_level: u32 = @intCast(data.startMipLevel);
     const num_mips: u32 = @intCast(data.mipMapSizes.len);
@@ -177,67 +176,63 @@ pub fn setData(
     const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(total_memory_needed, .upload);
     errdefer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
 
-    if (self.graphics_data) |*graphics_data| {
-        {
-            const transfer_buffer_memory = try frame_context.device.mapTransferBuffer(
-                transfer_buffer_entry.transfer_buffer,
-                true,
-            );
+    {
+        const transfer_buffer_memory = try frame_context.device.mapTransferBuffer(
+            transfer_buffer_entry.transfer_buffer,
+            true,
+        );
 
-            var write_ptr = transfer_buffer_memory;
-            for (data.mipStarts, data.mipMapSizes) |mip_start_num, mip_pixel_size| {
-                const mip_byte_start: usize = @intCast(mip_start_num);
-                const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
-
-                @memcpy(write_ptr, data_slice.data[mip_byte_start .. mip_byte_start + mip_byte_size]);
-
-                write_ptr += mip_byte_size;
-            }
-
-            frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
-        }
-
-        // if we have an upload region, we can't cycle
-        var cycle: bool = !data.hint.hasRegion;
-        var read_offset: u32 = 0;
-        for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, mip_pixel_size| {
+        var write_ptr = transfer_buffer_memory;
+        for (data.mipStarts, data.mipMapSizes) |mip_start_num, mip_pixel_size| {
+            const mip_byte_start: usize = @intCast(mip_start_num);
             const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
 
-            // FIXME: Renderite.Unity doesn't handle hint.hasRegion, and *presumedly* FE wont send it, but if it does, we need to start handling that!!!
-            copy_pass.uploadToTexture(.{
-                .offset = read_offset,
-                .pixels_per_row = @intCast(mip_pixel_size.x),
-                .rows_per_layer = @intCast(mip_pixel_size.y),
-                .transfer_buffer = transfer_buffer_entry.transfer_buffer,
-            }, .{
-                .depth = 1,
-                .width = @intCast(mip_pixel_size.x),
-                .height = @intCast(mip_pixel_size.y),
-                .mip_level = @intCast(mip_level),
-                .texture = graphics_data.texture,
-            }, cycle);
+            @memcpy(write_ptr, data_slice.data[mip_byte_start .. mip_byte_start + mip_byte_size]);
 
-            read_offset += mip_byte_size;
-
-            // don't cycle twice!
-            cycle = false;
-
-            graphics_data.data_available[mip_level] = true;
+            write_ptr += mip_byte_size;
         }
 
-        var all_ready: bool = true;
-        for (graphics_data.data_available) |available| {
-            all_ready |= available;
-        }
-
-        if (all_ready) {
-            try frame_context.texture_readiness_queue.append(gpa, .from(data.assetId));
-        }
-
-        try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
-    } else {
-        return error.TextureMissingGraphicsData;
+        frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
     }
+
+    // if we have an upload region, we can't cycle
+    var cycle: bool = !data.hint.hasRegion;
+    var read_offset: u32 = 0;
+    for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, mip_pixel_size| {
+        const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
+
+        // FIXME: Renderite.Unity doesn't handle hint.hasRegion, and *presumedly* FE wont send it, but if it does, we need to start handling that!!!
+        copy_pass.uploadToTexture(.{
+            .offset = read_offset,
+            .pixels_per_row = @intCast(mip_pixel_size.x),
+            .rows_per_layer = @intCast(mip_pixel_size.y),
+            .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+        }, .{
+            .depth = 1,
+            .width = @intCast(mip_pixel_size.x),
+            .height = @intCast(mip_pixel_size.y),
+            .mip_level = @intCast(mip_level),
+            .texture = graphics_data.texture,
+        }, cycle);
+
+        read_offset += mip_byte_size;
+
+        // don't cycle twice!
+        cycle = false;
+
+        graphics_data.data_available[mip_level] = true;
+    }
+
+    var all_ready: bool = true;
+    for (graphics_data.data_available) |available| {
+        all_ready |= available;
+    }
+
+    if (all_ready) {
+        try frame_context.texture_readiness_queue.append(gpa, .from(data.assetId));
+    }
+
+    try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
 }
 
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {
