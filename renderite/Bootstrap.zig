@@ -100,24 +100,17 @@ fn initBootstrapQueues() !std.meta.Tuple(&.{ []const u8, Queue, Queue }) {
 }
 
 fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child {
-    var child = child: switch (builtin.target.os.tag) {
-        .windows => {
-            break :child std.process.Child.init(&.{
-                "dotnet", // dotnet runtime is globally installed on Windows, see InstallScript.vdf
-                "Resonite.dll",
-                "-shmprefix",
-                prefix,
-            }, gpa);
-        },
-        else => {
-            break :child std.process.Child.init(&.{
-                "dotnet-runtime/dotnet",
-                "Resonite.dll",
-                "-shmprefix",
-                prefix,
-            }, gpa);
-        },
+    const dotnet_path = switch (builtin.target.os.tag) {
+        .windows => "dotnet", // dotnet runtime is globally installed on Windows
+        else => "dotnet-runtime/dotnet",
     };
+
+    var child = std.process.Child.init(&.{
+        dotnet_path,
+        "Resonite.dll",
+        "-shmprefix",
+        prefix,
+    }, gpa);
 
     try child.spawn();
     try child.waitForSpawn();
