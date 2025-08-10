@@ -136,6 +136,7 @@ const GameData = struct {
     main_process_pid: ?i32,
     load_state: LoadState,
     last_frame_index: i32,
+    waiting_for_frame: bool,
 };
 
 gpa: std.mem.Allocator,
@@ -347,6 +348,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .full_init = false,
         },
         .last_frame_index = 0,
+        .waiting_for_frame = false,
     };
 
     // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -488,6 +490,7 @@ fn handleRendererCommand(
             std.debug.assert(queue_type == .primary);
 
             self.game.last_frame_index = frame_submit_data.frameIndex;
+            self.game.waiting_for_frame = false;
 
             for (frame_submit_data.renderSpaces) |render_space| {
                 if (render_space.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
@@ -638,7 +641,8 @@ pub fn frameLoop(self: *App) !void {
         try handleMessages(self, &frame_context);
 
         // temporary code to tell FE to draw stuff
-        if (self.game.load_state.full_init and true) {
+        if (self.game.load_state.full_init and !self.game.waiting_for_frame) {
+            self.game.waiting_for_frame = true;
             try self.messaging.host.primary.send(.{ .FrameStartData = .{
                 .lastFrameIndex = 0,
                 .inputs = .{
@@ -653,7 +657,7 @@ pub fn frameLoop(self: *App) !void {
                 .performance = null,
                 .renderedReflectionProbes = &.{},
             } });
-            std.Thread.sleep(1000 * std.time.ns_per_ms);
+            std.Thread.sleep(16 * std.time.ns_per_ms);
         }
 
         const swapchain_texture_result = acquire_swapchain_texture: {
