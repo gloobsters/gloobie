@@ -374,6 +374,8 @@ public class Generator : IDisposable
                     // Write list
                     case "WriteValueList":
                     case "WriteObjectList":
+                    case "WriteStringList":
+                    case "WriteNestedValueList":
                     {
                         string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\ttry ipc.writeList(@TypeOf(self.{name}), self.{name});");
@@ -390,6 +392,8 @@ public class Generator : IDisposable
                     // Read list
                     case "ReadValueList":
                     case "ReadObjectList":
+                    case "ReadStringList":
+                    case "ReadNestedValueList":
                     {
                         string name = names.DequeueLast();
                         this._writer.WriteLine($"\t\tself.{name} = try ipc.readList(@TypeOf(self.{name}));");
