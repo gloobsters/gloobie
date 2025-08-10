@@ -494,13 +494,10 @@ fn handleRendererCommand(
 
             for (frame_submit_data.renderSpaces) |render_space| {
                 if (render_space.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
-                    const sh2_tasks_slice = try self.messaging.accessor.?.getOrCreate(self.gpa, sh2_tasks_descriptor.tasks);
-                    if (sh2_tasks_slice == null)
-                        continue;
+                    const sh2_tasks_slice = try self.messaging.accessor.?.getOrCreate(self.gpa, sh2_tasks_descriptor.tasks) orelse continue;
+                    defer sh2_tasks_slice.release(&self.messaging.accessor.?);
 
-                    defer sh2_tasks_slice.?.release(&self.messaging.accessor.?);
-
-                    const sh2_tasks: []align(1) renderite.Shared.ReflectionProbeSH2Task = @ptrCast(sh2_tasks_slice.?.data);
+                    const sh2_tasks: []align(1) renderite.Shared.ReflectionProbeSH2Task = @ptrCast(sh2_tasks_slice.data);
                     for (sh2_tasks) |*task| {
                         task.result = .Failed;
                     }

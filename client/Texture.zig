@@ -158,12 +158,8 @@ pub fn setData(
     data: renderite.Shared.SetTexture2DData,
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
-    const data_slice = try accessor.getOrCreate(gpa, data.data);
-    if (data_slice == null) {
-        return error.MissingBuffer;
-    }
-
-    defer data_slice.?.release(accessor);
+    const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
+    defer data_slice.release(accessor);
 
     std.debug.print("Texture upload details: {any}\n", .{data});
 
@@ -209,7 +205,7 @@ pub fn setData(
 
             const mip_byte_start = pixelToByte(mip_pixel_start, graphics_data.texture_format);
 
-            @memcpy(write_ptr, data_slice.?.data[mip_byte_start .. mip_byte_start + mip_byte_size]);
+            @memcpy(write_ptr, data_slice.data[mip_byte_start .. mip_byte_start + mip_byte_size]);
 
             write_ptr += mip_byte_size;
         }
