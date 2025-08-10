@@ -577,6 +577,8 @@ public class Generator : IDisposable
                 return "math.Vector4i";
             case "RenderQuaternion":
                 return "math.Quaternionf";
+            case "RenderMatrix4x4":
+                return "math.Matrix4x4f";
         }
 
         // set inList so we don't end up with nullable types in lists
@@ -592,18 +594,25 @@ public class Generator : IDisposable
             return $"?{type.Name}";
 
         if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
+        {
+            _ = MapToZigType(type.GenericTypeArguments.First(), inList);
             return "SharedMemoryBufferDescriptor";
+        }
 
         if (type.IsGenericType)
             return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(t => MapToZigType(t, inList)))})";
-
-        if (!this._generatedTypes.Contains(type))
-        {
-            if (type.Assembly == this._assembly)
-                this._typesToGenerate.Enqueue(type);
-        }
+        
+        QueueType(type);
 
         return type.Name;
+    }
+
+    private void QueueType(Type type)
+    {
+        if (this._generatedTypes.Contains(type)) return;
+
+        if (type.Assembly == this._assembly)
+            this._typesToGenerate.Enqueue(type);
     }
 
     public void Dispose()

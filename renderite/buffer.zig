@@ -65,7 +65,7 @@ pub const SharedMemoryAccessor = struct {
 
     pub const Slice = struct {
         buffer: BufferId,
-        data: []const u8,
+        data: []u8,
 
         pub fn release(self: Slice, accessor: *SharedMemoryAccessor) void {
             // SAFETY: buffer should always exist at this point
@@ -95,7 +95,7 @@ pub const SharedMemoryAccessor = struct {
         };
     }
 
-    pub fn getOrCreate(self: *SharedMemoryAccessor, gpa: std.mem.Allocator, descriptor: SharedMemoryBufferDescriptor) !Slice {
+    pub fn getOrCreate(self: *SharedMemoryAccessor, gpa: std.mem.Allocator, descriptor: SharedMemoryBufferDescriptor) !?Slice {
         self.lock.lock();
         defer self.lock.unlock();
 
@@ -103,6 +103,9 @@ pub const SharedMemoryAccessor = struct {
 
         const offset: usize = @intCast(descriptor.offset);
         const length: usize = @intCast(descriptor.length);
+
+        if (length == 0)
+            return null;
 
         if (self.handles.getPtr(buffer_id)) |handle| {
             // Increment the references

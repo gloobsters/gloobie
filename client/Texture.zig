@@ -158,7 +158,7 @@ pub fn setData(
     data: renderite.Shared.SetTexture2DData,
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
-    const data_slice = try accessor.getOrCreate(gpa, data.data);
+    const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
 
     std.debug.print("Texture upload details: {any}\n", .{data});
