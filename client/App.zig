@@ -494,7 +494,7 @@ fn handleRendererCommand(
                     const sh2_tasks_slice = try self.messaging.accessor.?.getOrCreate(self.gpa, sh2_tasks_descriptor.tasks);
                     defer sh2_tasks_slice.release(&self.messaging.accessor.?);
 
-                    const sh2_tasks: []renderite.Shared.ReflectionProbeSH2Task = @ptrCast(@alignCast(sh2_tasks_slice.data));
+                    const sh2_tasks: []align(1) renderite.Shared.ReflectionProbeSH2Task = @ptrCast(sh2_tasks_slice.data);
                     for (sh2_tasks) |*task| {
                         task.result = .Failed;
                     }
@@ -653,7 +653,7 @@ pub fn frameLoop(self: *App) !void {
                 .performance = null,
                 .renderedReflectionProbes = &.{},
             } });
-            std.Thread.sleep(16 * std.time.ns_per_ms);
+            std.Thread.sleep(1000 * std.time.ns_per_ms);
         }
 
         const swapchain_texture_result = acquire_swapchain_texture: {
