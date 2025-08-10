@@ -162,12 +162,12 @@ pub const IpcDeserializer = struct {
         var list = try self.gpa.alloc(ChildType, @intCast(len));
         var written: usize = 0;
         errdefer {
-        	for(list[0..written]) |sub_list| {
-        		self.gpa.free(sub_list);
-      	 	} 
-        	self.gpa.free(list);
-        };
-        
+            for (list[0..written]) |sub_list| {
+                self.gpa.free(sub_list);
+            }
+            self.gpa.free(list);
+        }
+
         for (list) |*sub_list| {
             sub_list.* = try self.readValueList(std.meta.Child(ChildType), self.gpa);
             written += 1;
