@@ -485,6 +485,24 @@ fn handleRendererCommand(
                 std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
             }
         },
+        .SetTexture3DProperties => |set_texture_3d_properties| {
+            try self.assets.setTexture3dPropertiesOrCreate(self.gpa, frame_context, set_texture_3d_properties);
+        },
+        .SetTexture3DFormat => |set_texture_3d_format| {
+            try self.assets.setTexture3dFormat(self.gpa, frame_context, set_texture_3d_format);
+        },
+        .SetTexture3DData => |set_texture_3d_data| {
+            if (self.messaging.accessor) |*accessor| {
+                try self.assets.setTexture3dData(
+                    self.gpa,
+                    frame_context,
+                    set_texture_3d_data,
+                    accessor,
+                );
+            } else {
+                std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
+            }
+        },
         .FrameSubmitData => |frame_submit_data| {
             // threading shenanigans!!
             std.debug.assert(queue_type == .primary);
@@ -582,6 +600,45 @@ pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
     envelope.* = .{ .letter = letter };
 
     try self.messaging.to_render.send(envelope);
+}
+
+fn imguiFillTextures(self: *App, texture_type: Texture.Type) void {
+    var texture_iter = self.assets.textures.iterator();
+    while (texture_iter.next()) |texture_entry| {
+        if (texture_entry.value_ptr.properties.type != texture_type) {
+            continue;
+        }
+
+        defer imgui.separator();
+
+        const id, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
+
+        imgui.c.igText("Texture %d", @intFromEnum(id));
+        imgui.c.igText("Filter Mode: %s", @tagName(texture.properties.filter_mode).ptr);
+        imgui.c.igText("Anisotropicsy Level: %d", texture.properties.aniso_level);
+        imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.properties.wrap_u).ptr, @tagName(texture.properties.wrap_v).ptr);
+        imgui.c.igText("Mipmap bias: %f", texture.properties.mipmap_bias);
+        // NOTE: we're pulling a reference because we need a stable pointer to `.binding`!!!
+        if (texture.graphics_data) |*graphics_data| {
+            imgui.c.igText("Extents: %ux%ux%u", graphics_data.width, graphics_data.height, graphics_data.depth);
+            imgui.c.igText("Format/Color Profile: %s %s", @tagName(graphics_data.texture_format).ptr, @tagName(graphics_data.profile).ptr);
+            imgui.c.igText("Mipmap count: %u", graphics_data.mipmap_count);
+
+            if (graphics_data.ready) {
+                const render_scale = 512.0 / @as(f32, @floatFromInt(graphics_data.height));
+
+                const width = render_scale * @as(f32, @floatFromInt(graphics_data.width));
+                _ = width; // autofix
+                const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
+                _ = height; // autofix
+
+                // FIXME: make this `binding` pointer stable somehow!
+                // imgui.image(&graphics_data.binding, width, height);
+            }
+        } else {
+            imgui.c.igText("No graphics data");
+        }
+    }
 }
 
 pub fn frameLoop(self: *App) !void {
@@ -694,40 +751,21 @@ pub fn frameLoop(self: *App) !void {
                     defer self.assets.lock.unlockShared();
 
                     {
-                        _ = imgui.collapsingHeader("Textures", 0);
+                        _ = imgui.collapsingHeader("Texture 2Ds", 0);
 
-                        var texture_iter = self.assets.texture_2ds.iterator();
-                        while (texture_iter.next()) |texture_entry| {
-                            defer imgui.separator();
+                        self.imguiFillTextures(.Texture2D);
+                    }
 
-                            const id, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
+                    {
+                        _ = imgui.collapsingHeader("Texture 3Ds", 0);
 
-                            imgui.c.igText("Texture %d", @intFromEnum(id));
-                            imgui.c.igText("Filter Mode: %s", @tagName(texture.properties.filter_mode).ptr);
-                            imgui.c.igText("Anisotropicsy Level: %d", texture.properties.aniso_level);
-                            imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.properties.wrap_u).ptr, @tagName(texture.properties.wrap_v).ptr);
-                            imgui.c.igText("Mipmap bias: %f", texture.properties.mipmap_bias);
-                            // NOTE: we're pulling a reference because we need a stable pointer to `.binding`!!!
-                            if (texture.graphics_data) |*graphics_data| {
-                                imgui.c.igText("Extents: %ux%u", graphics_data.width, graphics_data.height);
-                                imgui.c.igText("Format/Color Profile: %s %s", @tagName(graphics_data.texture_format).ptr, @tagName(graphics_data.profile).ptr);
-                                imgui.c.igText("Mipmap count: %u", graphics_data.mipmap_count);
+                        self.imguiFillTextures(.Texture3D);
+                    }
 
-                                if (graphics_data.ready) {
-                                    const render_scale = 512.0 / @as(f32, @floatFromInt(graphics_data.height));
+                    {
+                        _ = imgui.collapsingHeader("Cubemaps", 0);
 
-                                    const width = render_scale * @as(f32, @floatFromInt(graphics_data.width));
-                                    _ = width; // autofix
-                                    const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
-                                    _ = height; // autofix
-
-                                    // FIXME: make this `binding` pointer stable somehow!
-                                    // imgui.image(&graphics_data.binding, width, height);
-                                }
-                            } else {
-                                imgui.c.igText("No graphics data");
-                            }
-                        }
+                        self.imguiFillTextures(.Cubemap);
                     }
 
                     {
