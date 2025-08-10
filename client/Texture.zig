@@ -68,6 +68,17 @@ pub fn create3d(frame_context: *graphics.FrameContext, properties: renderite.Sha
     return texture;
 }
 
+pub fn createCubemap(frame_context: *graphics.FrameContext, properties: renderite.Shared.SetCubemapProperties) !Texture {
+    var texture: Texture = .{
+        .properties = undefined,
+        .graphics_data = null,
+    };
+
+    try texture.setPropertiesCubemap(frame_context, properties);
+
+    return texture;
+}
+
 pub fn deinit(self: Texture, gpa: std.mem.Allocator, device: gpu.Device) void {
     if (self.graphics_data) |graphics_data| {
         graphics_data.deinit(gpa, device);
@@ -115,6 +126,30 @@ pub fn setProperties3d(
 
     try frame_context.messaging_host.background.send(.{
         .SetTexture3DResult = .{
+            .assetId = properties.assetId,
+            .instanceChanged = false,
+            .type = .PropertiesSet,
+        },
+    });
+}
+
+pub fn setPropertiesCubemap(
+    self: *Texture,
+    frame_context: *graphics.FrameContext,
+    properties: renderite.Shared.SetCubemapProperties,
+) !void {
+    self.properties = .{
+        .filter_mode = properties.filterMode,
+        .aniso_level = properties.anisoLevel,
+        .wrap_u = .Clamp,
+        .wrap_v = .Clamp,
+        .wrap_w = .Clamp,
+        .type = .Cubemap,
+        .mipmap_bias = properties.mipmapBias,
+    };
+
+    try frame_context.messaging_host.background.send(.{
+        .SetCubemapResult = .{
             .assetId = properties.assetId,
             .instanceChanged = false,
             .type = .PropertiesSet,
@@ -275,6 +310,88 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
     });
 }
 
+pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetCubemapFormat) !void {
+    if (self.graphics_data) |graphics_data| {
+        graphics_data.deinit(gpa, frame_context.device);
+    }
+
+    const texture_format = renderiteFormatToGpuFormat(renderite_format.format, renderite_format.profile) orelse {
+        log.err("Got invalid cubemap format {s}/{s} from FrooxEngine!", .{
+            @tagName(renderite_format.format),
+            @tagName(renderite_format.profile),
+        });
+        std.debug.assert(false);
+
+        return error.InvalidFormat;
+    };
+
+    var texture_name_buf: [64]u8 = undefined;
+    // SAFETY: it's big enough
+    const texture_name = std.fmt.bufPrintZ(&texture_name_buf, "Resonite Cubemap ({d})", .{renderite_format.assetId}) catch unreachable;
+
+    const texture = try frame_context.device.createTexture(.{
+        .width = @intCast(renderite_format.size),
+        .height = @intCast(renderite_format.size),
+        .layer_count_or_depth = 6, // 6 faces
+        .format = texture_format,
+        .usage = .{ .sampler = true },
+        .num_levels = @intCast(renderite_format.mipmapCount),
+        .props = .{ .name = texture_name },
+        .texture_type = .cube,
+    });
+    errdefer frame_context.device.releaseTexture(texture);
+
+    var sampler_name_buf: [128]u8 = undefined;
+    // SAFETY: it's big enough
+    const sampler_name = std.fmt.bufPrintZ(&sampler_name_buf, "Created Sampler ({s}/{d}/{d})", .{
+        @tagName(self.properties.filter_mode),
+        self.properties.aniso_level,
+        self.properties.mipmap_bias,
+    }) catch unreachable;
+
+    var sampler_parameters = renderiteSamplerParametersToGpuParameters(self.properties);
+    sampler_parameters.props = .{ .name = sampler_name };
+
+    const sampler = try frame_context.device.createSampler(sampler_parameters);
+    errdefer frame_context.device.releaseSampler(sampler);
+
+    log.debug("Created GPU texture for Cubemap {d}", .{renderite_format.assetId});
+
+    const data_available: []bool = try gpa.alloc(
+        bool,
+        @intCast(renderite_format.mipmapCount * 6), // 6 faces
+    );
+    errdefer gpa.free(data_available);
+    @memset(data_available, false);
+
+    self.graphics_data = .{
+        .width = @intCast(renderite_format.size),
+        .height = @intCast(renderite_format.size),
+        .depth = 1,
+
+        .mipmap_count = @intCast(renderite_format.mipmapCount),
+        .profile = renderite_format.profile,
+        .texture_format = renderite_format.format,
+
+        .texture = texture,
+        .sampler = sampler,
+        .binding = .{
+            .texture = texture,
+            .sampler = sampler,
+        },
+        .data_available = data_available,
+        .ready = false,
+    };
+
+    try frame_context.messaging_host.background.send(.{
+        .SetCubemapResult = .{
+            .assetId = renderite_format.assetId,
+            .instanceChanged = true,
+            .type = .FormatSet,
+        },
+    });
+}
+
 pub fn setData2d(
     self: *Texture,
     gpa: std.mem.Allocator,
@@ -285,7 +402,7 @@ pub fn setData2d(
     const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
 
-    // std.debug.print("Texture2D upload details: {any}\n", .{data});
+    std.debug.print("Texture2D upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
         log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
@@ -343,11 +460,13 @@ pub fn setData2d(
         for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, mip_pixel_size| {
             const mip_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
 
+            const aligned_pixel_size = alignSize(graphics_data.texture_format, .{ @intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y) });
+
             // FIXME: Renderite.Unity doesn't handle hint.hasRegion, and *presumedly* FE wont send it, but if it does, we need to start handling that!!!
             copy_pass.uploadToTexture(.{
                 .offset = read_offset,
-                .pixels_per_row = @intCast(mip_pixel_size.x),
-                .rows_per_layer = @intCast(mip_pixel_size.y),
+                .pixels_per_row = aligned_pixel_size[0],
+                .rows_per_layer = aligned_pixel_size[1],
                 .transfer_buffer = transfer_buffer_entry.transfer_buffer,
             }, .{
                 .depth = 1,
@@ -395,7 +514,7 @@ pub fn setData3d(
     const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
 
-    std.debug.print("Texture3D upload details: {any}\n", .{data});
+    // std.debug.print("Texture3D upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
         log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
@@ -429,10 +548,12 @@ pub fn setData3d(
             @memcpy(transfer_buffer_memory, data_slice.data[0..memory_needed]);
         }
 
+        const aligned_pixel_size = alignSize(graphics_data.texture_format, .{ graphics_data.width, graphics_data.height });
+
         copy_pass.uploadToTexture(.{
             .offset = 0,
-            .pixels_per_row = graphics_data.width,
-            .rows_per_layer = graphics_data.height,
+            .pixels_per_row = aligned_pixel_size[0],
+            .rows_per_layer = aligned_pixel_size[1],
             .transfer_buffer = transfer_buffer_entry.transfer_buffer,
         }, .{
             .texture = graphics_data.texture,
@@ -447,6 +568,119 @@ pub fn setData3d(
 
     try frame_context.messaging_host.background.send(.{
         .SetTexture3DResult = .{
+            .assetId = data.assetId,
+            .instanceChanged = false,
+            .type = .DataUpload,
+        },
+    });
+}
+
+pub fn setDataCubemap(
+    self: *Texture,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    data: renderite.Shared.SetCubemapData,
+    accessor: *renderite.SharedMemoryAccessor,
+) !void {
+    const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
+    defer data_slice.release(accessor);
+
+    std.debug.print("Cubemap upload details: {any}\n", .{data});
+
+    if (self.graphics_data == null) {
+        log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
+
+        return error.TextureMissingGraphicsData;
+    }
+
+    const start_mip_level: u32 = @intCast(data.startMipLevel);
+    const num_mips: u32 = @intCast(data.mipMapSizes.len);
+
+    const graphics_data = &self.graphics_data.?;
+
+    const gpu_format = renderiteFormatToGpuFormat(graphics_data.texture_format, graphics_data.profile).?;
+
+    var total_memory_needed: u32 = 0;
+    for (data.mipMapSizes) |mipmap_size| {
+        total_memory_needed += gpu_format.calculateSize(
+            @intCast(mipmap_size.x),
+            @intCast(mipmap_size.y),
+            6, // 6 faces
+        );
+    }
+
+    const copy_pass = try frame_context.getSharedCopyPass();
+
+    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(total_memory_needed, .upload);
+    {
+        errdefer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
+
+        {
+            const transfer_buffer_memory = try frame_context.device.mapTransferBuffer(
+                transfer_buffer_entry.transfer_buffer,
+                true,
+            );
+            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
+
+            var write_ptr = transfer_buffer_memory;
+            for (data.mipStarts) |face_mip_starts| {
+                for (face_mip_starts, data.mipMapSizes) |face_mip_start, mip_pixel_size| {
+                    const face_pixel_start: u32 = @intCast(face_mip_start);
+                    const face_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
+
+                    const face_byte_start = pixelToByte(face_pixel_start, graphics_data.texture_format);
+
+                    @memcpy(write_ptr, data_slice.data[face_byte_start .. face_byte_start + face_byte_size]);
+
+                    write_ptr += face_byte_size;
+                }
+            }
+        }
+
+        var cycle: bool = true;
+        var read_offset: u32 = 0;
+        for (0..6) |face| {
+            for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, mip_pixel_size| {
+                const face_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
+
+                const aligned_pixel_size = alignSize(graphics_data.texture_format, .{ @intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y) });
+
+                copy_pass.uploadToTexture(.{
+                    .offset = read_offset,
+                    .pixels_per_row = aligned_pixel_size[0],
+                    .rows_per_layer = aligned_pixel_size[1],
+                    .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+                }, .{
+                    .depth = 1,
+                    .width = @intCast(mip_pixel_size.x),
+                    .height = @intCast(mip_pixel_size.y),
+                    .mip_level = @intCast(mip_level),
+                    .layer = @intCast(face),
+                    .texture = graphics_data.texture,
+                }, cycle);
+
+                read_offset += face_byte_size;
+
+                // don't cycle twice!
+                cycle = false;
+
+                graphics_data.data_available[(mip_level * 6) + face] = true;
+            }
+        }
+
+        var all_ready: bool = true;
+        for (graphics_data.data_available) |available| {
+            all_ready |= available;
+        }
+
+        if (all_ready) {
+            try frame_context.texture_readiness_queue.append(gpa, .from(data.assetId));
+        }
+    }
+    try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
+
+    try frame_context.messaging_host.background.send(.{
+        .SetCubemapResult = .{
             .assetId = data.assetId,
             .instanceChanged = false,
             .type = .DataUpload,
@@ -515,7 +749,7 @@ pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profil
             .BC3 => gpu.TextureFormat.bc3_rgba_unorm_srgb_compressed,
             .BC4 => null,
             .BC5 => null,
-            .BC6H => null,
+            .BC6H => gpu.TextureFormat.bc6h_rgb_float_compressed, // TODO: have some way of converting sRGB -> Linear in the shaders
             .BC7 => gpu.TextureFormat.bc7_rgba_unorm_srgb_compressed,
             .ETC2_RGB => null,
             .ETC2_RGBA1 => null,
@@ -630,6 +864,19 @@ pub fn bitsPerPixel(format: renderite.Shared.TextureFormat) f64 {
         },
 
         .Unknown => @panic("invalid texture format"),
+    };
+}
+
+fn alignBlock(size: u32, block_size: u32) u32 {
+    return size + (block_size - size % block_size) % block_size;
+}
+
+fn alignSize(format: renderite.Shared.TextureFormat, size: struct { u32, u32 }) struct { u32, u32 } {
+    const block_size = blockSize(format);
+
+    return .{
+        alignBlock(size[0], block_size[0]),
+        alignBlock(size[1], block_size[1]),
     };
 }
 

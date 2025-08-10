@@ -422,6 +422,7 @@ fn handleRendererCommand(
             var i: usize = 0;
             for (formats) |format| {
                 if (supported_formats.contains(format)) {
+                    log.debug("Sending format {s} as supported", .{@tagName(format)});
                     supported_formats_buf[i] = format;
                     i += 1;
                 }
@@ -497,6 +498,24 @@ fn handleRendererCommand(
                     self.gpa,
                     frame_context,
                     set_texture_3d_data,
+                    accessor,
+                );
+            } else {
+                std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
+            }
+        },
+        .SetCubemapProperties => |set_cubemap_properties| {
+            try self.assets.setCubemapPropertiesOrCreate(self.gpa, frame_context, set_cubemap_properties);
+        },
+        .SetCubemapFormat => |set_cubemap_format| {
+            try self.assets.setCubemapFormat(self.gpa, frame_context, set_cubemap_format);
+        },
+        .SetCubemapData => |set_cubemap_data| {
+            if (self.messaging.accessor) |*accessor| {
+                try self.assets.setCubemapData(
+                    self.gpa,
+                    frame_context,
+                    set_cubemap_data,
                     accessor,
                 );
             } else {

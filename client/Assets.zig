@@ -186,3 +186,57 @@ pub fn setTexture3dData(
 
     try texture.setData3d(gpa, frame_context, data, accessor);
 }
+
+pub fn setCubemapPropertiesOrCreate(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    properties: renderite.Shared.SetCubemapProperties,
+) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    const result = try self.textures.getOrPut(gpa, .from(properties.assetId));
+
+    const texture = result.value_ptr;
+    if (result.found_existing) {
+        try texture.setPropertiesCubemap(frame_context, properties);
+        log.debug("Updated properties of Cubemap {d}", .{properties.assetId});
+    } else {
+        texture.* = try .createCubemap(frame_context, properties);
+        log.debug("Created Cubemap with ID {d}", .{properties.assetId});
+    }
+}
+
+pub fn setCubemapFormat(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    format: renderite.Shared.SetCubemapFormat,
+) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    const texture = self.textures.getPtr(.from(format.assetId)) orelse return error.MissingAsset;
+
+    try texture.setFormatCubemap(gpa, frame_context, format);
+
+    log.debug("Updated Cubemap ({d}) format to {s} ({s}), size {d}", .{
+        format.assetId,
+        @tagName(format.format),
+        @tagName(format.profile),
+        format.size,
+    });
+}
+
+pub fn setCubemapData(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    data: renderite.Shared.SetCubemapData,
+    accessor: *renderite.SharedMemoryAccessor,
+) !void {
+    const texture = self.textures.getPtr(.from(data.assetId)) orelse return error.MissingAsset;
+
+    try texture.setDataCubemap(gpa, frame_context, data, accessor);
+}
