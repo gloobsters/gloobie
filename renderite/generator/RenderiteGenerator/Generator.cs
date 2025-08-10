@@ -577,6 +577,8 @@ public class Generator : IDisposable
                 return "math.Vector4i";
             case "RenderQuaternion":
                 return "math.Quaternionf";
+            case "RenderMatrix4x4":
+                return "math.Matrix4x4f";
         }
 
         // set inList so we don't end up with nullable types in lists

@@ -4052,65 +4052,6 @@ pub const MaterialPropertyUpdate = extern struct {
 	}
 };
 
-pub const RenderMatrix4x4 = extern struct {
-	m00: f32,
-	m10: f32,
-	m20: f32,
-	m30: f32,
-	m01: f32,
-	m11: f32,
-	m21: f32,
-	m31: f32,
-	m02: f32,
-	m12: f32,
-	m22: f32,
-	m32: f32,
-	m03: f32,
-	m13: f32,
-	m23: f32,
-	m33: f32,
-
-	pub fn write(self: RenderMatrix4x4, ipc: IpcSerializer) !void {
-		try ipc.write(@TypeOf(self.m00), self.m00);
-		try ipc.write(@TypeOf(self.m10), self.m10);
-		try ipc.write(@TypeOf(self.m20), self.m20);
-		try ipc.write(@TypeOf(self.m30), self.m30);
-		try ipc.write(@TypeOf(self.m01), self.m01);
-		try ipc.write(@TypeOf(self.m11), self.m11);
-		try ipc.write(@TypeOf(self.m21), self.m21);
-		try ipc.write(@TypeOf(self.m31), self.m31);
-		try ipc.write(@TypeOf(self.m02), self.m02);
-		try ipc.write(@TypeOf(self.m12), self.m12);
-		try ipc.write(@TypeOf(self.m22), self.m22);
-		try ipc.write(@TypeOf(self.m32), self.m32);
-		try ipc.write(@TypeOf(self.m03), self.m03);
-		try ipc.write(@TypeOf(self.m13), self.m13);
-		try ipc.write(@TypeOf(self.m23), self.m23);
-		try ipc.write(@TypeOf(self.m33), self.m33);
-	}
-
-	pub fn read(ipc: IpcDeserializer) !RenderMatrix4x4 {
-		var self: RenderMatrix4x4 = undefined;
-		self.m00 = try ipc.read(@TypeOf(self.m00));
-		self.m10 = try ipc.read(@TypeOf(self.m10));
-		self.m20 = try ipc.read(@TypeOf(self.m20));
-		self.m30 = try ipc.read(@TypeOf(self.m30));
-		self.m01 = try ipc.read(@TypeOf(self.m01));
-		self.m11 = try ipc.read(@TypeOf(self.m11));
-		self.m21 = try ipc.read(@TypeOf(self.m21));
-		self.m31 = try ipc.read(@TypeOf(self.m31));
-		self.m02 = try ipc.read(@TypeOf(self.m02));
-		self.m12 = try ipc.read(@TypeOf(self.m12));
-		self.m22 = try ipc.read(@TypeOf(self.m22));
-		self.m32 = try ipc.read(@TypeOf(self.m32));
-		self.m03 = try ipc.read(@TypeOf(self.m03));
-		self.m13 = try ipc.read(@TypeOf(self.m13));
-		self.m23 = try ipc.read(@TypeOf(self.m23));
-		self.m33 = try ipc.read(@TypeOf(self.m33));
-		return self;
-	}
-};
-
 pub const VertexAttributeDescriptor = extern struct {
 	attribute: VertexAttributeType,
 	format: VertexAttributeFormat,
@@ -4375,7 +4316,7 @@ pub const CameraPortalState = extern struct {
 	planeNormal: math.Vector3f,
 	planeOffset: f32,
 	renderTextureId: i32,
-	portalTransform: RenderMatrix4x4,
+	portalTransform: math.Matrix4x4f,
 	portalPlanePosition: math.Vector3f,
 	portalPlaneNormal: math.Vector3f,
 
