@@ -488,6 +488,18 @@ fn handleRendererCommand(
             std.debug.assert(queue_type == .primary);
 
             self.game.last_frame_index = frame_submit_data.frameIndex;
+
+            for (frame_submit_data.renderSpaces) |render_space| {
+                if (render_space.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
+                    const sh2_tasks_slice = try self.messaging.accessor.?.getOrCreate(self.gpa, sh2_tasks_descriptor.tasks);
+                    defer sh2_tasks_slice.release(&self.messaging.accessor.?);
+
+                    const sh2_tasks: []renderite.Shared.ReflectionProbeSH2Task = @ptrCast(@alignCast(sh2_tasks_slice.data));
+                    for (sh2_tasks) |*task| {
+                        task.result = .Failed;
+                    }
+                }
+            }
             log.debug("TODO: the rest of the frame submit stuff", .{});
         },
         else => {

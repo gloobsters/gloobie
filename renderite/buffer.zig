@@ -65,7 +65,7 @@ pub const SharedMemoryAccessor = struct {
 
     pub const Slice = struct {
         buffer: BufferId,
-        data: []const u8,
+        data: []u8,
 
         pub fn release(self: Slice, accessor: *SharedMemoryAccessor) void {
             // SAFETY: buffer should always exist at this point
