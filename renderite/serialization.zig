@@ -151,6 +151,30 @@ pub const IpcDeserializer = struct {
 
         return try self.reader.readSliceEndianAlloc(gpa, T, @intCast(len), endian);
     }
+
+    pub fn readNestedList(self: IpcDeserializer, comptime T: type) !T {
+        const len = try self.reader.takeInt(i32, endian);
+        if (len == 0)
+            return &.{};
+
+        const ChildType = std.meta.Child(T);
+
+        var list = try self.gpa.alloc(ChildType, @intCast(len));
+
+        for (0..list.len) |i| {
+            list[i] = try self.readValueList(std.meta.Child(ChildType), self.gpa);
+        }
+
+        return list;
+    }
+
+    pub fn writeNestedList(self: IpcSerializer, comptime T: type, list: T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        const ChildType = std.meta.Child(std.meta.Child(list));
+        for (list) |value| {
+            try self.writeValueList(ChildType, value);
+        }
+    }
 };
 
 pub const IpcSerializer = struct {
@@ -273,6 +297,14 @@ pub const IpcSerializer = struct {
     pub fn writeValueList(self: IpcSerializer, comptime T: type, list: []const T) !void {
         try self.writer.writeInt(i32, @intCast(list.len), endian);
         try self.writer.writeSliceEndian(T, list, endian);
+    }
+
+    pub fn writeNestedList(self: IpcSerializer, comptime T: type, list: T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        const ChildType = std.meta.Child(std.meta.Child(T));
+        for (list) |value| {
+            try self.writeValueList(ChildType, value);
+        }
     }
 };
 

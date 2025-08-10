@@ -1267,7 +1267,7 @@ pub const SetCubemapData = struct {
 		try ipc.write(@TypeOf(self.data), self.data);
 		try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
 		try ipc.writeList(@TypeOf(self.mipMapSizes), self.mipMapSizes);
-		try ipc.writeList(@TypeOf(self.mipStarts), self.mipStarts);
+		try ipc.writeNestedList(@TypeOf(self.mipStarts), self.mipStarts);
 		try ipc.write(@TypeOf(self.flipY), self.flipY);
 		try ipc.write(@TypeOf(self.highPriority), self.highPriority);
 	}
@@ -1278,7 +1278,7 @@ pub const SetCubemapData = struct {
 		self.data = try ipc.read(@TypeOf(self.data));
 		self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
 		self.mipMapSizes = try ipc.readList(@TypeOf(self.mipMapSizes));
-		self.mipStarts = try ipc.readList(@TypeOf(self.mipStarts));
+		self.mipStarts = try ipc.readNestedList(@TypeOf(self.mipStarts));
 		self.flipY = try ipc.read(@TypeOf(self.flipY));
 		self.highPriority = try ipc.read(@TypeOf(self.highPriority));
 		return self;
@@ -2270,7 +2270,7 @@ pub const ReflectionProbeRenderTask = struct {
 		try ipc.write(@TypeOf(self.renderTaskId), self.renderTaskId);
 		try ipc.write(@TypeOf(self.size), self.size);
 		try ipc.write(@TypeOf(self.hdr), self.hdr);
-		try ipc.writeList(@TypeOf(self.mipOrigins), self.mipOrigins);
+		try ipc.writeNestedList(@TypeOf(self.mipOrigins), self.mipOrigins);
 		try ipc.write(@TypeOf(self.resultData), self.resultData);
 		try ipc.writeList(@TypeOf(self.excludeTransformIds), self.excludeTransformIds);
 	}
@@ -2281,7 +2281,7 @@ pub const ReflectionProbeRenderTask = struct {
 		self.renderTaskId = try ipc.read(@TypeOf(self.renderTaskId));
 		self.size = try ipc.read(@TypeOf(self.size));
 		self.hdr = try ipc.read(@TypeOf(self.hdr));
-		self.mipOrigins = try ipc.readList(@TypeOf(self.mipOrigins));
+		self.mipOrigins = try ipc.readNestedList(@TypeOf(self.mipOrigins));
 		self.resultData = try ipc.read(@TypeOf(self.resultData));
 		self.excludeTransformIds = try ipc.readList(@TypeOf(self.excludeTransformIds));
 		return self;
