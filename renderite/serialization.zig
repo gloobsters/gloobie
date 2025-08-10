@@ -21,17 +21,13 @@ pub const IpcDeserializer = struct {
         }
 
         switch (@typeInfo(T)) {
-            // TODO: this needs work.
             .@"struct" => return try self.readObject(T),
             .int => return try self.readInt(T),
             .float => return try self.readFloat(T),
-            // .pointer, .array => return try self.readString(self.allocator),
-            // .@"struct" => return try self.readStruct(T),
             .bool => return try self.readBool(),
             .@"enum" => return try self.readEnum(T),
             .optional => return try self.readNullable(T),
             else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for deserialization", .{@typeName(T)})),
-            // else => return error.TypeNotSupported,
         }
     }
 
@@ -155,6 +151,38 @@ pub const IpcDeserializer = struct {
 
         return try self.reader.readSliceEndianAlloc(gpa, T, @intCast(len), endian);
     }
+
+    pub fn readNestedList(self: IpcDeserializer, comptime T: type) !T {
+        const len = try self.reader.takeInt(i32, endian);
+        if (len == 0)
+            return &.{};
+
+        const ChildType = std.meta.Child(T);
+
+        var list = try self.gpa.alloc(ChildType, @intCast(len));
+        var written: usize = 0;
+        errdefer {
+            for (list[0..written]) |sub_list| {
+                self.gpa.free(sub_list);
+            }
+            self.gpa.free(list);
+        }
+
+        for (list) |*sub_list| {
+            sub_list.* = try self.readValueList(std.meta.Child(ChildType), self.gpa);
+            written += 1;
+        }
+
+        return list;
+    }
+
+    pub fn writeNestedList(self: IpcSerializer, comptime T: type, list: T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        const ChildType = std.meta.Child(std.meta.Child(list));
+        for (list) |value| {
+            try self.writeValueList(ChildType, value);
+        }
+    }
 };
 
 pub const IpcSerializer = struct {
@@ -170,15 +198,11 @@ pub const IpcSerializer = struct {
         }
 
         switch (@typeInfo(T)) {
-            // TODO: this needs work.
-            // ."struct" => return try self.writeStruct(T),
             .int => return try self.writeInt(T, value),
             .float => return try self.writeFloat(T, value),
-            // .pointer, .array => return try self.writeString(self.allocator),
             .@"struct" => return try self.writeObject(T, value),
             .bool => return try self.writeBool(value),
             .@"enum" => return try self.writeEnum(T, value),
-            .vector => return try self.writeVector(T, value),
             .optional => return try self.writeNullable(T, value),
             else => @compileError(std.fmt.comptimePrint("Unsupported type {s} for serialization", .{@typeName(T)})),
             // else => return error.TypeNotSupported,
@@ -243,13 +267,6 @@ pub const IpcSerializer = struct {
             @as(u8, @intFromBool(b4)) << 4 | @as(u8, @intFromBool(b5)) << 5 | @as(u8, @intFromBool(b6)) << 6 | @as(u8, @intFromBool(b7)) << 7);
     }
 
-    pub fn writeVector(self: IpcSerializer, comptime T: type, value: T) !void {
-        const info = @typeInfo(T).vector;
-        inline for (0..info.len) |i| {
-            try self.writeFloat(info.child, value[i]);
-        }
-    }
-
     pub fn writeString(self: IpcSerializer, value: []const u16) !void {
         try self.writer.writeInt(i32, @intCast(value.len), endian);
         try self.writer.writeSliceEndian(u16, value, endian);
@@ -288,6 +305,14 @@ pub const IpcSerializer = struct {
     pub fn writeValueList(self: IpcSerializer, comptime T: type, list: []const T) !void {
         try self.writer.writeInt(i32, @intCast(list.len), endian);
         try self.writer.writeSliceEndian(T, list, endian);
+    }
+
+    pub fn writeNestedList(self: IpcSerializer, comptime T: type, list: T) !void {
+        try self.writer.writeInt(i32, @intCast(list.len), endian);
+        const ChildType = std.meta.Child(std.meta.Child(T));
+        for (list) |value| {
+            try self.writeValueList(ChildType, value);
+        }
     }
 };
 
