@@ -15,6 +15,7 @@ const xr_t = @import("xr");
 
 const Assets = @import("Assets.zig");
 const graphics = @import("graphics.zig");
+const Input = @import("Input.zig");
 const Texture = @import("Texture.zig");
 
 pub const MessagingHost = renderite.MessagingHost(*App);
@@ -154,6 +155,11 @@ const GameData = struct {
 
     displays: std.ArrayListUnmanaged(renderite.Shared.DisplayState),
 
+    held_keys: std.ArrayListUnmanaged(renderite.Shared.Key),
+    type_delta: std.ArrayListUnmanaged(u16),
+
+    output_state: ?renderite.Shared.OutputState,
+
     pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
         if (self.engine_thread) |engine_thread| {
             self.engine_thread_cancellation.set();
@@ -164,6 +170,7 @@ const GameData = struct {
         self.to_engine_envelope_pool.deinit();
 
         self.displays.deinit(gpa);
+        self.held_keys.deinit(gpa);
     }
 };
 
@@ -364,30 +371,40 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     };
     errdefer if (maybe_imgui_data) |imgui_data| imgui_data.deinit();
 
-    var game_data: GameData = .{
-        .run_loop = true,
-        .head_output_device = .UNKNOWN,
-        .main_process_pid = null,
-        .load_state = .{
-            .phase = .{
-                .phase_index = 0,
-                .phase_name = .{ .buffer = @splat(0) },
-                .sub_phase_name = .{ .buffer = @splat(0) },
-            },
-            .init = false,
-            .full_init = false,
-        },
-        .last_frame_index = 0,
-        .engine_thread = null,
-        .engine_thread_cancellation = .{},
-        .engine_thread_ready_for_begin_frame = .{},
-        .to_engine_mailbox = .{},
-        .to_engine_envelope_pool = .init(gpa),
-        .displays = .empty,
-    };
+    const game_data = create_game_data: {
+        const held_keys: std.ArrayListUnmanaged(renderite.Shared.Key) = try .initCapacity(gpa, std.enums.values(renderite.Shared.Key).len);
+        errdefer gpa.free(held_keys);
 
-    // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
-    game_data.load_state.phase.phase_name.appendSlice("Awaiting engine...") catch unreachable;
+        var game_data: GameData = .{
+            .run_loop = true,
+            .head_output_device = .UNKNOWN,
+            .main_process_pid = null,
+            .load_state = .{
+                .phase = .{
+                    .phase_index = 0,
+                    .phase_name = .{ .buffer = @splat(0) },
+                    .sub_phase_name = .{ .buffer = @splat(0) },
+                },
+                .init = false,
+                .full_init = false,
+            },
+            .last_frame_index = 0,
+            .engine_thread = null,
+            .engine_thread_cancellation = .{},
+            .engine_thread_ready_for_begin_frame = .{},
+            .to_engine_mailbox = .{},
+            .to_engine_envelope_pool = .init(gpa),
+            .displays = .empty,
+            .held_keys = held_keys,
+            .type_delta = .empty,
+            .output_state = null,
+        };
+
+        // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
+        game_data.load_state.phase.phase_name.appendSlice("Awaiting engine...") catch unreachable;
+
+        break :create_game_data game_data;
+    };
 
     app.* = .{
         .gpa = gpa,
@@ -730,6 +747,10 @@ fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
     // SAFETY: only this message should be sent to the engine thread
     const frame_submit_data = message.command.FrameSubmitData;
 
+    if (frame_submit_data.outputState) |output_state| {
+        self.game.output_state = output_state;
+    }
+
     self.game.last_frame_index = frame_submit_data.frameIndex;
     log.debug("Frame {d} completion", .{frame_submit_data.frameIndex});
 
@@ -855,6 +876,18 @@ fn updateWindowState(self: *App) !void {
     };
 }
 
+fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !void {
+    if (sdl3.keyboard.textInputActive(self.window.window) != output_state.keyboardInputActive) {
+        if (output_state.keyboardInputActive) {
+            try sdl3.keyboard.startTextInput(self.window.window);
+            log.debug("Starting text input", .{});
+        } else {
+            try sdl3.keyboard.stopTextInput(self.window.window);
+            log.debug("Stopping text input", .{});
+        }
+    }
+}
+
 pub fn frameLoop(self: *App) !void {
     self.game.engine_thread = try .spawn(.{}, engineLoop, .{self});
 
@@ -912,6 +945,46 @@ pub fn frameLoop(self: *App) !void {
                     .window_focus_lost => |window| if (window.id == self.window.window.getId() catch unreachable) {
                         self.window.focus = false;
                     },
+                    .key_down => |key_down| {
+                        if (key_down.window_id == self.window.window.getId() catch unreachable and !key_down.repeat) {
+                            if (key_down.key) |keycode| {
+                                if (Input.sdlKeycodeToRenderiteKey(keycode)) |key| {
+                                    self.game.held_keys.appendAssumeCapacity(key);
+                                }
+                            }
+                        }
+                    },
+                    .key_up => |key_up| {
+                        if (key_up.window_id == self.window.window.getId() catch unreachable) {
+                            if (key_up.key) |keycode| {
+                                if (Input.sdlKeycodeToRenderiteKey(keycode)) |key| {
+                                    for (self.game.held_keys.items, 0..) |held_key, i| {
+                                        if (held_key == key) {
+                                            _ = self.game.held_keys.swapRemove(i);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    // convert to UTF-16 and append to the delta
+                    .text_input => |text_input| {
+                        var iter: std.unicode.Utf8Iterator = .{
+                            .i = 0,
+                            .bytes = text_input.text,
+                        };
+
+                        while (iter.nextCodepoint()) |codepoint| {
+                            if (codepoint < 0x10000) {
+                                try self.game.type_delta.append(self.gpa, @intCast(codepoint));
+                            } else {
+                                const high = @as(u16, @intCast((codepoint - 0x10000) >> 10)) + 0xD800;
+                                const low = @as(u16, @intCast(codepoint & 0x3FF)) + 0xDC00;
+
+                                try self.game.type_delta.appendSlice(self.gpa, &.{ @intCast(high), @intCast(low) });
+                            }
+                        }
+                    },
                     else => {},
                 }
             }
@@ -951,6 +1024,10 @@ pub fn frameLoop(self: *App) !void {
                 }
             };
 
+            if (self.game.output_state) |output_state| {
+                try self.applyOutputState(output_state);
+            }
+
             // handle any messages from the queues, happens before processing most of the frame/rendering
             try handleMessages(self, &frame_context);
 
@@ -970,7 +1047,10 @@ pub fn frameLoop(self: *App) !void {
                         .inputs = .{
                             .displays = self.game.displays.items,
                             .gamepads = &.{},
-                            .keyboard = null,
+                            .keyboard = .{
+                                .heldKeys = self.game.held_keys.items,
+                                .typeDelta = self.game.type_delta.items,
+                            },
                             .mouse = null,
                             .touches = &.{},
                             .vr = null,
@@ -990,6 +1070,11 @@ pub fn frameLoop(self: *App) !void {
                         .renderedReflectionProbes = &.{},
                     },
                 });
+
+                if (self.game.type_delta.items.len > 0) {
+                    log.debug("Sent string {f} to engine", .{std.unicode.fmtUtf16Le(self.game.type_delta.items)});
+                }
+                self.game.type_delta.clearRetainingCapacity();
 
                 log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
 
