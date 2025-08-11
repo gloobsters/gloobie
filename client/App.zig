@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
@@ -148,7 +149,9 @@ const GameData = struct {
     to_engine_mailbox: ToEngineMailbox,
     to_engine_envelope_pool: std.heap.MemoryPool(ToEngineMailbox.Envelope),
 
-    pub fn deinit(self: *GameData) void {
+    displays: std.ArrayListUnmanaged(renderite.Shared.DisplayState),
+
+    pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
         if (self.engine_thread) |engine_thread| {
             self.engine_thread_cancellation.set();
 
@@ -156,6 +159,8 @@ const GameData = struct {
         }
 
         self.to_engine_envelope_pool.deinit();
+
+        self.displays.deinit(gpa);
     }
 };
 
@@ -373,6 +378,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         .engine_thread_ready_for_begin_frame = .{},
         .to_engine_mailbox = .{},
         .to_engine_envelope_pool = .init(gpa),
+        .displays = .empty,
     };
 
     // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -395,7 +401,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 pub fn deinit(self: *App) void {
     const gpa = self.gpa;
 
-    self.game.deinit();
+    self.game.deinit(gpa);
     self.messaging.deinit(gpa);
     if (self.imgui_data) |imgui_data| imgui_data.deinit();
     if (self.xr) |xr| xr.deinit(gpa);
@@ -766,10 +772,86 @@ fn engineLoop(self: *App) !void {
     }
 }
 
+fn updateDisplays(self: *App) !void {
+    self.game.displays.clearRetainingCapacity();
+
+    const displays = try sdl3.video.getDisplays();
+    defer sdl3.free(displays);
+
+    try self.game.displays.ensureUnusedCapacity(self.gpa, displays.len);
+
+    const primary_display = try sdl3.video.Display.getPrimaryDisplay();
+
+    for (displays, 0..) |display, index| {
+        const bounds = try display.getBounds();
+
+        // According to SDL documentation, DPI is approximated by multiplying
+        // SDL_GetWindowDisplayScale() times 160 on iPhone and Android, and 96 on other platforms
+        const dpi_scale =
+            if (builtin.os.tag == .ios)
+                120
+            else if (builtin.abi.isAndroid())
+                120
+            else
+                96;
+
+        const dpi: f32 = try display.getContentScale() * dpi_scale;
+
+        const natural_orientation: sdl3.video.DisplayOrientation = display.getNaturalOrientation() orelse .landscape;
+        const current_orientation: sdl3.video.DisplayOrientation = display.getCurrentOrientation() orelse .landscape;
+
+        const renderite_orientation: renderite.Shared.RectOrientation = switch (natural_orientation) {
+            .landscape => switch (current_orientation) {
+                .landscape => .Default,
+                .landscape_flipped => .UpsideDown180,
+                .portrait => .Clockwise90,
+                .portrait_flipped => .CounterClockwise90,
+            },
+            .landscape_flipped => switch (current_orientation) {
+                .landscape => .UpsideDown180,
+                .landscape_flipped => .Default,
+                .portrait => .CounterClockwise90,
+                .portrait_flipped => .Clockwise90,
+            },
+            .portrait => switch (current_orientation) {
+                .landscape => .CounterClockwise90,
+                .landscape_flipped => .Clockwise90,
+                .portrait => .Default,
+                .portrait_flipped => .UpsideDown180,
+            },
+            .portrait_flipped => switch (current_orientation) {
+                .landscape => .Clockwise90,
+                .landscape_flipped => .CounterClockwise90,
+                .portrait => .UpsideDown180,
+                .portrait_flipped => .Default,
+            },
+        };
+
+        const display_mode = try display.getDesktopMode();
+
+        const renderite_display: renderite.Shared.DisplayState = .{
+            .offset = .{ .x = bounds.x, .y = bounds.y },
+            .displayIndex = @intCast(index),
+            .dpi = .{ .x = dpi, .y = dpi },
+            .isPrimary = display.value == primary_display.value,
+            .orientation = renderite_orientation,
+            .refreshRate = display_mode.refresh_rate orelse 60,
+            .resolution = .{ .x = @intCast(display_mode.width), .y = @intCast(display_mode.height) },
+        };
+        try self.game.displays.append(self.gpa, renderite_display);
+
+        log.debug("Got display {d} with size {d}x{d}", .{ index, display_mode.width, display_mode.height });
+    }
+}
+
 pub fn frameLoop(self: *App) !void {
     self.game.engine_thread = try .spawn(.{}, engineLoop, .{self});
 
     try self.messaging.host.start(self.gpa);
+
+    self.updateDisplays() catch |err| {
+        log.err("Failed to update displays, got err {s}", .{@errorName(err)});
+    };
 
     while (self.game.run_loop) {
         tracy.frameMark();
@@ -794,6 +876,18 @@ pub fn frameLoop(self: *App) !void {
                         if (window.id == self.window.window.getId() catch unreachable) {
                             self.beginExit();
                         }
+                    },
+                    .display_added,
+                    .display_content_scale_changed,
+                    .display_current_mode_changed,
+                    .display_desktop_mode_changed,
+                    .display_moved,
+                    .display_orientation,
+                    .display_removed,
+                    => {
+                        self.updateDisplays() catch |err| {
+                            log.err("Failed to update displays, got err {s}", .{@errorName(err)});
+                        };
                     },
                     else => {},
                 }
@@ -842,7 +936,7 @@ pub fn frameLoop(self: *App) !void {
                 try self.messaging.host.primary.send(.{ .FrameStartData = .{
                     .lastFrameIndex = self.game.last_frame_index,
                     .inputs = .{
-                        .displays = &.{},
+                        .displays = self.game.displays.items,
                         .gamepads = &.{},
                         .keyboard = null,
                         .mouse = null,
