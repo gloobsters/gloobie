@@ -251,7 +251,7 @@ pub const FrameContext = struct {
     copy_pass: ?gpu.CopyPass,
     transfer_buffer_pool: *TransferBufferPool,
     assets: *Assets,
-    texture_readiness_queue: std.ArrayListUnmanaged(Assets.AssetId),
+    texture_readiness_queue: std.ArrayListUnmanaged(Assets.TextureHandle),
     main_thread: bool,
     fence_manager: *App.FenceManager,
     messaging_host: *App.MessagingHost,
