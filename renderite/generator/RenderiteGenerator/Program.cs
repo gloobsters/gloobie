@@ -7,6 +7,10 @@ GCSettings.LatencyMode = GCLatencyMode.Batch;
 Parser.Default.ParseArguments<GeneratorOptions>(args)
     .WithParsed(o =>
     {
-        using Generator generator = new(o);
-        generator.Run();
+        using(Generator generator = new(o))
+        {
+            generator.Run();
+        }
+        
+        Zig.Format(o.OutputZigFile!);
     });
