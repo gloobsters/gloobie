@@ -72,6 +72,7 @@ pub const ToRenderLetter = union(enum) {
         command: renderite.ParsedCommand,
         queue_type: MessagingHost.QueueManager.Type,
     },
+    handle_output_state: renderite.Shared.OutputState,
 };
 
 pub const ToEngineMailbox = mailbox.MailBox(ToEngineLetter);
@@ -102,6 +103,7 @@ const MessagingData = struct {
                 .renderer_command => |renderer_command| {
                     renderer_command.command.arena.deinit();
                 },
+                .handle_output_state => {},
             }
 
             envelopes = envelope.next;
@@ -143,6 +145,7 @@ const LoadState = struct {
 
 const GameData = struct {
     run_loop: bool,
+    exiting: bool,
     head_output_device: renderite.Shared.HeadOutputDevice,
     main_process_pid: ?i32,
     load_state: LoadState,
@@ -157,8 +160,6 @@ const GameData = struct {
 
     held_keys: std.ArrayListUnmanaged(renderite.Shared.Key),
     type_delta: std.ArrayListUnmanaged(u16),
-
-    output_state: ?renderite.Shared.OutputState,
 
     pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
         if (self.engine_thread) |engine_thread| {
@@ -377,6 +378,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
         var game_data: GameData = .{
             .run_loop = true,
+            .exiting = false,
             .head_output_device = .UNKNOWN,
             .main_process_pid = null,
             .load_state = .{
@@ -397,7 +399,6 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .displays = .empty,
             .held_keys = held_keys,
             .type_delta = .empty,
-            .output_state = null,
         };
 
         // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -435,7 +436,15 @@ pub fn deinit(self: *App) void {
 }
 
 fn beginExit(self: *App) void {
-    self.game.run_loop = false;
+    if (self.game.load_state.full_init) {
+        self.game.exiting = true;
+        self.messaging.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {
+            log.warn("Failed to send shutdown request, exiting without waiting for engine", .{});
+            self.game.run_loop = false;
+        };
+    } else {
+        self.game.run_loop = false;
+    }
 }
 
 fn handleRendererCommand(
@@ -518,7 +527,7 @@ fn handleRendererCommand(
         },
         .RendererShutdown => |_| {
             log.debug("Engine is requesting that we shut down, beginning exit", .{});
-            self.beginExit();
+            self.game.run_loop = false;
         },
         .RendererInitFinalizeData => |_| {
             self.game.load_state.full_init = true;
@@ -638,6 +647,9 @@ fn handleMessages(self: *App, frame_context: *graphics.FrameContext) !void {
                     renderer_command.queue_type,
                 );
             },
+            .handle_output_state => |output_state| {
+                try self.applyOutputState(output_state);
+            },
         }
     }
 }
@@ -749,7 +761,7 @@ fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
     const frame_submit_data = message.command.FrameSubmitData;
 
     if (frame_submit_data.outputState) |output_state| {
-        self.game.output_state = output_state;
+        try self.sendLetterToMain(.{ .handle_output_state = output_state });
     }
 
     self.game.last_frame_index = frame_submit_data.frameIndex;
@@ -914,7 +926,12 @@ pub fn frameLoop(self: *App) !void {
 
                 switch (event) {
                     .quit => {
-                        self.beginExit();
+                        // try not to send duplicate quit messages.
+                        // this event usually comes after we've triggered an exit from window_close_requested
+                        // if we send 2 quit messages, the engine will force-exit unsafely.
+                        if (!self.game.exiting) {
+                            self.beginExit();
+                        }
                     },
                     .window_close_requested => |window| {
                         // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
@@ -1024,10 +1041,6 @@ pub fn frameLoop(self: *App) !void {
                     return err;
                 }
             };
-
-            if (self.game.output_state) |output_state| {
-                try self.applyOutputState(output_state);
-            }
 
             // handle any messages from the queues, happens before processing most of the frame/rendering
             try handleMessages(self, &frame_context);
