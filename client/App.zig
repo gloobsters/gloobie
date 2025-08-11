@@ -420,13 +420,19 @@ fn handleRendererCommand(
 
             var supported_formats_buf: [formats.len]renderite.Shared.TextureFormat = undefined;
             var i: usize = 0;
+            var eldritch_count: u32 = 0;
             for (formats) |format| {
                 if (supported_formats.contains(format)) {
-                    log.debug("Sending format {s} as supported", .{@tagName(format)});
+                    log.debug("Manifesting format {s} - the hardware accepts this offering", .{@tagName(format)});
                     supported_formats_buf[i] = format;
                     i += 1;
+                } else {
+                    // Count the formats that remain beyond our comprehension
+                    eldritch_count += 1;
                 }
             }
+            
+            log.info("Format manifestation complete: {d} formats bound to reality, {d} remain eldritch", .{ supported_formats_len, eldritch_count });
 
             var shmem_prefix = &self.messaging.shmem_prefix;
 

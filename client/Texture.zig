@@ -8,6 +8,38 @@ const graphics = @import("graphics.zig");
 
 const log = std.log.scoped(.texture);
 
+/// Eldritch texture error types - for when reality breaks down
+pub const EldritchError = error{
+    /// The format requested cannot be comprehended by our hardware
+    EldritchFormatIncomprehensible,
+    /// The texture has been consumed by the void
+    ConsumedByVoid,
+    /// Communication with the engine has been severed
+    EngineConnectionLost,
+    /// The texture has transcended our understanding
+    TranscendedMortalRealm,
+    /// GPU has descended into madness
+    GpuMadness,
+} || std.mem.Allocator.Error;
+
+/// Eldritch texture states - for when textures transcend mortal understanding
+pub const EldritchState = enum {
+    /// The texture exists in a comprehensible form
+    mortal,
+    /// Format is known but unsupported by our feeble hardware
+    incomprehensible_format,
+    /// Dimensions exceed human perception
+    non_euclidean_geometry,
+    /// The texture data whispers of forbidden knowledge
+    corrupted_manifestation,
+    /// GPU has given up trying to understand this entity
+    gpu_madness,
+    /// Communication with the engine has been severed
+    lost_in_void,
+    /// The texture has achieved enlightenment and no longer needs us
+    ascended,
+};
+
 const Texture = @This();
 
 const GraphicsData = struct {
@@ -25,11 +57,38 @@ const GraphicsData = struct {
     /// Stores whether a mipmap has data, all mipmaps must have valid data before texture can be used
     data_available: []bool,
     ready: bool,
+    /// Current eldritch state of this texture manifestation
+    eldritch_state: EldritchState,
+    /// Last communication attempt - helps us understand if He is listening
+    last_whisper: ?[]const u8,
 
     pub fn deinit(self: GraphicsData, gpa: std.mem.Allocator, device: gpu.Device) void {
         device.releaseTexture(self.texture);
         device.releaseSampler(self.sampler);
         gpa.free(self.data_available);
+        if (self.last_whisper) |whisper| {
+            gpa.free(whisper);
+        }
+    }
+
+    /// Record an eldritch event with the texture
+    pub fn whisperToTheVoid(self: *GraphicsData, gpa: std.mem.Allocator, state: EldritchState, message: []const u8) !void {
+        if (self.last_whisper) |old_whisper| {
+            gpa.free(old_whisper);
+        }
+        self.last_whisper = try gpa.dupe(u8, message);
+        self.eldritch_state = state;
+        
+        // Log the manifestation's current state
+        switch (state) {
+            .mortal => log.debug("Texture manifestation remains comprehensible: {s}", .{message}),
+            .incomprehensible_format => log.warn("Texture speaks in tongues unknown to our hardware: {s}", .{message}),
+            .non_euclidean_geometry => log.warn("Texture dimensions transcend mortal understanding: {s}", .{message}),
+            .corrupted_manifestation => log.err("The texture data whispers of forbidden knowledge: {s}", .{message}),
+            .gpu_madness => log.err("GPU has descended into madness trying to comprehend: {s}", .{message}),
+            .lost_in_void => log.err("Lost all communication with the engine about: {s}", .{message}),
+            .ascended => log.info("Texture has achieved enlightenment and no longer needs us: {s}", .{message}),
+        }
     }
 };
 
@@ -162,11 +221,38 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         graphics_data.deinit(gpa, frame_context.device);
     }
 
-    const texture_format = renderiteFormatToGpuFormat(renderite_format.format, renderite_format.profile) orelse {
-        std.debug.assert(false);
-
-        return error.InvalidFormat;
+    // Use enhanced format diagnostics to understand what we're dealing with
+    const format_result = renderiteFormatToGpuFormatWithDiagnostics(renderite_format.format, renderite_format.profile);
+    const texture_format = format_result.format orelse {
+        // We cannot comprehend this format - let the engine know of our limitations
+        log.err("Cannot manifest texture format {s}/{s} for asset {d}: {s}", .{
+            @tagName(renderite_format.format),
+            @tagName(renderite_format.profile),
+            renderite_format.assetId,
+            format_result.whisper,
+        });
+        
+        // Still try to communicate our failure to the engine
+        try frame_context.messaging_host.background.send(.{
+            .SetTexture2DResult = .{
+                .assetId = renderite_format.assetId,
+                .instanceChanged = false,
+                .type = .PropertiesSet, // We couldn't even set the format, much less properties
+            },
+        });
+        
+        return EldritchError.EldritchFormatIncomprehensible;
     };
+
+    // Check for non-euclidean geometry that might drive the GPU mad
+    const max_dimension = @max(renderite_format.width, renderite_format.height);
+    if (max_dimension > 16384) {
+        log.warn("Texture dimensions {d}x{d} approach the realm of non-euclidean geometry for asset {d}", .{
+            renderite_format.width,
+            renderite_format.height,
+            renderite_format.assetId,
+        });
+    }
 
     var texture_name_buf: [64]u8 = undefined;
     // SAFETY: it's big enough
@@ -221,7 +307,20 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         },
         .data_available = data_available,
         .ready = false,
+        .eldritch_state = if (max_dimension > 16384) .non_euclidean_geometry else .mortal,
+        .last_whisper = null,
     };
+
+    // Whisper to the void about our successful manifestation
+    if (self.graphics_data) |*graphics_data| {
+        const whisper_message = if (max_dimension > 16384)
+            try std.fmt.allocPrint(gpa, "Texture {d} manifested with dimensions that strain reality: {d}x{d}", .{ renderite_format.assetId, renderite_format.width, renderite_format.height })
+        else
+            try std.fmt.allocPrint(gpa, "Texture {d} successfully manifested in comprehensible form", .{renderite_format.assetId});
+        
+        try graphics_data.whisperToTheVoid(gpa, graphics_data.eldritch_state, whisper_message);
+        gpa.free(whisper_message);
+    }
 
     try frame_context.messaging_host.background.send(.{
         .SetTexture2DResult = .{
@@ -299,6 +398,8 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         },
         .data_available = data_available,
         .ready = false,
+        .eldritch_state = .mortal,
+        .last_whisper = null,
     };
 
     try frame_context.messaging_host.background.send(.{
@@ -381,6 +482,8 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
         },
         .data_available = data_available,
         .ready = false,
+        .eldritch_state = .mortal,
+        .last_whisper = null,
     };
 
     try frame_context.messaging_host.background.send(.{
@@ -399,14 +502,20 @@ pub fn setData2d(
     data: renderite.Shared.SetTexture2DData,
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
-    const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
+    const data_slice = try accessor.getOrCreate(gpa, data.data) orelse {
+        if (self.graphics_data) |*graphics_data| {
+            const whisper_msg = try std.fmt.allocPrint(gpa, "The shared memory buffer has vanished from our realm for asset {d}", .{data.assetId});
+            try graphics_data.whisperToTheVoid(gpa, .lost_in_void, whisper_msg);
+            gpa.free(whisper_msg);
+        }
+        return error.MissingBuffer;
+    };
     defer data_slice.release(accessor);
 
     std.debug.print("Texture2D upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
         log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
-
         return error.TextureMissingGraphicsData;
     }
 
@@ -419,13 +528,33 @@ pub fn setData2d(
     const num_mips: u32 = @intCast(data.mipMapSizes.len);
 
     if (num_mips == 0) {
+        const whisper_msg = try std.fmt.allocPrint(gpa, "FrooxEngine sent texture upload with no mipmaps for asset {d} - the void consumes all", .{data.assetId});
+        try graphics_data.whisperToTheVoid(gpa, .corrupted_manifestation, whisper_msg);
+        gpa.free(whisper_msg);
         log.warn("FE sent a texture upload with no mips!", .{});
         return;
     }
 
+    // Validate the data integrity - corrupted textures can drive the GPU to madness
     var total_memory_needed: u32 = 0;
     for (data.mipMapSizes) |mipmap_size| {
-        total_memory_needed += gpu_format.calculateSize(@intCast(mipmap_size.x), @intCast(mipmap_size.y), 1);
+        const calculated_size = gpu_format.calculateSize(@intCast(mipmap_size.x), @intCast(mipmap_size.y), 1);
+        total_memory_needed += calculated_size;
+        
+        // Check for impossibly small or large mipmaps
+        if (mipmap_size.x == 0 or mipmap_size.y == 0) {
+            const whisper_msg = try std.fmt.allocPrint(gpa, "Mipmap with zero dimensions detected for asset {d} - reality tears at the edges", .{data.assetId});
+            try graphics_data.whisperToTheVoid(gpa, .non_euclidean_geometry, whisper_msg);
+            gpa.free(whisper_msg);
+        }
+    }
+
+    // Check if we have enough data to satisfy our hunger
+    if (data_slice.data.len < total_memory_needed) {
+        const whisper_msg = try std.fmt.allocPrint(gpa, "Insufficient texture data for asset {d}: need {d} bytes but only have {d} - the manifestation is incomplete", .{ data.assetId, total_memory_needed, data_slice.data.len });
+        try graphics_data.whisperToTheVoid(gpa, .corrupted_manifestation, whisper_msg);
+        gpa.free(whisper_msg);
+        return error.BadDataGiven;
     }
 
     const copy_pass = try frame_context.getSharedCopyPass();
@@ -486,11 +615,26 @@ pub fn setData2d(
 
         var all_ready: bool = true;
         for (graphics_data.data_available) |available| {
-            all_ready |= available;
+            all_ready = all_ready and available; // Fixed logic - was using |= instead of &&
         }
 
         if (all_ready) {
             try frame_context.texture_readiness_queue.append(gpa, .from(data.assetId));
+            
+            // The texture has achieved its final form - whisper of our success
+            const whisper_msg = try std.fmt.allocPrint(gpa, "Asset {d} has achieved full manifestation with all {d} mipmaps bound to reality", .{ data.assetId, graphics_data.data_available.len });
+            try graphics_data.whisperToTheVoid(gpa, .ascended, whisper_msg);
+            gpa.free(whisper_msg);
+        } else {
+            // Still waiting for more data - track our progress
+            var ready_count: u32 = 0;
+            for (graphics_data.data_available) |available| {
+                if (available) ready_count += 1;
+            }
+            
+            const whisper_msg = try std.fmt.allocPrint(gpa, "Asset {d} partially manifested: {d}/{d} mipmaps bound", .{ data.assetId, ready_count, graphics_data.data_available.len });
+            try graphics_data.whisperToTheVoid(gpa, .mortal, whisper_msg);
+            gpa.free(whisper_msg);
         }
     }
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
@@ -688,6 +832,47 @@ pub fn setDataCubemap(
     });
 }
 
+/// Enhanced format conversion with eldritch awareness
+/// Returns the format if the gods permit it, otherwise whispers why they do not
+pub const FormatConversionResult = struct {
+    format: ?gpu.TextureFormat,
+    eldritch_state: EldritchState,
+    whisper: []const u8,
+};
+
+pub fn renderiteFormatToGpuFormatWithDiagnostics(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) FormatConversionResult {
+    const gpu_format = renderiteFormatToGpuFormat(format, profile);
+    
+    if (gpu_format == null) {
+        // Classify the reason for our failure to comprehend
+        const state_and_message = switch (format) {
+            .Unknown => .{ .incomprehensible_format, "The texture speaks in tongues we cannot decipher" },
+            .RGB24, .ARGB32, .ARGBHalf, .ARGBFloat => .{ .incomprehensible_format, "Format known but our implementation lacks the knowledge to manifest it" },
+            .RGB565 => if (profile == .sRGB or profile == .sRGBAlpha) 
+                .{ .incomprehensible_format, "RGB565 with sRGB - the hardware rejects this combination" }
+            else 
+                .{ .incomprehensible_format, "RGB565 linear format awaits implementation" },
+            .ETC2_RGB, .ETC2_RGBA1, .ETC2_RGBA8 => .{ .incomprehensible_format, "ETC2 formats - the mobile realm's forbidden knowledge" },
+            .Alpha8, .R8 => if (profile == .sRGB or profile == .sRGBAlpha)
+                .{ .incomprehensible_format, "Single channel sRGB - a paradox our GPU cannot resolve" }
+            else
+                .{ .mortal, "Single channel linear format should be supported" },
+            else => .{ .incomprehensible_format, "Format exists in theory but eludes our grasp" },
+        };
+        
+        return .{
+            .format = null,
+            .eldritch_state = state_and_message[0],
+            .whisper = state_and_message[1],
+        };
+    }
+    
+    return .{
+        .format = gpu_format,
+        .eldritch_state = .mortal,
+        .whisper = "Format successfully bound to our reality",
+    };
+}
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {
     // TODO: Add all missing formats to GPU
     return switch (profile) {
@@ -921,4 +1106,106 @@ pub fn blockSize(format: renderite.Shared.TextureFormat) struct { u32, u32 } {
 
         .Unknown => @panic("invalid texture format"),
     };
+}
+
+/// Listen to the whispers from the void - diagnostics for debugging eldritch texture states
+pub fn diagnosticWhispers(self: *const Texture, gpa: std.mem.Allocator) ![]const u8 {
+    if (self.graphics_data == null) {
+        return try gpa.dupe(u8, "Texture exists only in the ethereal realm - no GPU manifestation");
+    }
+    
+    const graphics_data = &self.graphics_data.?;
+    
+    var diagnostics = std.ArrayList(u8).init(gpa);
+    defer diagnostics.deinit();
+    
+    const writer = diagnostics.writer();
+    
+    try writer.print("=== Eldritch Texture Diagnostics ===\n");
+    try writer.print("Current State: {s}\n", .{@tagName(graphics_data.eldritch_state)});
+    
+    if (graphics_data.last_whisper) |whisper| {
+        try writer.print("Last Whisper: {s}\n", .{whisper});
+    } else {
+        try writer.print("Last Whisper: The void is silent\n");
+    }
+    
+    try writer.print("Dimensions: {d}x{d}x{d}\n", .{graphics_data.width, graphics_data.height, graphics_data.depth});
+    try writer.print("Format: {s}/{s}\n", .{@tagName(graphics_data.texture_format), @tagName(graphics_data.profile)});
+    try writer.print("Mipmaps: {d}\n", .{graphics_data.mipmap_count});
+    try writer.print("Ready: {s}\n", .{if (graphics_data.ready) "Yes" else "No"});
+    
+    // Count available mipmaps
+    var ready_mipmaps: u32 = 0;
+    for (graphics_data.data_available) |available| {
+        if (available) ready_mipmaps += 1;
+    }
+    try writer.print("Mipmap Manifestation: {d}/{d} bound to reality\n", .{ready_mipmaps, graphics_data.data_available.len});
+    
+    // Check for concerning patterns
+    if (graphics_data.width * graphics_data.height > 16384 * 16384) {
+        try writer.print("WARNING: Texture size approaches the limits of mortal comprehension\n");
+    }
+    
+    if (graphics_data.mipmap_count > 15) {
+        try writer.print("WARNING: Excessive mipmap depth may strain the fabric of reality\n");
+    }
+    
+    return try gpa.dupe(u8, diagnostics.items);
+}
+
+/// Check if we can commune with this texture or if it has ascended beyond our reach
+pub fn canCommunicate(self: *const Texture) bool {
+    if (self.graphics_data == null) return false;
+    
+    const state = self.graphics_data.?.eldritch_state;
+    return state == .mortal or state == .ascended;
+}
+
+/// Attempt to restore communication with a lost texture
+pub fn attemptReconnection(self: *Texture, gpa: std.mem.Allocator) !void {
+    if (self.graphics_data) |*graphics_data| {
+        if (graphics_data.eldritch_state == .lost_in_void) {
+            const whisper_msg = try gpa.dupe(u8, "Attempting to reestablish communication with the engine");
+            try graphics_data.whisperToTheVoid(gpa, .mortal, whisper_msg);
+            gpa.free(whisper_msg);
+        }
+    }
+}
+
+// Tests for eldritch texture functionality
+test "eldritch state transitions" {
+    const testing = std.testing;
+    
+    // Test the format diagnostics
+    const unknown_result = renderiteFormatToGpuFormatWithDiagnostics(.Unknown, .Linear);
+    try testing.expect(unknown_result.format == null);
+    try testing.expect(unknown_result.eldritch_state == .incomprehensible_format);
+    
+    const supported_result = renderiteFormatToGpuFormatWithDiagnostics(.RGBA32, .Linear);
+    try testing.expect(supported_result.format != null);
+    try testing.expect(supported_result.eldritch_state == .mortal);
+}
+
+test "eldritch texture diagnostics" {
+    const testing = std.testing;
+    var gpa = testing.allocator;
+    
+    var texture: Texture = .{
+        .properties = .{
+            .filter_mode = .Bilinear,
+            .aniso_level = 1,
+            .wrap_u = .Clamp,
+            .wrap_v = .Clamp,
+            .wrap_w = .Clamp,
+            .mipmap_bias = 0,
+            .type = .Texture2D,
+        },
+        .graphics_data = null,
+    };
+    
+    const diagnostics = try texture.diagnosticWhispers(gpa);
+    defer gpa.free(diagnostics);
+    
+    try testing.expect(std.mem.indexOf(u8, diagnostics, "ethereal realm") != null);
 }
