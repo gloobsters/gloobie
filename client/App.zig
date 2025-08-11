@@ -522,6 +522,17 @@ fn handleRendererCommand(
                 std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
             }
         },
+        inline .UnloadTexture2D, .UnloadTexture3D, .UnloadCubemap => |unload_texture, tag| {
+            try self.assets.unloadTexture(.{
+                .id = .from(unload_texture.assetId),
+                .type = switch (tag) {
+                    .UnloadTexture2D => .Texture2D,
+                    .UnloadTexture3D => .Texture3D,
+                    .UnloadCubemap => .Cubemap,
+                    else => @compileError("Unhandled usecase"),
+                },
+            }, self.gpa, self.graphics_data.device);
+        },
         .FrameSubmitData => |frame_submit_data| {
             // threading shenanigans!!
             std.debug.assert(queue_type == .primary);
@@ -630,9 +641,9 @@ fn imguiFillTextures(self: *App, texture_type: Texture.Type) void {
 
         defer imgui.separator();
 
-        const id, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
+        const handle, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
 
-        imgui.c.igText("Texture %d", @intFromEnum(id));
+        imgui.c.igText("%s %d", @tagName(handle.type).ptr, @intFromEnum(handle.id));
         imgui.c.igText("Filter Mode: %s", @tagName(texture.properties.filter_mode).ptr);
         imgui.c.igText("Anisotropicsy Level: %d", texture.properties.aniso_level);
         imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.properties.wrap_u).ptr, @tagName(texture.properties.wrap_v).ptr);

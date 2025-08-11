@@ -501,7 +501,10 @@ pub fn setData2d(
         }
 
         if (all_ready) {
-            try frame_context.texture_readiness_queue.append(gpa, .from(data.assetId));
+            try frame_context.texture_readiness_queue.append(gpa, .{
+                .id = .from(data.assetId),
+                .type = .Texture2D,
+            });
         }
     }
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
@@ -577,6 +580,10 @@ pub fn setData3d(
 
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
 
+    try frame_context.texture_readiness_queue.append(gpa, .{
+        .id = .from(data.assetId),
+        .type = .Texture3D,
+    });
     try frame_context.messaging_host.background.send(.{
         .SetTexture3DResult = .{
             .assetId = data.assetId,
@@ -634,48 +641,59 @@ pub fn setDataCubemap(
             defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
 
             var write_ptr = transfer_buffer_memory;
-            for (data.mipStarts) |face_mip_starts| {
-                for (face_mip_starts, data.mipMapSizes) |face_mip_start, mip_pixel_size| {
-                    const face_pixel_start: u32 = @intCast(face_mip_start);
-                    const face_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
 
-                    const face_byte_start = pixelToByte(face_pixel_start, graphics_data.texture_format);
+            for (0..6) |face_idx| {
+                const face_mip_starts = data.mipStarts[face_idx];
 
-                    @memcpy(write_ptr, data_slice.data[face_byte_start .. face_byte_start + face_byte_size]);
+                for (data.mipMapSizes, 0..) |raw_mipmap_pixel_size, mip_index| {
+                    const mipmap_pixel_size = alignSize(
+                        graphics_data.texture_format,
+                        .{ @intCast(raw_mipmap_pixel_size.x), @intCast(raw_mipmap_pixel_size.y) },
+                    );
 
-                    write_ptr += face_byte_size;
+                    const num_pixels = mipmap_pixel_size[0] * mipmap_pixel_size[1];
+                    const byte_start_offset = pixelToByte(@intCast(face_mip_starts[mip_index]), graphics_data.texture_format);
+                    const num_bytes = pixelToByte(num_pixels, graphics_data.texture_format);
+
+                    @memcpy(write_ptr, data_slice.data[byte_start_offset..(byte_start_offset + num_bytes)]);
+
+                    write_ptr += num_bytes;
                 }
             }
         }
 
         var cycle: bool = true;
         var read_offset: u32 = 0;
-        for (0..6) |face| {
-            for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, mip_pixel_size| {
-                const face_byte_size = gpu_format.calculateSize(@intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y), 1);
+        for (0..6) |face_idx| {
+            for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, raw_mipmap_pixel_size| {
+                const mipmap_pixel_size = alignSize(
+                    graphics_data.texture_format,
+                    .{ @intCast(raw_mipmap_pixel_size.x), @intCast(raw_mipmap_pixel_size.y) },
+                );
 
-                const aligned_pixel_size = alignSize(graphics_data.texture_format, .{ @intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y) });
+                const num_pixels = mipmap_pixel_size[0] * mipmap_pixel_size[1];
+                const num_bytes = pixelToByte(num_pixels, graphics_data.texture_format);
 
                 copy_pass.uploadToTexture(.{
                     .offset = read_offset,
-                    .pixels_per_row = aligned_pixel_size[0],
-                    .rows_per_layer = aligned_pixel_size[1],
+                    .pixels_per_row = mipmap_pixel_size[0],
+                    .rows_per_layer = mipmap_pixel_size[1],
                     .transfer_buffer = transfer_buffer_entry.transfer_buffer,
                 }, .{
                     .depth = 1,
-                    .width = @intCast(mip_pixel_size.x),
-                    .height = @intCast(mip_pixel_size.y),
+                    .width = @intCast(raw_mipmap_pixel_size.x),
+                    .height = @intCast(raw_mipmap_pixel_size.y),
                     .mip_level = @intCast(mip_level),
-                    .layer = @intCast(face),
+                    .layer = @intCast(face_idx),
                     .texture = graphics_data.texture,
                 }, cycle);
 
-                read_offset += face_byte_size;
+                read_offset += num_bytes;
 
                 // don't cycle twice!
                 cycle = false;
 
-                graphics_data.data_available[(mip_level * 6) + face] = true;
+                graphics_data.data_available[(mip_level * 6) + face_idx] = true;
             }
         }
 
@@ -685,7 +703,10 @@ pub fn setDataCubemap(
         }
 
         if (all_ready) {
-            try frame_context.texture_readiness_queue.append(gpa, .from(data.assetId));
+            try frame_context.texture_readiness_queue.append(gpa, .{
+                .id = .from(data.assetId),
+                .type = .Cubemap,
+            });
         }
     }
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);

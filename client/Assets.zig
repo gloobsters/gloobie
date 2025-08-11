@@ -22,24 +22,29 @@ pub const AssetId = enum(i32) {
     }
 };
 
+pub const TextureHandle = packed struct(u64) {
+    id: AssetId,
+    type: Texture.Type,
+};
+
 const TextureReadyFenceHandlerContext = struct {
     gpa: std.mem.Allocator,
     assets: *Assets,
-    textures: []const AssetId,
+    textures: []const TextureHandle,
 };
 
 fn textureReadyHandler(context: TextureReadyFenceHandlerContext) !void {
     context.assets.lock.lock();
     defer context.assets.lock.unlock();
 
-    for (context.textures) |texture_id| {
+    for (context.textures) |texture_info| {
         // SAFETY: textures should never be de-init by this moment!
-        const texture = context.assets.textures.getPtr(texture_id).?;
+        const texture = context.assets.textures.getPtr(texture_info).?;
 
         // SAFETY: texture should have graphics data right now!
         texture.graphics_data.?.ready = true;
 
-        log.debug("Texture {d} is now ready!", .{texture_id.to()});
+        log.debug("{s} {d} is now ready!", .{ @tagName(texture_info.type), texture_info.id.to() });
     }
 }
 
@@ -50,7 +55,7 @@ fn deinitTextureReadyHandler(context: TextureReadyFenceHandlerContext) void {
 pub const TextureReadyFenceHandler = graphics.FenceHandler(TextureReadyFenceHandlerContext, textureReadyHandler, deinitTextureReadyHandler, "texture_ready_handler");
 
 lock: std.Thread.RwLock,
-textures: std.AutoHashMapUnmanaged(AssetId, Texture),
+textures: std.AutoHashMapUnmanaged(TextureHandle, Texture),
 
 pub const empty: Assets = .{
     .lock = .{},
@@ -85,7 +90,10 @@ pub fn setTexture2dPropertiesOrCreate(
     self.lock.lock();
     defer self.lock.unlock();
 
-    const result = try self.textures.getOrPut(gpa, .from(properties.assetId));
+    const result = try self.textures.getOrPut(gpa, .{
+        .id = .from(properties.assetId),
+        .type = .Texture2D,
+    });
 
     const texture = result.value_ptr;
     if (result.found_existing) {
@@ -106,7 +114,10 @@ pub fn setTexture2dFormat(
     self.lock.lock();
     defer self.lock.unlock();
 
-    const texture = self.textures.getPtr(.from(format.assetId)) orelse return error.MissingAsset;
+    const texture = self.textures.getPtr(.{
+        .id = .from(format.assetId),
+        .type = .Texture2D,
+    }) orelse return error.MissingAsset;
 
     try texture.setFormat2d(gpa, frame_context, format);
 
@@ -126,7 +137,10 @@ pub fn setTexture2dData(
     data: renderite.Shared.SetTexture2DData,
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
-    const texture = self.textures.getPtr(.from(data.assetId)) orelse return error.MissingAsset;
+    const texture = self.textures.getPtr(.{
+        .id = .from(data.assetId),
+        .type = .Texture2D,
+    }) orelse return error.MissingAsset;
 
     try texture.setData2d(gpa, frame_context, data, accessor);
 }
@@ -140,7 +154,10 @@ pub fn setTexture3dPropertiesOrCreate(
     self.lock.lock();
     defer self.lock.unlock();
 
-    const result = try self.textures.getOrPut(gpa, .from(properties.assetId));
+    const result = try self.textures.getOrPut(gpa, .{
+        .id = .from(properties.assetId),
+        .type = .Texture3D,
+    });
 
     const texture = result.value_ptr;
     if (result.found_existing) {
@@ -161,7 +178,10 @@ pub fn setTexture3dFormat(
     self.lock.lock();
     defer self.lock.unlock();
 
-    const texture = self.textures.getPtr(.from(format.assetId)) orelse return error.MissingAsset;
+    const texture = self.textures.getPtr(.{
+        .id = .from(format.assetId),
+        .type = .Texture3D,
+    }) orelse return error.MissingAsset;
 
     try texture.setFormat3d(gpa, frame_context, format);
 
@@ -182,7 +202,10 @@ pub fn setTexture3dData(
     data: renderite.Shared.SetTexture3DData,
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
-    const texture = self.textures.getPtr(.from(data.assetId)) orelse return error.MissingAsset;
+    const texture = self.textures.getPtr(.{
+        .id = .from(data.assetId),
+        .type = .Texture3D,
+    }) orelse return error.MissingAsset;
 
     try texture.setData3d(gpa, frame_context, data, accessor);
 }
@@ -196,7 +219,10 @@ pub fn setCubemapPropertiesOrCreate(
     self.lock.lock();
     defer self.lock.unlock();
 
-    const result = try self.textures.getOrPut(gpa, .from(properties.assetId));
+    const result = try self.textures.getOrPut(gpa, .{
+        .id = .from(properties.assetId),
+        .type = .Cubemap,
+    });
 
     const texture = result.value_ptr;
     if (result.found_existing) {
@@ -217,7 +243,10 @@ pub fn setCubemapFormat(
     self.lock.lock();
     defer self.lock.unlock();
 
-    const texture = self.textures.getPtr(.from(format.assetId)) orelse return error.MissingAsset;
+    const texture = self.textures.getPtr(.{
+        .id = .from(format.assetId),
+        .type = .Cubemap,
+    }) orelse return error.MissingAsset;
 
     try texture.setFormatCubemap(gpa, frame_context, format);
 
@@ -236,7 +265,24 @@ pub fn setCubemapData(
     data: renderite.Shared.SetCubemapData,
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
-    const texture = self.textures.getPtr(.from(data.assetId)) orelse return error.MissingAsset;
+    const texture = self.textures.getPtr(.{
+        .id = .from(data.assetId),
+        .type = .Cubemap,
+    }) orelse return error.MissingAsset;
 
     try texture.setDataCubemap(gpa, frame_context, data, accessor);
+}
+
+pub fn unloadTexture(self: *Assets, texture_handle: TextureHandle, gpa: std.mem.Allocator, device: gpu.Device) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    const texture = self.textures.get(texture_handle) orelse return error.MissingAsset;
+
+    log.debug("Unloading {s} ({d}) of type {s}", .{ @tagName(texture_handle.type), texture_handle.id.to(), @tagName(texture.properties.type) });
+
+    texture.deinit(gpa, device);
+
+    const removed = self.textures.remove(texture_handle);
+    std.debug.assert(removed);
 }
