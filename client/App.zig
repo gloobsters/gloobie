@@ -143,6 +143,7 @@ const LoadState = struct {
 
 const GameData = struct {
     run_loop: bool,
+    exiting: bool,
     head_output_device: renderite.Shared.HeadOutputDevice,
     main_process_pid: ?i32,
     load_state: LoadState,
@@ -377,6 +378,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
         var game_data: GameData = .{
             .run_loop = true,
+            .exiting = false,
             .head_output_device = .UNKNOWN,
             .main_process_pid = null,
             .load_state = .{
@@ -435,7 +437,15 @@ pub fn deinit(self: *App) void {
 }
 
 fn beginExit(self: *App) void {
-    self.game.run_loop = false;
+    if (self.game.load_state.full_init) {
+        self.game.exiting = true;
+        self.messaging.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {
+            log.warn("Failed to send shutdown request, exiting without waiting for engine", .{});
+            self.game.run_loop = false;
+        };
+    } else {
+        self.game.run_loop = false;
+    }
 }
 
 fn handleRendererCommand(
@@ -518,7 +528,7 @@ fn handleRendererCommand(
         },
         .RendererShutdown => |_| {
             log.debug("Engine is requesting that we shut down, beginning exit", .{});
-            self.beginExit();
+            self.game.run_loop = false;
         },
         .RendererInitFinalizeData => |_| {
             self.game.load_state.full_init = true;
@@ -914,7 +924,12 @@ pub fn frameLoop(self: *App) !void {
 
                 switch (event) {
                     .quit => {
-                        self.beginExit();
+                        // try not to send duplicate quit messages.
+                        // this event usually comes after we've triggered an exit from window_close_requested
+                        // if we send 2 quit messages, the engine will force-exit unsafely.
+                        if (!self.game.exiting) {
+                            self.beginExit();
+                        }
                     },
                     .window_close_requested => |window| {
                         // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
