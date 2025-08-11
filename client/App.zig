@@ -822,20 +822,21 @@ pub fn frameLoop(self: *App) !void {
                 &self.messaging.host,
             );
 
-            // handle any messages from the queues, happens before processing most of the frame/rendering
-            try handleMessages(self, &frame_context);
-
-            var send_frame = true;
-            self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 10) catch |err| {
+            var begin_new_frame = true;
+            self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
                 if (err == error.Timeout) {
-                    send_frame = false;
+                    begin_new_frame = false;
+                    log.debug("Engine running really slow, no new frame :(", .{});
                 } else {
                     return err;
                 }
             };
 
+            // handle any messages from the queues, happens before processing most of the frame/rendering
+            try handleMessages(self, &frame_context);
+
             // send a frame start if the engine thread is waiting for us to do so
-            if (self.game.load_state.full_init and send_frame) {
+            if (self.game.load_state.full_init and begin_new_frame) {
                 try self.messaging.host.primary.send(.{ .FrameStartData = .{
                     .lastFrameIndex = self.game.last_frame_index,
                     .inputs = .{
