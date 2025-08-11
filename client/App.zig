@@ -56,6 +56,9 @@ const WindowData = struct {
     window: sdl3.video.Window,
     swapchain_format: gpu.TextureFormat,
 
+    fullscreen: bool,
+    focus: bool,
+
     pub fn deinit(self: WindowData) void {
         self.window.deinit();
     }
@@ -228,6 +231,8 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         break :create_window_data .{
             .window = window,
             .swapchain_format = undefined,
+            .fullscreen = false,
+            .focus = false,
         };
     };
     errdefer window_data.deinit();
@@ -844,6 +849,12 @@ fn updateDisplays(self: *App) !void {
     }
 }
 
+fn updateWindowState(self: *App) !void {
+    self.game.window_state = .{
+        .isFullscreen = self.window.fullscreen,
+    };
+}
+
 pub fn frameLoop(self: *App) !void {
     self.game.engine_thread = try .spawn(.{}, engineLoop, .{self});
 
@@ -889,6 +900,18 @@ pub fn frameLoop(self: *App) !void {
                             log.err("Failed to update displays, got err {s}", .{@errorName(err)});
                         };
                     },
+                    .window_enter_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.fullscreen = true;
+                    },
+                    .window_leave_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.fullscreen = false;
+                    },
+                    .window_focus_gained => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.focus = true;
+                    },
+                    .window_focus_lost => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.focus = false;
+                    },
                     else => {},
                 }
             }
@@ -931,28 +954,6 @@ pub fn frameLoop(self: *App) !void {
             // handle any messages from the queues, happens before processing most of the frame/rendering
             try handleMessages(self, &frame_context);
 
-            // send a frame start if the engine thread is waiting for us to do so
-            if (self.game.load_state.full_init and begin_new_frame) {
-                try self.messaging.host.primary.send(.{ .FrameStartData = .{
-                    .lastFrameIndex = self.game.last_frame_index,
-                    .inputs = .{
-                        .displays = self.game.displays.items,
-                        .gamepads = &.{},
-                        .keyboard = null,
-                        .mouse = null,
-                        .touches = &.{},
-                        .vr = null,
-                        .window = null,
-                    },
-                    .performance = null,
-                    .renderedReflectionProbes = &.{},
-                } });
-
-                log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
-
-                self.game.engine_thread_ready_for_begin_frame.reset();
-            }
-
             const swapchain_texture_result = acquire_swapchain_texture: {
                 const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
                 defer trace.end();
@@ -961,8 +962,39 @@ pub fn frameLoop(self: *App) !void {
             };
             const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
 
-            _ = swapchain_height;
-            _ = swapchain_width;
+            // send a frame start if the engine thread is waiting for us to do so
+            if (self.game.load_state.full_init and begin_new_frame) {
+                try self.messaging.host.primary.send(.{
+                    .FrameStartData = .{
+                        .lastFrameIndex = self.game.last_frame_index,
+                        .inputs = .{
+                            .displays = self.game.displays.items,
+                            .gamepads = &.{},
+                            .keyboard = null,
+                            .mouse = null,
+                            .touches = &.{},
+                            .vr = null,
+                            .window = .{
+                                .isFullscreen = self.window.fullscreen,
+                                .isWindowFocused = self.window.focus,
+                                .dragAndDropEvent = null,
+                                // TODO: should this be window size or swapchain size?
+                                .windowResolution = .{
+                                    .x = @intCast(swapchain_width),
+                                    .y = @intCast(swapchain_height),
+                                },
+                                .resolutionSettingsApplied = false,
+                            },
+                        },
+                        .performance = null,
+                        .renderedReflectionProbes = &.{},
+                    },
+                });
+
+                log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
+
+                self.game.engine_thread_ready_for_begin_frame.reset();
+            }
 
             // end frame context, frame is over
             try frame_context.end(self.gpa);
