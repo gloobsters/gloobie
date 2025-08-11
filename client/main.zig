@@ -66,10 +66,6 @@ fn start() !void {
         var bootstrap = try renderite.Bootstrap.init(args, gpa);
         errdefer bootstrap.deinit(gpa);
 
-        if (args.len <= 1) {
-            log.info("Started without args, bootstrapping Resonite...", .{});
-        }
-
         break :init_bootstrap bootstrap;
     };
 

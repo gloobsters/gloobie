@@ -16,7 +16,7 @@ init_settings: InitSettings,
 
 pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
     if (args.len > 1 and std.mem.eql(u8, args[1], "-QueueName")) {
-        log.debug("Skipping bootstrap logic, as we've been invoked directly from FE.", .{});
+        log.info("Launched from renderer, starting up!", .{});
         // If the renderer is launching us directly, we need no special logic.
         return .{
             .queue_in = null,
@@ -25,7 +25,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
             .init_settings = try InitSettings.init(args),
         };
     } else {
-        log.debug("Renderer args not detected, beginning bootstrap process.", .{});
+        log.info("Bootstrapping Resonite...", .{});
         var prefix: [16]u8 = undefined;
         try initPrefix(&prefix);
 
@@ -61,7 +61,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
         log.debug("Sending init message: {s}", .{msg});
         try queue_out.enqueue(msg);
 
-        log.debug("Waiting for Resonite to say hello...", .{});
+        log.info("Waiting for Resonite to say hello...", .{});
         const message = try queue_in.dequeue(gpa);
         defer gpa.free(message);
         log.debug("Received queue message! '{s}'", .{message});
@@ -79,6 +79,8 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
         }
 
         const init_settings = try InitSettings.init(parts[0..max_part]);
+
+        log.info("Resonite launched, Starting up!", .{});
 
         const bootstrap: Bootstrap = .{
             .queue_in = queue_in,
