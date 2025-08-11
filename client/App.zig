@@ -72,6 +72,7 @@ pub const ToRenderLetter = union(enum) {
         command: renderite.ParsedCommand,
         queue_type: MessagingHost.QueueManager.Type,
     },
+    handle_output_state: renderite.Shared.OutputState,
 };
 
 pub const ToEngineMailbox = mailbox.MailBox(ToEngineLetter);
@@ -102,6 +103,7 @@ const MessagingData = struct {
                 .renderer_command => |renderer_command| {
                     renderer_command.command.arena.deinit();
                 },
+                .handle_output_state => {},
             }
 
             envelopes = envelope.next;
@@ -157,8 +159,6 @@ const GameData = struct {
 
     held_keys: std.ArrayListUnmanaged(renderite.Shared.Key),
     type_delta: std.ArrayListUnmanaged(u16),
-
-    output_state: ?renderite.Shared.OutputState,
 
     pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
         if (self.engine_thread) |engine_thread| {
@@ -397,7 +397,6 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .displays = .empty,
             .held_keys = held_keys,
             .type_delta = .empty,
-            .output_state = null,
         };
 
         // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -638,6 +637,9 @@ fn handleMessages(self: *App, frame_context: *graphics.FrameContext) !void {
                     renderer_command.queue_type,
                 );
             },
+            .handle_output_state => |output_state| {
+                try self.applyOutputState(output_state);
+            },
         }
     }
 }
@@ -749,7 +751,7 @@ fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
     const frame_submit_data = message.command.FrameSubmitData;
 
     if (frame_submit_data.outputState) |output_state| {
-        self.game.output_state = output_state;
+        try self.sendLetterToMain(.{ .handle_output_state = output_state });
     }
 
     self.game.last_frame_index = frame_submit_data.frameIndex;
@@ -1024,10 +1026,6 @@ pub fn frameLoop(self: *App) !void {
                     return err;
                 }
             };
-
-            if (self.game.output_state) |output_state| {
-                try self.applyOutputState(output_state);
-            }
 
             // handle any messages from the queues, happens before processing most of the frame/rendering
             try handleMessages(self, &frame_context);
