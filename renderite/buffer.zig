@@ -124,7 +124,6 @@ pub const SharedMemoryAccessor = struct {
         log.debug("Initializing shared memory view {s}", .{memory_view_name});
 
         const view = try MemoryView.init(.{
-            .side = .Subscriber,
             .capacity = @intCast(descriptor.buffer_capacity),
             .memory_view_name = memory_view_name,
         });
