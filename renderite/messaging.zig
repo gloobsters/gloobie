@@ -4,10 +4,10 @@ const builtin = @import("builtin");
 const tracy = @import("tracy");
 const zinterprocess = @import("zinterprocess");
 
+const InitSettings = @import("InitSettings.zig");
 const serialization = @import("serialization.zig");
 const IpcDeserializer = serialization.IpcDeserializer;
 const IpcSerializer = serialization.IpcSerializer;
-const InitSettings = @import("InitSettings.zig");
 const shared = @import("shared.zig");
 
 const log = std.log.scoped(.messaging);
@@ -224,6 +224,26 @@ pub fn MessagingHost(comptime Context: type) type {
                 try serializer.writePolymorphic(shared.RendererCommand, command);
 
                 try self.publisher.enqueue(data[0..writer.end]);
+            }
+
+            pub fn sendTimeout(self: QueueManager, command: shared.RendererCommand, timeout_ns: u64) !void {
+                const end_ns = std.time.nanoTimestamp() + timeout_ns;
+
+                while (true) {
+                    self.send(command) catch |err| {
+                        // if the queue is full and we're before the end timeout, just continue, else return the error
+                        if (err == error.QueueFull and std.time.nanoTimestamp() < end_ns) {
+                            log.err("Sending message {s} timed out after {d} nanoseconds", .{ @tagName(command), timeout_ns });
+                            // SAFETY: we really don't care if this fails
+                            std.Thread.yield() catch {};
+                            continue;
+                        }
+
+                        return err;
+                    };
+
+                    break;
+                }
             }
         };
     };
