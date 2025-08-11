@@ -69,6 +69,12 @@ pub const ToRenderLetter = union(enum) {
     },
 };
 
+pub const ToEngineMailbox = mailbox.MailBox(ToEngineLetter);
+
+pub const ToEngineLetter = union(enum) {
+    renderer_command: renderite.ParsedCommand,
+};
+
 const MessagingData = struct {
     host: MessagingHost,
     accessor: ?SharedMemoryAccessor,
@@ -136,7 +142,19 @@ const GameData = struct {
     main_process_pid: ?i32,
     load_state: LoadState,
     last_frame_index: i32,
-    waiting_for_frame: bool,
+    engine_thread: ?std.Thread,
+    engine_thread_cancellation: std.Thread.ResetEvent,
+    engine_thread_ready_for_begin_frame: std.Thread.ResetEvent,
+    to_engine_mailbox: ToEngineMailbox,
+    to_engine_envelope_pool: std.heap.MemoryPool(ToEngineMailbox.Envelope),
+
+    pub fn deinit(self: *GameData) void {
+        if (self.engine_thread) |engine_thread| {
+            self.engine_thread_cancellation.set();
+
+            engine_thread.join();
+        }
+    }
 };
 
 gpa: std.mem.Allocator,
@@ -348,7 +366,11 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .full_init = false,
         },
         .last_frame_index = 0,
-        .waiting_for_frame = false,
+        .engine_thread = null,
+        .engine_thread_cancellation = .{},
+        .engine_thread_ready_for_begin_frame = .{},
+        .to_engine_mailbox = .{},
+        .to_engine_envelope_pool = .init(gpa),
     };
 
     // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -371,6 +393,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 pub fn deinit(self: *App) void {
     const gpa = self.gpa;
 
+    self.game.deinit();
     self.messaging.deinit(gpa);
     if (self.imgui_data) |imgui_data| imgui_data.deinit();
     if (self.xr) |xr| xr.deinit(gpa);
@@ -391,6 +414,8 @@ fn handleRendererCommand(
     frame_context: *graphics.FrameContext,
     queue_type: MessagingHost.QueueManager.Type,
 ) !void {
+    _ = queue_type;
+
     // NOTE: this could be called from multiple threads!!! be aware of threading here
     // any command which _could be sent from both queues_ needs to have some kind of locking!
 
@@ -543,25 +568,8 @@ fn handleRendererCommand(
         .MeshUnload => |mesh_unload| {
             try self.assets.unloadMesh(.from(mesh_unload.assetId), self.gpa, self.graphics_data.device);
         },
-        .FrameSubmitData => |frame_submit_data| {
-            // threading shenanigans!!
-            std.debug.assert(queue_type == .primary);
-
-            self.game.last_frame_index = frame_submit_data.frameIndex;
-            self.game.waiting_for_frame = false;
-
-            for (frame_submit_data.renderSpaces) |render_space| {
-                if (render_space.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
-                    const sh2_tasks_slice = try self.messaging.accessor.?.getOrCreate(self.gpa, sh2_tasks_descriptor.tasks) orelse continue;
-                    defer sh2_tasks_slice.release(&self.messaging.accessor.?);
-
-                    const sh2_tasks: []align(1) renderite.Shared.ReflectionProbeSH2Task = @ptrCast(sh2_tasks_slice.data);
-                    for (sh2_tasks) |*task| {
-                        task.result = .Failed;
-                    }
-                }
-            }
-            log.debug("TODO: the rest of the frame submit stuff", .{});
+        .FrameSubmitData => {
+            std.debug.panic("This should be handled by the other thread!", .{});
         },
         else => {
             log.warn("Unhandled command type {s}", .{@tagName(command)});
@@ -608,9 +616,18 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
 
     switch (queue_type) {
         // messages coming in the primary queue need to be processed ASAP by the main thread
-        .primary => self.sendLetter(.{
-            .renderer_command = .{ .command = message, .queue_type = queue_type },
-        }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err}),
+        .primary => {
+            // frame submit messages go to the engine thread!
+            if (message.command == .FrameSubmitData) {
+                self.sendLetterToEngine(.{
+                    .renderer_command = message,
+                }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
+            } else {
+                self.sendLetterToMain(.{
+                    .renderer_command = .{ .command = message, .queue_type = queue_type },
+                }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
+            }
+        },
         .background => {
             // FIXME: push resource uploads onto another thread!
             var frame_context: graphics.FrameContext = .init(
@@ -630,7 +647,7 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
 }
 
 /// Sends an envelope to the render thread
-pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
+pub fn sendLetterToMain(self: *App, letter: ToRenderLetter) !void {
     self.messaging.letter_allocation_mutex.lock();
     defer self.messaging.letter_allocation_mutex.unlock();
 
@@ -640,6 +657,19 @@ pub fn sendLetter(self: *App, letter: ToRenderLetter) !void {
     envelope.* = .{ .letter = letter };
 
     try self.messaging.to_render.send(envelope);
+}
+
+/// Sends an envelope to the engine thread
+pub fn sendLetterToEngine(self: *App, letter: ToEngineLetter) !void {
+    self.messaging.letter_allocation_mutex.lock();
+    defer self.messaging.letter_allocation_mutex.unlock();
+
+    const envelope = try self.game.to_engine_envelope_pool.create();
+    errdefer self.game.to_engine_envelope_pool.destroy(envelope);
+
+    envelope.* = .{ .letter = letter };
+
+    try self.game.to_engine_mailbox.send(envelope);
 }
 
 fn imguiFillTextures(self: *App, texture_type: Texture.Type) void {
@@ -681,7 +711,62 @@ fn imguiFillTextures(self: *App, texture_type: Texture.Type) void {
     }
 }
 
+fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
+    defer message.arena.deinit();
+
+    // SAFETY: only this message should be sent to the engine thread
+    const frame_submit_data = message.command.FrameSubmitData;
+
+    self.game.last_frame_index = frame_submit_data.frameIndex;
+    log.debug("Frame {d} completion", .{frame_submit_data.frameIndex});
+
+    for (frame_submit_data.renderSpaces) |render_space| {
+        if (render_space.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
+            const sh2_tasks_slice = try self.messaging.accessor.?.getOrCreate(self.gpa, sh2_tasks_descriptor.tasks) orelse continue;
+            defer sh2_tasks_slice.release(&self.messaging.accessor.?);
+
+            const sh2_tasks: []align(1) renderite.Shared.ReflectionProbeSH2Task = @ptrCast(sh2_tasks_slice.data);
+            for (sh2_tasks) |*task| {
+                task.result = .Failed;
+            }
+        }
+    }
+
+    self.game.engine_thread_ready_for_begin_frame.set();
+}
+
+fn engineLoop(self: *App) !void {
+    self.game.engine_thread_ready_for_begin_frame.set();
+
+    while (!self.game.engine_thread_cancellation.isSet()) {
+        const message = self.game.to_engine_mailbox.receive(std.time.ns_per_s * 1) catch |err| {
+            // Timeouts are nonfatal.
+            if (err == error.Timeout) {
+                log.debug("Engine wait timeout", .{});
+                continue;
+            }
+
+            return err;
+        };
+
+        defer {
+            self.messaging.letter_allocation_mutex.lock();
+            defer self.messaging.letter_allocation_mutex.unlock();
+
+            self.game.to_engine_envelope_pool.destroy(message);
+        }
+
+        switch (message.letter) {
+            .renderer_command => |renderer_command| {
+                try self.engineHandleMessage(renderer_command);
+            },
+        }
+    }
+}
+
 pub fn frameLoop(self: *App) !void {
+    self.game.engine_thread = try .spawn(.{}, engineLoop, .{self});
+
     try self.messaging.host.start(self.gpa);
 
     while (self.game.run_loop) {
@@ -725,202 +810,216 @@ pub fn frameLoop(self: *App) !void {
 
         const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
 
-        var frame_context: graphics.FrameContext = .initMain(
-            self.graphics_data.device,
-            &self.graphics_data.primary_transfer_buffer_pool,
-            &self.assets,
-            command_buffer,
-            &self.graphics_data.fence_manager,
-            &self.messaging.host,
-        );
+        {
+            errdefer command_buffer.cancel() catch std.debug.panic("failed to cancel cmdbuf", .{});
 
-        // handle any messages from the queues, happens before processing most of the frame/rendering
-        try handleMessages(self, &frame_context);
+            var frame_context: graphics.FrameContext = .initMain(
+                self.graphics_data.device,
+                &self.graphics_data.primary_transfer_buffer_pool,
+                &self.assets,
+                command_buffer,
+                &self.graphics_data.fence_manager,
+                &self.messaging.host,
+            );
 
-        // temporary code to tell FE to draw stuff
-        if (self.game.load_state.full_init and !self.game.waiting_for_frame) {
-            self.game.waiting_for_frame = true;
-            try self.messaging.host.primary.send(.{ .FrameStartData = .{
-                .lastFrameIndex = 0,
-                .inputs = .{
-                    .displays = &.{},
-                    .gamepads = &.{},
-                    .keyboard = null,
-                    .mouse = null,
-                    .touches = &.{},
-                    .vr = null,
-                    .window = null,
-                },
-                .performance = null,
-                .renderedReflectionProbes = &.{},
-            } });
-            std.Thread.sleep(16 * std.time.ns_per_ms);
-        }
+            // handle any messages from the queues, happens before processing most of the frame/rendering
+            try handleMessages(self, &frame_context);
 
-        const swapchain_texture_result = acquire_swapchain_texture: {
-            const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
-            defer trace.end();
+            var send_frame = true;
+            self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 10) catch |err| {
+                if (err == error.Timeout) {
+                    send_frame = false;
+                } else {
+                    return err;
+                }
+            };
 
-            break :acquire_swapchain_texture try command_buffer.acquireSwapchainTexture(self.window.window);
-        };
-        const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
+            // send a frame start if the engine thread is waiting for us to do so
+            if (self.game.load_state.full_init and send_frame) {
+                try self.messaging.host.primary.send(.{ .FrameStartData = .{
+                    .lastFrameIndex = self.game.last_frame_index,
+                    .inputs = .{
+                        .displays = &.{},
+                        .gamepads = &.{},
+                        .keyboard = null,
+                        .mouse = null,
+                        .touches = &.{},
+                        .vr = null,
+                        .window = null,
+                    },
+                    .performance = null,
+                    .renderedReflectionProbes = &.{},
+                } });
 
-        _ = swapchain_height;
-        _ = swapchain_width;
+                log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
 
-        // end frame context, frame is over
-        try frame_context.end(self.gpa);
+                self.game.engine_thread_ready_for_begin_frame.reset();
+            }
 
-        // tick assets
-        self.assets.mainThreadTick(self.gpa, self.graphics_data.device);
+            const swapchain_texture_result = acquire_swapchain_texture: {
+                const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
+                defer trace.end();
 
-        if (self.imgui_data) |*imgui_data| {
-            const trace = tracy.traceNamed(@src(), "ImGui start frame");
-            defer trace.end();
+                break :acquire_swapchain_texture try command_buffer.acquireSwapchainTexture(self.window.window);
+            };
+            const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
 
-            // imgui new frame
-            imgui.gpu.newFrame();
-            imgui.sdl3.newFrame();
-            imgui.newFrame();
+            _ = swapchain_height;
+            _ = swapchain_width;
 
-            {
-                const assets_render = imgui.begin("Assets", &imgui_data.assets_open, 0);
-                defer imgui.end();
-                if (assets_render) {
-                    self.assets.lock.lockShared();
-                    defer self.assets.lock.unlockShared();
+            // end frame context, frame is over
+            try frame_context.end(self.gpa);
 
-                    {
-                        if (imgui.collapsingHeader("Texture 2Ds", 0)) {
-                            self.imguiFillTextures(.Texture2D);
+            // tick assets
+            self.assets.mainThreadTick(self.gpa, self.graphics_data.device);
+
+            if (self.imgui_data) |*imgui_data| {
+                const trace = tracy.traceNamed(@src(), "ImGui start frame");
+                defer trace.end();
+
+                // imgui new frame
+                imgui.gpu.newFrame();
+                imgui.sdl3.newFrame();
+                imgui.newFrame();
+
+                {
+                    const assets_render = imgui.begin("Assets", &imgui_data.assets_open, 0);
+                    defer imgui.end();
+                    if (assets_render) {
+                        self.assets.lock.lockShared();
+                        defer self.assets.lock.unlockShared();
+
+                        {
+                            if (imgui.collapsingHeader("Texture 2Ds", 0)) {
+                                self.imguiFillTextures(.Texture2D);
+                            }
                         }
-                    }
 
-                    {
-                        if (imgui.collapsingHeader("Texture 3Ds", 0)) {
-                            self.imguiFillTextures(.Texture3D);
+                        {
+                            if (imgui.collapsingHeader("Texture 3Ds", 0)) {
+                                self.imguiFillTextures(.Texture3D);
+                            }
                         }
-                    }
 
-                    {
-                        if (imgui.collapsingHeader("Cubemaps", 0)) {
-                            self.imguiFillTextures(.Cubemap);
+                        {
+                            if (imgui.collapsingHeader("Cubemaps", 0)) {
+                                self.imguiFillTextures(.Cubemap);
+                            }
                         }
-                    }
 
-                    {
-                        if (imgui.collapsingHeader("Meshes", 0)) {
-                            var mesh_iter = self.assets.meshes.iterator();
-                            while (mesh_iter.next()) |mesh_entry| {
-                                const asset_id, const mesh = .{ mesh_entry.key_ptr.*, mesh_entry.value_ptr };
-                                defer imgui.separator();
+                        {
+                            if (imgui.collapsingHeader("Meshes", 0)) {
+                                var mesh_iter = self.assets.meshes.iterator();
+                                while (mesh_iter.next()) |mesh_entry| {
+                                    const asset_id, const mesh = .{ mesh_entry.key_ptr.*, mesh_entry.value_ptr };
+                                    defer imgui.separator();
 
-                                imgui.c.igText("Mesh %d", asset_id.to());
-                                imgui.c.igText("Vertex Buffer Capacity: %u", mesh.vertex_buffer_capacity);
-                                imgui.c.igText("Index Buffer Capacity: %u", mesh.index_buffer_capacity);
-                                imgui.c.igText(
-                                    "Buffer Present: %s/%s",
-                                    if (mesh.vertex_buffer == null) "false".ptr else "true".ptr,
-                                    if (mesh.index_buffer == null) "false".ptr else "true".ptr,
-                                );
+                                    imgui.c.igText("Mesh %d", asset_id.to());
+                                    imgui.c.igText("Vertex Buffer Capacity: %u", mesh.vertex_buffer_capacity);
+                                    imgui.c.igText("Index Buffer Capacity: %u", mesh.index_buffer_capacity);
+                                    imgui.c.igText(
+                                        "Buffer Present: %s/%s",
+                                        if (mesh.vertex_buffer == null) "false".ptr else "true".ptr,
+                                        if (mesh.index_buffer == null) "false".ptr else "true".ptr,
+                                    );
 
-                                var name_buf: [64]u8 = undefined;
-                                // SAFETY: it's big enough
-                                const attributes_header = std.fmt.bufPrintZ(&name_buf, "Attributes##{d}", .{
-                                    asset_id.to(),
-                                }) catch unreachable;
+                                    var name_buf: [64]u8 = undefined;
+                                    // SAFETY: it's big enough
+                                    const attributes_header = std.fmt.bufPrintZ(&name_buf, "Attributes##{d}", .{
+                                        asset_id.to(),
+                                    }) catch unreachable;
 
-                                if (imgui.collapsingHeader(attributes_header, 0)) {
-                                    for (mesh.vertex_attributes, 0..) |attribute, i| {
-                                        imgui.c.igText(
-                                            "Attribute %d, %s/%s",
-                                            @as(i32, @intCast(i)),
-                                            @tagName(attribute.format).ptr,
-                                            @tagName(attribute.type).ptr,
-                                        );
+                                    if (imgui.collapsingHeader(attributes_header, 0)) {
+                                        for (mesh.vertex_attributes, 0..) |attribute, i| {
+                                            imgui.c.igText(
+                                                "Attribute %d, %s/%s",
+                                                @as(i32, @intCast(i)),
+                                                @tagName(attribute.format).ptr,
+                                                @tagName(attribute.type).ptr,
+                                            );
+                                        }
                                     }
-                                }
 
-                                const submeshes_header = std.fmt.bufPrintZ(&name_buf, "Sub Meshes##{d}", .{
-                                    asset_id.to(),
-                                }) catch unreachable;
+                                    const submeshes_header = std.fmt.bufPrintZ(&name_buf, "Sub Meshes##{d}", .{
+                                        asset_id.to(),
+                                    }) catch unreachable;
 
-                                if (imgui.collapsingHeader(submeshes_header, 0)) {
-                                    for (mesh.submeshes, 0..) |submesh, i| {
-                                        imgui.c.igText(
-                                            "Submesh %d, %s, %u/%u, %fx%fx%f/%fx%fx%f",
-                                            @as(i32, @intCast(i)),
-                                            @tagName(submesh.topology).ptr,
-                                            submesh.index_start,
-                                            submesh.index_count,
-                                            submesh.bounds.center.x,
-                                            submesh.bounds.center.y,
-                                            submesh.bounds.center.z,
-                                            submesh.bounds.extents.x,
-                                            submesh.bounds.extents.y,
-                                            submesh.bounds.extents.z,
-                                        );
+                                    if (imgui.collapsingHeader(submeshes_header, 0)) {
+                                        for (mesh.submeshes, 0..) |submesh, i| {
+                                            imgui.c.igText(
+                                                "Submesh %d, %s, %u/%u, %fx%fx%f/%fx%fx%f",
+                                                @as(i32, @intCast(i)),
+                                                @tagName(submesh.topology).ptr,
+                                                submesh.index_start,
+                                                submesh.index_count,
+                                                submesh.bounds.center.x,
+                                                submesh.bounds.center.y,
+                                                submesh.bounds.center.z,
+                                                submesh.bounds.extents.x,
+                                                submesh.bounds.extents.y,
+                                                submesh.bounds.extents.z,
+                                            );
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            if (!self.game.load_state.full_init) {
-                const phase = &self.game.load_state.phase;
-                const loadstate_render = imgui.begin("Loading...", &imgui_data.loadstate_open, 0);
-                defer imgui.end();
-                if (loadstate_render) {
-                    imgui.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
-                    if (phase.sub_phase_name.len != 0)
-                        imgui.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
+                if (!self.game.load_state.full_init) {
+                    const phase = &self.game.load_state.phase;
+                    const loadstate_render = imgui.begin("Loading...", &imgui_data.loadstate_open, 0);
+                    defer imgui.end();
+                    if (loadstate_render) {
+                        imgui.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
+                        if (phase.sub_phase_name.len != 0)
+                            imgui.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
 
-                    const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
-                    imgui.progressBar(progress, .{ .x = 0, .y = 0 }, "");
-                }
-            }
-
-            var show_demo_window: bool = true;
-            imgui.showDemoWindow(&show_demo_window);
-
-            imgui.render();
-        }
-
-        if (maybe_swapchain_texture) |swapchain_texture| {
-            const render_trace = tracy.traceNamed(@src(), "Render Frame");
-            defer render_trace.end();
-
-            const imgui_draw_data = if (self.imgui_data != null) create_draw_data: {
-                const draw_data = imgui.getDrawData();
-                const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
-
-                if (!is_minimized) {
-                    imgui.gpu.prepareDrawData(draw_data, command_buffer);
+                        const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
+                        imgui.progressBar(progress, .{ .x = 0, .y = 0 }, "");
+                    }
                 }
 
-                break :create_draw_data if (is_minimized) null else draw_data;
-            } else null;
+                var show_demo_window: bool = true;
+                imgui.showDemoWindow(&show_demo_window);
 
-            const render_pass = command_buffer.beginRenderPass(&.{.{
-                .texture = swapchain_texture,
-                .clear_color = .{ .a = 1.0 },
-                .load = .clear,
-            }}, null);
-
-            if (imgui_draw_data) |draw_data| {
-                imgui.gpu.renderDrawData(
-                    draw_data,
-                    command_buffer,
-                    render_pass,
-                    null,
-                );
+                imgui.render();
             }
 
-            render_pass.end();
-        }
+            if (maybe_swapchain_texture) |swapchain_texture| {
+                const render_trace = tracy.traceNamed(@src(), "Render Frame");
+                defer render_trace.end();
 
+                const imgui_draw_data = if (self.imgui_data != null) create_draw_data: {
+                    const draw_data = imgui.getDrawData();
+                    const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
+
+                    if (!is_minimized) {
+                        imgui.gpu.prepareDrawData(draw_data, command_buffer);
+                    }
+
+                    break :create_draw_data if (is_minimized) null else draw_data;
+                } else null;
+
+                const render_pass = command_buffer.beginRenderPass(&.{.{
+                    .texture = swapchain_texture,
+                    .clear_color = .{ .a = 1.0 },
+                    .load = .clear,
+                }}, null);
+
+                if (imgui_draw_data) |draw_data| {
+                    imgui.gpu.renderDrawData(
+                        draw_data,
+                        command_buffer,
+                        render_pass,
+                        null,
+                    );
+                }
+
+                render_pass.end();
+            }
+        }
         {
             const trace = tracy.traceNamed(@src(), "Submit Command Buffer");
             defer trace.end();
