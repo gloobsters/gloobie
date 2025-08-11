@@ -95,7 +95,7 @@ pub fn setData(
     accessor: *renderite.SharedMemoryAccessor,
     data_request: renderite.Shared.MeshUploadData,
 ) !void {
-    log.debug("Got mesh upload {any}", .{data_request});
+    // log.debug("Got mesh upload {any}", .{data_request});
 
     const slice = try accessor.getOrCreate(gpa, data_request.buffer) orelse {
         const vertex_attributes = try convertVertexAttributes(gpa, data_request.vertexAttributes);

@@ -402,7 +402,7 @@ pub fn setData2d(
     const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
 
-    std.debug.print("Texture2D upload details: {any}\n", .{data});
+    // std.debug.print("Texture2D upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
         log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
@@ -603,7 +603,7 @@ pub fn setDataCubemap(
     const data_slice = try accessor.getOrCreate(gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
 
-    std.debug.print("Cubemap upload details: {any}\n", .{data});
+    // std.debug.print("Cubemap upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
         log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});

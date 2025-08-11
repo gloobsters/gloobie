@@ -154,6 +154,8 @@ const GameData = struct {
 
             engine_thread.join();
         }
+
+        self.to_engine_envelope_pool.deinit();
     }
 };
 
