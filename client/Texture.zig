@@ -462,6 +462,17 @@ pub fn setData2d(
 
             const aligned_pixel_size = alignSize(graphics_data.texture_format, .{ @intCast(mip_pixel_size.x), @intCast(mip_pixel_size.y) });
 
+            const destination_width, const destination_height = calculateMipSize(graphics_data.width, graphics_data.height, @intCast(mip_level));
+
+            if (destination_width != mip_pixel_size.x or destination_height != mip_pixel_size.y) {
+                log.warn("Got mipmap with weird extents! This is likely a FE bug! See #56. Real extents: {d}x{d}, gotten extents: {d}x{d}", .{
+                    destination_width,
+                    destination_height,
+                    mip_pixel_size.x,
+                    mip_pixel_size.y,
+                });
+            }
+
             // FIXME: Renderite.Unity doesn't handle hint.hasRegion, and *presumedly* FE wont send it, but if it does, we need to start handling that!!!
             copy_pass.uploadToTexture(.{
                 .offset = read_offset,
@@ -470,8 +481,8 @@ pub fn setData2d(
                 .transfer_buffer = transfer_buffer_entry.transfer_buffer,
             }, .{
                 .depth = 1,
-                .width = @intCast(mip_pixel_size.x),
-                .height = @intCast(mip_pixel_size.y),
+                .width = destination_width,
+                .height = destination_height,
                 .mip_level = @intCast(mip_level),
                 .texture = graphics_data.texture,
             }, cycle);
@@ -808,6 +819,39 @@ pub fn pixelToByte(pixel: u32, format: renderite.Shared.TextureFormat) u32 {
 
 test pixelToByte {
     try std.testing.expectEqual(@as(u32, 4), pixelToByte(1, .RGBA32));
+}
+
+fn calculateMipSize(width: u32, height: u32, level: u32) struct { u32, u32 } {
+    if (level == 0) {
+        return .{ width, height };
+    }
+
+    return .{
+        @max(1, width / (@as(u32, 2) << @intCast(level - 1))),
+        @max(1, height / (@as(u32, 2) << @intCast(level - 1))),
+    };
+}
+
+test calculateMipSize {
+    const level_0 = calculateMipSize(64, 64, 0);
+    try std.testing.expectEqual(64, level_0[0]);
+    try std.testing.expectEqual(64, level_0[1]);
+
+    const level_1 = calculateMipSize(64, 64, 1);
+    try std.testing.expectEqual(32, level_1[0]);
+    try std.testing.expectEqual(32, level_1[1]);
+
+    const level_2 = calculateMipSize(64, 64, 2);
+    try std.testing.expectEqual(16, level_2[0]);
+    try std.testing.expectEqual(16, level_2[1]);
+
+    const level_3 = calculateMipSize(64, 64, 3);
+    try std.testing.expectEqual(8, level_3[0]);
+    try std.testing.expectEqual(8, level_3[1]);
+
+    const level_99 = calculateMipSize(64, 64, 31);
+    try std.testing.expectEqual(1, level_99[0]);
+    try std.testing.expectEqual(1, level_99[1]);
 }
 
 pub fn bitsPerPixel(format: renderite.Shared.TextureFormat) f64 {
