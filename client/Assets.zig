@@ -283,11 +283,14 @@ pub fn setCubemapData(
     try texture.setDataCubemap(gpa, frame_context, data, accessor);
 }
 
-pub fn unloadTexture(self: *Assets, texture_handle: TextureHandle, gpa: std.mem.Allocator, device: gpu.Device) !void {
+pub fn unloadTexture(self: *Assets, texture_handle: TextureHandle, gpa: std.mem.Allocator, device: gpu.Device) void {
     self.lock.lock();
     defer self.lock.unlock();
 
-    const texture = self.textures.get(texture_handle) orelse return error.MissingAsset;
+    const texture = self.textures.get(texture_handle) orelse {
+        log.warn("Tried to unload missing texture {d}", .{texture_handle.id});
+        return;
+    };
 
     log.debug("Unloading {s} ({d}) of type {s}", .{ @tagName(texture_handle.type), texture_handle.id.to(), @tagName(texture.properties.type) });
 
@@ -313,11 +316,14 @@ pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *gra
     }
 }
 
-pub fn unloadMesh(self: *Assets, asset_id: AssetId, gpa: std.mem.Allocator, device: gpu.Device) !void {
+pub fn unloadMesh(self: *Assets, asset_id: AssetId, gpa: std.mem.Allocator, device: gpu.Device) void {
     self.lock.lock();
     defer self.lock.unlock();
 
-    const mesh = self.meshes.getPtr(asset_id) orelse return error.MissingAsset;
+    const mesh = self.meshes.getPtr(asset_id) orelse {
+        log.warn("Tried to unload missing mesh {d}", .{asset_id});
+        return;
+    };
 
     mesh.deinit(gpa, device);
 
