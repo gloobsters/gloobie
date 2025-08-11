@@ -4,6 +4,7 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const graphics = @import("graphics.zig");
+const Mesh = @import("Mesh.zig");
 const Texture = @import("Texture.zig");
 
 const log = std.log.scoped(.assets);
@@ -56,10 +57,12 @@ pub const TextureReadyFenceHandler = graphics.FenceHandler(TextureReadyFenceHand
 
 lock: std.Thread.RwLock,
 textures: std.AutoHashMapUnmanaged(TextureHandle, Texture),
+meshes: std.AutoHashMapUnmanaged(AssetId, Mesh),
 
 pub const empty: Assets = .{
     .lock = .{},
     .textures = .empty,
+    .meshes = .empty,
 };
 
 pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
@@ -72,6 +75,13 @@ pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
     }
 
     self.textures.deinit(gpa);
+
+    var mesh_iter = self.meshes.valueIterator();
+    while (mesh_iter.next()) |mesh| {
+        mesh.deinit(gpa, device);
+    }
+
+    self.meshes.deinit(gpa);
 }
 
 /// Called to check for pending fences and apply and needed state
@@ -284,5 +294,33 @@ pub fn unloadTexture(self: *Assets, texture_handle: TextureHandle, gpa: std.mem.
     texture.deinit(gpa, device);
 
     const removed = self.textures.remove(texture_handle);
+    std.debug.assert(removed);
+}
+
+pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, accessor: *renderite.SharedMemoryAccessor, mesh_upload_data: renderite.Shared.MeshUploadData) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    const result = try self.meshes.getOrPut(gpa, .from(mesh_upload_data.assetId));
+
+    const mesh = result.value_ptr;
+    if (result.found_existing) {
+        try mesh.setData(gpa, frame_context, accessor, mesh_upload_data);
+        log.debug("Updated mesh {d}", .{mesh_upload_data.assetId});
+    } else {
+        mesh.* = try .init(gpa, frame_context, accessor, mesh_upload_data);
+        log.debug("Created mesh {d}", .{mesh_upload_data.assetId});
+    }
+}
+
+pub fn unloadMesh(self: *Assets, asset_id: AssetId, gpa: std.mem.Allocator, device: gpu.Device) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    const mesh = self.meshes.getPtr(asset_id) orelse return error.MissingAsset;
+
+    mesh.deinit(gpa, device);
+
+    const removed = self.meshes.remove(asset_id);
     std.debug.assert(removed);
 }

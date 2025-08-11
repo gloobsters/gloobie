@@ -3129,6 +3129,13 @@ pub const IndexElementSize = enum(c_uint) {
     indices_16bit = c.GPU_INDEXELEMENTSIZE_16BIT,
     /// The index elements are 32-bit.
     indices_32bit = c.GPU_INDEXELEMENTSIZE_32BIT,
+
+    pub fn byteSize(self: IndexElementSize) u32 {
+        return switch (self) {
+            .indices_16bit => @sizeOf(u16),
+            .indices_32bit => @sizeOf(u32),
+        };
+    }
 };
 
 /// A structure specifying the parameters of an indexed indirect draw command.
@@ -5177,6 +5184,41 @@ pub const VertexElementFormat = enum(c_uint) {
             return @intFromEnum(tmp);
         }
         return c.GPU_VERTEXELEMENTFORMAT_INVALID;
+    }
+
+    pub fn stride(self: VertexElementFormat) u32 {
+        return switch (self) {
+            .i32x1 => @sizeOf(i32) * 1,
+            .i32x2 => @sizeOf(i32) * 2,
+            .i32x3 => @sizeOf(i32) * 3,
+            .i32x4 => @sizeOf(i32) * 4,
+            .u32x1 => @sizeOf(u32) * 1,
+            .u32x2 => @sizeOf(u32) * 2,
+            .u32x3 => @sizeOf(u32) * 3,
+            .u32x4 => @sizeOf(u32) * 4,
+            .f32x1 => @sizeOf(f32) * 1,
+            .f32x2 => @sizeOf(f32) * 2,
+            .f32x3 => @sizeOf(f32) * 3,
+            .f32x4 => @sizeOf(f32) * 4,
+            .i8x2 => @sizeOf(i8) * 2,
+            .i8x4 => @sizeOf(i8) * 4,
+            .u8x2 => @sizeOf(u8) * 2,
+            .u8x4 => @sizeOf(u8) * 4,
+            .i8x2_normalized => @sizeOf(i8) * 2,
+            .i8x4_normalized => @sizeOf(i8) * 4,
+            .u8x2_normalized => @sizeOf(u8) * 2,
+            .u8x4_normalized => @sizeOf(u8) * 4,
+            .i16x2 => @sizeOf(i16) * 2,
+            .i16x4 => @sizeOf(i16) * 3,
+            .u16x2 => @sizeOf(u16) * 2,
+            .u16x4 => @sizeOf(u16) * 4,
+            .i16x2_normalized => @sizeOf(i16) * 2,
+            .i16x4_normalized => @sizeOf(i16) * 4,
+            .u16x2_normalized => @sizeOf(u16) * 2,
+            .u16x4_normalized => @sizeOf(u16) * 4,
+            .f16x2 => @sizeOf(f16) * 2,
+            .f16x4 => @sizeOf(f16) * 4,
+        };
     }
 };
 

@@ -533,6 +533,16 @@ fn handleRendererCommand(
                 },
             }, self.gpa, self.graphics_data.device);
         },
+        .MeshUploadData => |mesh_upload_data| {
+            if (self.messaging.accessor) |*accessor| {
+                try self.assets.uploadMeshData(self.gpa, frame_context, accessor, mesh_upload_data);
+            } else {
+                std.debug.panic("Got mesh upload before accessor was created.", .{});
+            }
+        },
+        .MeshUnload => |mesh_unload| {
+            try self.assets.unloadMesh(.from(mesh_unload.assetId), self.gpa, self.graphics_data.device);
+        },
         .FrameSubmitData => |frame_submit_data| {
             // threading shenanigans!!
             std.debug.assert(queue_type == .primary);
@@ -781,25 +791,79 @@ pub fn frameLoop(self: *App) !void {
                     defer self.assets.lock.unlockShared();
 
                     {
-                        _ = imgui.collapsingHeader("Texture 2Ds", 0);
-
-                        self.imguiFillTextures(.Texture2D);
+                        if (imgui.collapsingHeader("Texture 2Ds", 0)) {
+                            self.imguiFillTextures(.Texture2D);
+                        }
                     }
 
                     {
-                        _ = imgui.collapsingHeader("Texture 3Ds", 0);
-
-                        self.imguiFillTextures(.Texture3D);
+                        if (imgui.collapsingHeader("Texture 3Ds", 0)) {
+                            self.imguiFillTextures(.Texture3D);
+                        }
                     }
 
                     {
-                        _ = imgui.collapsingHeader("Cubemaps", 0);
-
-                        self.imguiFillTextures(.Cubemap);
+                        if (imgui.collapsingHeader("Cubemaps", 0)) {
+                            self.imguiFillTextures(.Cubemap);
+                        }
                     }
 
                     {
-                        _ = imgui.collapsingHeader("Meshes", 0);
+                        if (imgui.collapsingHeader("Meshes", 0)) {
+                            var mesh_iter = self.assets.meshes.iterator();
+                            while (mesh_iter.next()) |mesh_entry| {
+                                const asset_id, const mesh = .{ mesh_entry.key_ptr.*, mesh_entry.value_ptr };
+                                defer imgui.separator();
+
+                                imgui.c.igText("Mesh %d", asset_id.to());
+                                imgui.c.igText("Vertex Buffer Capacity: %u", mesh.vertex_buffer_capacity);
+                                imgui.c.igText("Index Buffer Capacity: %u", mesh.index_buffer_capacity);
+                                imgui.c.igText(
+                                    "Buffer Present: %s/%s",
+                                    if (mesh.vertex_buffer == null) "false".ptr else "true".ptr,
+                                    if (mesh.index_buffer == null) "false".ptr else "true".ptr,
+                                );
+
+                                var name_buf: [64]u8 = undefined;
+                                // SAFETY: it's big enough
+                                const attributes_header = std.fmt.bufPrintZ(&name_buf, "Attributes##{d}", .{
+                                    asset_id.to(),
+                                }) catch unreachable;
+
+                                if (imgui.collapsingHeader(attributes_header, 0)) {
+                                    for (mesh.vertex_attributes, 0..) |attribute, i| {
+                                        imgui.c.igText(
+                                            "Attribute %d, %s/%s",
+                                            @as(i32, @intCast(i)),
+                                            @tagName(attribute.format).ptr,
+                                            @tagName(attribute.type).ptr,
+                                        );
+                                    }
+                                }
+
+                                const submeshes_header = std.fmt.bufPrintZ(&name_buf, "Sub Meshes##{d}", .{
+                                    asset_id.to(),
+                                }) catch unreachable;
+
+                                if (imgui.collapsingHeader(submeshes_header, 0)) {
+                                    for (mesh.submeshes, 0..) |submesh, i| {
+                                        imgui.c.igText(
+                                            "Submesh %d, %s, %u/%u, %fx%fx%f/%fx%fx%f",
+                                            @as(i32, @intCast(i)),
+                                            @tagName(submesh.topology).ptr,
+                                            submesh.index_start,
+                                            submesh.index_count,
+                                            submesh.bounds.center.x,
+                                            submesh.bounds.center.y,
+                                            submesh.bounds.center.z,
+                                            submesh.bounds.extents.x,
+                                            submesh.bounds.extents.y,
+                                            submesh.bounds.extents.z,
+                                        );
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
