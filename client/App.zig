@@ -588,7 +588,7 @@ fn handleRendererCommand(
             }
         },
         inline .UnloadTexture2D, .UnloadTexture3D, .UnloadCubemap => |unload_texture, tag| {
-            try self.assets.unloadTexture(.{
+            self.assets.unloadTexture(.{
                 .id = .from(unload_texture.assetId),
                 .type = switch (tag) {
                     .UnloadTexture2D => .Texture2D,
@@ -606,7 +606,7 @@ fn handleRendererCommand(
             }
         },
         .MeshUnload => |mesh_unload| {
-            try self.assets.unloadMesh(.from(mesh_unload.assetId), self.gpa, self.graphics_data.device);
+            self.assets.unloadMesh(.from(mesh_unload.assetId), self.gpa, self.graphics_data.device);
         },
         .FrameSubmitData => {
             std.debug.panic("This should be handled by the other thread!", .{});
