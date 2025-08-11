@@ -1,4 +1,4 @@
-﻿namespace RenderiteGenerator;
+﻿namespace RenderiteGenerator.Extensions;
 
 public static class QueueExtensions
 {

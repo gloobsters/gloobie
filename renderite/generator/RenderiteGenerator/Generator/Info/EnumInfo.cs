@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace RenderiteGenerator;
+﻿namespace RenderiteGenerator.Generator.Info;
 
 public struct EnumInfo
 {

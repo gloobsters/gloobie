@@ -6,11 +6,14 @@ using System.Runtime.InteropServices;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using RenderiteGenerator.Extensions;
+using RenderiteGenerator.Generator.Info;
+using RenderiteGenerator.Options;
 using TypeAttributes = System.Reflection.TypeAttributes;
 
-namespace RenderiteGenerator;
+namespace RenderiteGenerator.Generator;
 
-public class Generator : IDisposable
+public class LegacyGenerator : IDisposable
 {
     private readonly Stream _fileStream;
     private readonly StreamWriter _writer;
@@ -26,10 +29,8 @@ public class Generator : IDisposable
     private readonly Type[] _types;
     private readonly Type _iMemoryPackable;
     
-    public Generator(GeneratorOptions options)
+    public LegacyGenerator(GeneratorOptions options)
     {
-        options.OutputZigFile ??= DetermineDefaultOutputPath();
-        
         if(File.Exists(options.OutputZigFile))
             File.Delete(options.OutputZigFile);
         
@@ -57,26 +58,6 @@ public class Generator : IDisposable
         this._iMemoryPackable = this._types.First(t => t.Name == "IMemoryPackable");
         
         Console.WriteLine($"Generating for {this._engineVersion}");
-    }
-
-    private static string DetermineDefaultOutputPath()
-    {
-        Process process = Process.Start(new ProcessStartInfo()
-        {
-            FileName = "git",
-            Arguments = "rev-parse --show-toplevel",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-        })!;
-        process.WaitForExit();
-        if (process.ExitCode != 0)
-            throw new Exception("Git exited with exit code " + process.ExitCode);
-
-        string? output = process.StandardOutput.ReadLine();
-        if (output == null)
-            throw new Exception("Git returned no output");
-        
-        return Path.Combine(output, "renderite", "shared.zig");
     }
 
     public void Run()
