@@ -137,6 +137,8 @@ const GameData = struct {
     load_state: LoadState,
     last_frame_index: i32,
     waiting_for_frame: bool,
+    /// Frame counter for periodic eldritch monitoring
+    frame_count: u32,
 };
 
 gpa: std.mem.Allocator,
@@ -349,6 +351,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         },
         .last_frame_index = 0,
         .waiting_for_frame = false,
+        .frame_count = 0,
     };
 
     // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -862,5 +865,38 @@ pub fn frameLoop(self: *App) !void {
         // tick the buffer pools
         self.graphics_data.primary_transfer_buffer_pool.frameTick();
         self.graphics_data.background_transfer_buffer_pool.frameTick();
+        
+        // Periodic eldritch monitoring - listen to the whispers from our texture realm
+        // Only check every 300 frames (~5 seconds at 60fps) to avoid overwhelming the void
+        if (self.game.frame_count % 300 == 0 and self.game.frame_count > 0) {
+            self.monitorEldritchRealm() catch |err| {
+                log.warn("Failed to commune with eldritch realm: {s}", .{@errorName(err)});
+            };
+        }
+        
+        self.game.frame_count += 1;
     }
+}
+
+/// Monitor the eldritch realm for texture anomalies and attempt rehabilitation
+fn monitorEldritchRealm(self: *App) !void {
+    const trace = tracy.traceNamed(@src(), "Monitor Eldritch Realm");
+    defer trace.end();
+    
+    // Gather statistics from our texture manifestations
+    const stats = try self.assets.gatherEldritchStatistics(self.gpa);
+    defer self.gpa.free(stats);
+    
+    // Log the current state for debugging
+    log.debug("Eldritch Texture Realm Status:\n{s}", .{stats});
+    
+    // Attempt to reconnect lost textures
+    const reconnected = try self.assets.attemptEldritchReconnection(self.gpa);
+    
+    if (reconnected > 0) {
+        log.info("Eldritch rehabilitation successful: restored {d} textures to mortal realm", .{reconnected});
+    }
+    
+    // TODO: Could send statistics back to the engine if needed for debugging
+    // For now, we just monitor and log the state of our texture manifestations
 }

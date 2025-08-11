@@ -39,7 +39,14 @@ fn textureReadyHandler(context: TextureReadyFenceHandlerContext) !void {
         // SAFETY: texture should have graphics data right now!
         texture.graphics_data.?.ready = true;
 
-        log.debug("Texture {d} is now ready!", .{texture_id.to()});
+        // Whisper of successful ascension to readiness
+        if (texture.graphics_data) |*graphics_data| {
+            const whisper_msg = try std.fmt.allocPrint(context.gpa, "Texture {d} has achieved readiness and joined the rendered realm", .{texture_id.to()});
+            try graphics_data.whisperToTheVoid(context.gpa, .ascended, whisper_msg);
+            context.gpa.free(whisper_msg);
+        }
+
+        log.debug("Texture {d} transcends to readiness!", .{texture_id.to()});
     }
 }
 
@@ -239,4 +246,88 @@ pub fn setCubemapData(
     const texture = self.textures.getPtr(.from(data.assetId)) orelse return error.MissingAsset;
 
     try texture.setDataCubemap(gpa, frame_context, data, accessor);
+}
+
+/// Gather statistics about the eldritch state of our texture manifestations
+pub fn gatherEldritchStatistics(self: *Assets, gpa: std.mem.Allocator) ![]const u8 {
+    self.lock.lock();
+    defer self.lock.unlock();
+    
+    var stats = std.ArrayList(u8).init(gpa);
+    defer stats.deinit();
+    
+    const writer = stats.writer();
+    
+    try writer.print("=== Eldritch Texture Realm Statistics ===\n");
+    
+    var state_counts = std.EnumMap(Texture.EldritchState, u32).init(.{});
+    var total_textures: u32 = 0;
+    var ready_textures: u32 = 0;
+    var problem_textures: u32 = 0;
+    
+    var texture_iterator = self.textures.iterator();
+    while (texture_iterator.next()) |entry| {
+        total_textures += 1;
+        
+        if (entry.value_ptr.graphics_data) |graphics_data| {
+            if (graphics_data.ready) ready_textures += 1;
+            
+            const current_count = state_counts.get(graphics_data.eldritch_state) orelse 0;
+            state_counts.put(graphics_data.eldritch_state, current_count + 1);
+            
+            // Count problematic textures
+            if (graphics_data.eldritch_state != .mortal and graphics_data.eldritch_state != .ascended) {
+                problem_textures += 1;
+            }
+        } else {
+            // Textures without graphics data are lost in the ethereal realm
+            const current_count = state_counts.get(.lost_in_void) orelse 0;
+            state_counts.put(.lost_in_void, current_count + 1);
+            problem_textures += 1;
+        }
+    }
+    
+    try writer.print("Total Manifestations: {d}\n", .{total_textures});
+    try writer.print("Ready for Rendering: {d}\n", .{ready_textures});
+    try writer.print("Problematic Entities: {d}\n", .{problem_textures});
+    try writer.print("\nEldritch State Distribution:\n");
+    
+    var state_iter = state_counts.iterator();
+    while (state_iter.next()) |state_entry| {
+        try writer.print("  {s}: {d}\n", .{ @tagName(state_entry.key), state_entry.value });
+    }
+    
+    // Add warnings for concerning patterns
+    if (problem_textures > total_textures / 4) {
+        try writer.print("\n⚠️  WARNING: Over 25% of textures are in problematic states!\n");
+    }
+    
+    if (state_counts.get(.gpu_madness) orelse 0 > 0) {
+        try writer.print("\n💀 CRITICAL: GPU has descended into madness processing textures!\n");
+    }
+    
+    return try gpa.dupe(u8, stats.items);
+}
+
+/// Attempt to rehabilitate textures that have fallen into eldritch states
+pub fn attemptEldritchReconnection(self: *Assets, gpa: std.mem.Allocator) !u32 {
+    self.lock.lock();
+    defer self.lock.unlock();
+    
+    var reconnected_count: u32 = 0;
+    
+    var texture_iterator = self.textures.iterator();
+    while (texture_iterator.next()) |entry| {
+        try entry.value_ptr.attemptReconnection(gpa);
+        
+        if (entry.value_ptr.graphics_data) |graphics_data| {
+            if (graphics_data.eldritch_state == .mortal) {
+                reconnected_count += 1;
+            }
+        }
+    }
+    
+    log.info("Eldritch rehabilitation complete: {d} textures restored to mortal understanding", .{reconnected_count});
+    
+    return reconnected_count;
 }
