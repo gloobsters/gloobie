@@ -20,15 +20,10 @@ public class EnumGenerator : TypeGenerator
 
         EnumInfo info = new()
         {
-            Name = type.Name,
+            Name = MapToZigType(type),
             UnderlyingType = underlyingType,
             BitSize = Marshal.SizeOf(underlyingType) * 8,
         };
-        
-        if (type.DeclaringType != null)
-        {
-            info.Name = type.DeclaringType.Name + '_' + info.Name;
-        }
 
         List<EnumItemInfo> itemInfo = [];
         foreach (object value in values)

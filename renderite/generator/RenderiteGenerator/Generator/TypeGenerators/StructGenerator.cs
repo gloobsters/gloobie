@@ -12,7 +12,7 @@ public abstract class StructGenerator : TypeGenerator
     {
         using Block _ = this.BeginStruct(w, type.Name);
 
-        FieldInfo[] fields = type.GetFields();
+        FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
         foreach (FieldInfo field in fields)
         {
             w.StructMember(field.Name, MapToZigType(field.FieldType));

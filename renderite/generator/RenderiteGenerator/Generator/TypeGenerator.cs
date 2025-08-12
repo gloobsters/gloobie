@@ -82,7 +82,10 @@ public abstract class TypeGenerator
         // all c# classes are nullable
         // they're also always written with WriteObject as Write only works for unmanaged types
         if (type.IsClass && !inList)
+        {
+            QueueType(type);
             return $"?{type.Name}";
+        }
 
         if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
         {
@@ -92,6 +95,13 @@ public abstract class TypeGenerator
 
         if (type.IsGenericType)
             return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(t => MapToZigType(t, inList)))})";
+
+        if (type.DeclaringType != null)
+        {
+            QueueType(type);
+            QueueType(type.DeclaringType);
+            return type.DeclaringType.Name + '_' + type.Name;
+        }
         
         QueueType(type);
 

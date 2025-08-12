@@ -104,7 +104,11 @@ pub fn setProperties2d(
         .SetTexture2DResult = .{
             .assetId = properties.assetId,
             .instanceChanged = false,
-            .type = .PropertiesSet,
+            .type = .{
+                .PropertiesSet = true,
+                .FormatSet = false,
+                .DataUpload = false,
+            },
         },
     });
 }
@@ -227,7 +231,11 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         .SetTexture2DResult = .{
             .assetId = renderite_format.assetId,
             .instanceChanged = true,
-            .type = .FormatSet,
+            .type = .{
+                .PropertiesSet = false,
+                .FormatSet = true,
+                .DataUpload = false,
+            },
         },
     });
 }

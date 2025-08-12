@@ -8,7 +8,7 @@ public class Writer : IDisposable
     private readonly Stream _fileStream;
     private readonly StreamWriter _writer;
 
-    internal GeneratorContext Context;
+    internal readonly GeneratorContext Context;
 
     public Writer(GeneratorContext context, string path)
     {
@@ -124,7 +124,6 @@ public class Writer : IDisposable
         this._fileStream.Dispose();
         GC.SuppressFinalize(this);
     }
-    
 
     public Block BeginEnum(string name, string type)
     {
@@ -132,7 +131,7 @@ public class Writer : IDisposable
         this.PubEql(name);
         this._writer.Write("enum(");
         this._writer.Write(type);
-        this._writer.Write(") {");
+        this._writer.WriteLine(") {");
         return new Block(this);
     }
 
@@ -142,6 +141,7 @@ public class Writer : IDisposable
         this._writer.Write(name);
         this._writer.WriteLine(',');
     }
+    
     public void EnumMember(string name, string value)
     {
         this.Indents();
@@ -157,7 +157,7 @@ public class Writer : IDisposable
         this.PubEql(name);
         this._writer.Write("union(");
         this._writer.Write(name);
-        this._writer.Write("Types) {");
+        this._writer.WriteLine("Types) {");
         return new Block(this);
     }
     
@@ -165,7 +165,7 @@ public class Writer : IDisposable
     {
         this.Indents();
         this.PubEql(name);
-        this._writer.Write("struct {");
+        this._writer.WriteLine("struct {");
         return new Block(this);
     }
     
@@ -173,7 +173,7 @@ public class Writer : IDisposable
     {
         this.Indents();
         this.PubEql(name);
-        this._writer.Write("struct {");
+        this._writer.WriteLine("struct {");
         return new Block(this);
     }
 
@@ -183,7 +183,7 @@ public class Writer : IDisposable
         this.PubEql(name);
         this._writer.Write("packed struct(");
         this._writer.Write(type);
-        this._writer.Write(") {");
+        this._writer.WriteLine(") {");
         return new Block(this);
     }
 
@@ -196,7 +196,7 @@ public class Writer : IDisposable
         this._writer.Write(string.Join(", ", paramList.Select(p => p.ToString())));
         this._writer.Write(") ");
         this._writer.Write(type);
-        this._writer.Write(" {");
+        this._writer.WriteLine(" {");
         return new Block(this, false);
     }
 

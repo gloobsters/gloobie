@@ -1571,6 +1571,104 @@ pub const TextureFormat = enum(i32) {
     ASTC_12x12 = 133,
 };
 
+pub const PerformanceState = struct {
+    fps: f32,
+    immediateFPS: f32,
+    renderTime: f32,
+    externalUpdateTime: f32,
+    frameBeginToSubmitTime: f32,
+    frameProcessedToNextBeginTime: f32,
+    integrationProcessingTime: f32,
+    extraParticleProcessingTime: f32,
+    processedAssetIntegratorTasks: i32,
+    integrationHighPriorityTasks: i32,
+    integrationTasks: i32,
+    integrationRenderTasks: i32,
+    integrationParticleTasks: i32,
+    processingHandleWaits: i32,
+    frameUpdateHandleTime: f32,
+    renderedCameras: i32,
+    renderedCameraPortals: i32,
+    updatedTextures: i32,
+    textureSliceUploads: i32,
+
+    pub fn write(self: PerformanceState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.fps), self.fps);
+        try ipc.write(@TypeOf(self.immediateFPS), self.immediateFPS);
+        try ipc.write(@TypeOf(self.renderTime), self.renderTime);
+        try ipc.write(@TypeOf(self.externalUpdateTime), self.externalUpdateTime);
+        try ipc.write(@TypeOf(self.frameBeginToSubmitTime), self.frameBeginToSubmitTime);
+        try ipc.write(@TypeOf(self.frameProcessedToNextBeginTime), self.frameProcessedToNextBeginTime);
+        try ipc.write(@TypeOf(self.integrationProcessingTime), self.integrationProcessingTime);
+        try ipc.write(@TypeOf(self.extraParticleProcessingTime), self.extraParticleProcessingTime);
+        try ipc.write(@TypeOf(self.processedAssetIntegratorTasks), self.processedAssetIntegratorTasks);
+        try ipc.write(@TypeOf(self.integrationHighPriorityTasks), self.integrationHighPriorityTasks);
+        try ipc.write(@TypeOf(self.integrationTasks), self.integrationTasks);
+        try ipc.write(@TypeOf(self.integrationRenderTasks), self.integrationRenderTasks);
+        try ipc.write(@TypeOf(self.integrationParticleTasks), self.integrationParticleTasks);
+        try ipc.write(@TypeOf(self.processingHandleWaits), self.processingHandleWaits);
+        try ipc.write(@TypeOf(self.frameUpdateHandleTime), self.frameUpdateHandleTime);
+        try ipc.write(@TypeOf(self.renderedCameras), self.renderedCameras);
+        try ipc.write(@TypeOf(self.renderedCameraPortals), self.renderedCameraPortals);
+        try ipc.write(@TypeOf(self.updatedTextures), self.updatedTextures);
+        try ipc.write(@TypeOf(self.textureSliceUploads), self.textureSliceUploads);
+    }
+    pub fn read(ipc: IpcDeserializer) !PerformanceState {
+        var self: PerformanceState = undefined;
+        self.fps = try ipc.read(@TypeOf(self.fps));
+        self.immediateFPS = try ipc.read(@TypeOf(self.immediateFPS));
+        self.renderTime = try ipc.read(@TypeOf(self.renderTime));
+        self.externalUpdateTime = try ipc.read(@TypeOf(self.externalUpdateTime));
+        self.frameBeginToSubmitTime = try ipc.read(@TypeOf(self.frameBeginToSubmitTime));
+        self.frameProcessedToNextBeginTime = try ipc.read(@TypeOf(self.frameProcessedToNextBeginTime));
+        self.integrationProcessingTime = try ipc.read(@TypeOf(self.integrationProcessingTime));
+        self.extraParticleProcessingTime = try ipc.read(@TypeOf(self.extraParticleProcessingTime));
+        self.processedAssetIntegratorTasks = try ipc.read(@TypeOf(self.processedAssetIntegratorTasks));
+        self.integrationHighPriorityTasks = try ipc.read(@TypeOf(self.integrationHighPriorityTasks));
+        self.integrationTasks = try ipc.read(@TypeOf(self.integrationTasks));
+        self.integrationRenderTasks = try ipc.read(@TypeOf(self.integrationRenderTasks));
+        self.integrationParticleTasks = try ipc.read(@TypeOf(self.integrationParticleTasks));
+        self.processingHandleWaits = try ipc.read(@TypeOf(self.processingHandleWaits));
+        self.frameUpdateHandleTime = try ipc.read(@TypeOf(self.frameUpdateHandleTime));
+        self.renderedCameras = try ipc.read(@TypeOf(self.renderedCameras));
+        self.renderedCameraPortals = try ipc.read(@TypeOf(self.renderedCameraPortals));
+        self.updatedTextures = try ipc.read(@TypeOf(self.updatedTextures));
+        self.textureSliceUploads = try ipc.read(@TypeOf(self.textureSliceUploads));
+        return self;
+    }
+};
+
+pub const InputState = struct {
+    mouse: ?MouseState,
+    keyboard: ?KeyboardState,
+    window: ?WindowState,
+    vr: ?VR_InputsState,
+    gamepads: []const GamepadState,
+    touches: []const TouchState,
+    displays: []const DisplayState,
+
+    pub fn write(self: InputState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.mouse), self.mouse);
+        try ipc.write(@TypeOf(self.keyboard), self.keyboard);
+        try ipc.write(@TypeOf(self.window), self.window);
+        try ipc.write(@TypeOf(self.vr), self.vr);
+        try ipc.writeList(@TypeOf(self.gamepads), self.gamepads);
+        try ipc.writeList(@TypeOf(self.touches), self.touches);
+        try ipc.writeList(@TypeOf(self.displays), self.displays);
+    }
+    pub fn read(ipc: IpcDeserializer) !InputState {
+        var self: InputState = undefined;
+        self.mouse = try ipc.read(@TypeOf(self.mouse));
+        self.keyboard = try ipc.read(@TypeOf(self.keyboard));
+        self.window = try ipc.read(@TypeOf(self.window));
+        self.vr = try ipc.read(@TypeOf(self.vr));
+        self.gamepads = try ipc.readList(@TypeOf(self.gamepads));
+        self.touches = try ipc.readList(@TypeOf(self.touches));
+        self.displays = try ipc.readList(@TypeOf(self.displays));
+        return self;
+    }
+};
+
 pub const RenderableHandle = struct {
     renderSpaceId: i32,
     renderableIndex: i32,
@@ -1583,6 +1681,28 @@ pub const RenderableHandle = struct {
         var self: RenderableHandle = undefined;
         self.renderSpaceId = try ipc.read(@TypeOf(self.renderSpaceId));
         self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        return self;
+    }
+};
+
+pub const OutputState = struct {
+    lockCursor: bool,
+    lockCursorPosition: ?math.Vector2i,
+    keyboardInputActive: bool,
+    vr: ?VR_OutputState,
+
+    pub fn write(self: OutputState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.lockCursor), self.lockCursor);
+        try ipc.write(@TypeOf(self.lockCursorPosition), self.lockCursorPosition);
+        try ipc.write(@TypeOf(self.keyboardInputActive), self.keyboardInputActive);
+        try ipc.write(@TypeOf(self.vr), self.vr);
+    }
+    pub fn read(ipc: IpcDeserializer) !OutputState {
+        var self: OutputState = undefined;
+        self.lockCursor = try ipc.read(@TypeOf(self.lockCursor));
+        self.lockCursorPosition = try ipc.read(@TypeOf(self.lockCursorPosition));
+        self.keyboardInputActive = try ipc.read(@TypeOf(self.keyboardInputActive));
+        self.vr = try ipc.read(@TypeOf(self.vr));
         return self;
     }
 };
@@ -1811,7 +1931,18 @@ pub const BlendshapeBufferDescriptor = struct {
     }
 };
 
-pub const MeshUploadHint = struct {};
+pub const MeshUploadHint = struct {
+    _flags: MeshUploadHint_Flag,
+
+    pub fn write(self: MeshUploadHint, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self._flags), self._flags);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshUploadHint {
+        var self: MeshUploadHint = undefined;
+        self._flags = try ipc.read(@TypeOf(self._flags));
+        return self;
+    }
+};
 
 pub const RenderBoundingBox = struct {
     center: math.Vector3f,
@@ -1988,6 +2119,233 @@ pub const VideoAudioTrack = struct {
     }
 };
 
+pub const MouseState = struct {
+    isActive: bool,
+    leftButtonState: bool,
+    rightButtonState: bool,
+    middleButtonState: bool,
+    button4State: bool,
+    button5State: bool,
+    desktopPosition: math.Vector2f,
+    windowPosition: math.Vector2f,
+    directDelta: math.Vector2f,
+    scrollWheelDelta: math.Vector2f,
+
+    pub fn write(self: MouseState, ipc: IpcSerializer) !void {
+        try ipc.write8PackedBools(self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, false, false);
+        try ipc.write(@TypeOf(self.desktopPosition), self.desktopPosition);
+        try ipc.write(@TypeOf(self.windowPosition), self.windowPosition);
+        try ipc.write(@TypeOf(self.directDelta), self.directDelta);
+        try ipc.write(@TypeOf(self.scrollWheelDelta), self.scrollWheelDelta);
+    }
+    pub fn read(ipc: IpcDeserializer) !MouseState {
+        var self: MouseState = undefined;
+        self.isActive, self.leftButtonState, self.rightButtonState, self.middleButtonState, self.button4State, self.button5State, _, _ = try ipc.read8PackedBools();
+        self.desktopPosition = try ipc.read(@TypeOf(self.desktopPosition));
+        self.windowPosition = try ipc.read(@TypeOf(self.windowPosition));
+        self.directDelta = try ipc.read(@TypeOf(self.directDelta));
+        self.scrollWheelDelta = try ipc.read(@TypeOf(self.scrollWheelDelta));
+        return self;
+    }
+};
+
+pub const KeyboardState = struct {
+    typeDelta: []const u16,
+    heldKeys: []const Key,
+
+    pub fn write(self: KeyboardState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.typeDelta), self.typeDelta);
+        try ipc.writeList(@TypeOf(self.heldKeys), self.heldKeys);
+    }
+    pub fn read(ipc: IpcDeserializer) !KeyboardState {
+        var self: KeyboardState = undefined;
+        self.typeDelta = try ipc.read(@TypeOf(self.typeDelta));
+        self.heldKeys = try ipc.readList(@TypeOf(self.heldKeys));
+        return self;
+    }
+};
+
+pub const WindowState = struct {
+    isWindowFocused: bool,
+    isFullscreen: bool,
+    windowResolution: math.Vector2i,
+    resolutionSettingsApplied: bool,
+    dragAndDropEvent: ?DragAndDropEvent,
+
+    pub fn write(self: WindowState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.isWindowFocused), self.isWindowFocused);
+        try ipc.write(@TypeOf(self.isFullscreen), self.isFullscreen);
+        try ipc.write(@TypeOf(self.windowResolution), self.windowResolution);
+        try ipc.write(@TypeOf(self.resolutionSettingsApplied), self.resolutionSettingsApplied);
+        try ipc.write(@TypeOf(self.dragAndDropEvent), self.dragAndDropEvent);
+    }
+    pub fn read(ipc: IpcDeserializer) !WindowState {
+        var self: WindowState = undefined;
+        self.isWindowFocused = try ipc.read(@TypeOf(self.isWindowFocused));
+        self.isFullscreen = try ipc.read(@TypeOf(self.isFullscreen));
+        self.windowResolution = try ipc.read(@TypeOf(self.windowResolution));
+        self.resolutionSettingsApplied = try ipc.read(@TypeOf(self.resolutionSettingsApplied));
+        self.dragAndDropEvent = try ipc.read(@TypeOf(self.dragAndDropEvent));
+        return self;
+    }
+};
+
+pub const VR_InputsState = struct {
+    userPresentInHeadset: bool,
+    dashboardOpen: bool,
+    headsetState: ?HeadsetState,
+    controllers: []const VR_ControllerState,
+    trackers: []const TrackerState,
+    trackingReferences: []const TrackingReferenceState,
+    hands: []const HandState,
+    viveHandTracking: ?ViveHandTrackingInputState,
+
+    pub fn write(self: VR_InputsState, ipc: IpcSerializer) !void {
+        try ipc.write8PackedBools(self.userPresentInHeadset, self.dashboardOpen, false, false, false, false, false, false);
+        try ipc.write(@TypeOf(self.headsetState), self.headsetState);
+        try ipc.writePolymorphicList(@TypeOf(self.controllers), self.controllers);
+        try ipc.writeList(@TypeOf(self.trackers), self.trackers);
+        try ipc.writeList(@TypeOf(self.trackingReferences), self.trackingReferences);
+        try ipc.writeList(@TypeOf(self.hands), self.hands);
+        try ipc.write(@TypeOf(self.viveHandTracking), self.viveHandTracking);
+    }
+    pub fn read(ipc: IpcDeserializer) !VR_InputsState {
+        var self: VR_InputsState = undefined;
+        self.userPresentInHeadset, self.dashboardOpen, _, _, _, _, _, _ = try ipc.read8PackedBools();
+        self.headsetState = try ipc.read(@TypeOf(self.headsetState));
+        self.controllers = try ipc.readPolymorphicList(@TypeOf(self.controllers));
+        self.trackers = try ipc.readList(@TypeOf(self.trackers));
+        self.trackingReferences = try ipc.readList(@TypeOf(self.trackingReferences));
+        self.hands = try ipc.readList(@TypeOf(self.hands));
+        self.viveHandTracking = try ipc.read(@TypeOf(self.viveHandTracking));
+        return self;
+    }
+};
+
+pub const GamepadState = struct {
+    displayName: []const u16,
+    leftThumbstick: math.Vector2f,
+    rightThumbstick: math.Vector2f,
+    dPad: math.Vector2f,
+    leftTrigger: f32,
+    rightTrigger: f32,
+    leftThumbstickClick: bool,
+    rightThumbstickClick: bool,
+    dPadUp: bool,
+    dPadRight: bool,
+    dPadDown: bool,
+    dPadLeft: bool,
+    leftBumper: bool,
+    rightBumper: bool,
+    start: bool,
+    menu: bool,
+    a: bool,
+    b: bool,
+    x: bool,
+    y: bool,
+    paddle0: bool,
+    paddle1: bool,
+    paddle2: bool,
+    paddle3: bool,
+
+    pub fn write(self: GamepadState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.displayName), self.displayName);
+        try ipc.write(@TypeOf(self.leftThumbstick), self.leftThumbstick);
+        try ipc.write(@TypeOf(self.rightThumbstick), self.rightThumbstick);
+        try ipc.write(@TypeOf(self.dPad), self.dPad);
+        try ipc.write(@TypeOf(self.leftTrigger), self.leftTrigger);
+        try ipc.write(@TypeOf(self.rightTrigger), self.rightTrigger);
+        try ipc.write8PackedBools(self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper);
+        try ipc.write8PackedBools(self.start, self.menu, false, false, false, false, false, false);
+        try ipc.write8PackedBools(self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3);
+    }
+    pub fn read(ipc: IpcDeserializer) !GamepadState {
+        var self: GamepadState = undefined;
+        self.displayName = try ipc.read(@TypeOf(self.displayName));
+        self.leftThumbstick = try ipc.read(@TypeOf(self.leftThumbstick));
+        self.rightThumbstick = try ipc.read(@TypeOf(self.rightThumbstick));
+        self.dPad = try ipc.read(@TypeOf(self.dPad));
+        self.leftTrigger = try ipc.read(@TypeOf(self.leftTrigger));
+        self.rightTrigger = try ipc.read(@TypeOf(self.rightTrigger));
+        self.leftThumbstickClick, self.rightThumbstickClick, self.dPadUp, self.dPadRight, self.dPadDown, self.dPadLeft, self.leftBumper, self.rightBumper = try ipc.read8PackedBools();
+        self.start, self.menu, _, _, _, _, _, _ = try ipc.read8PackedBools();
+        self.a, self.b, self.x, self.y, self.paddle0, self.paddle1, self.paddle2, self.paddle3 = try ipc.read8PackedBools();
+        return self;
+    }
+};
+
+pub const TouchState = struct {
+    touchId: i32,
+    position: math.Vector2f,
+    isPressing: bool,
+    pressure: f32,
+
+    pub fn write(self: TouchState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.touchId), self.touchId);
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.isPressing), self.isPressing);
+        try ipc.write(@TypeOf(self.pressure), self.pressure);
+    }
+    pub fn read(ipc: IpcDeserializer) !TouchState {
+        var self: TouchState = undefined;
+        self.touchId = try ipc.read(@TypeOf(self.touchId));
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.isPressing = try ipc.read(@TypeOf(self.isPressing));
+        self.pressure = try ipc.read(@TypeOf(self.pressure));
+        return self;
+    }
+};
+
+pub const DisplayState = struct {
+    displayIndex: i32,
+    resolution: math.Vector2i,
+    offset: math.Vector2i,
+    refreshRate: f64,
+    orientation: RectOrientation,
+    dpi: math.Vector2f,
+    isPrimary: bool,
+
+    pub fn write(self: DisplayState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.displayIndex), self.displayIndex);
+        try ipc.write(@TypeOf(self.resolution), self.resolution);
+        try ipc.write(@TypeOf(self.offset), self.offset);
+        try ipc.write(@TypeOf(self.refreshRate), self.refreshRate);
+        try ipc.write(@TypeOf(self.orientation), self.orientation);
+        try ipc.write(@TypeOf(self.dpi), self.dpi);
+        try ipc.write(@TypeOf(self.isPrimary), self.isPrimary);
+    }
+    pub fn read(ipc: IpcDeserializer) !DisplayState {
+        var self: DisplayState = undefined;
+        self.displayIndex = try ipc.read(@TypeOf(self.displayIndex));
+        self.resolution = try ipc.read(@TypeOf(self.resolution));
+        self.offset = try ipc.read(@TypeOf(self.offset));
+        self.refreshRate = try ipc.read(@TypeOf(self.refreshRate));
+        self.orientation = try ipc.read(@TypeOf(self.orientation));
+        self.dpi = try ipc.read(@TypeOf(self.dpi));
+        self.isPrimary = try ipc.read(@TypeOf(self.isPrimary));
+        return self;
+    }
+};
+
+pub const VR_OutputState = struct {
+    leftController: ?VR_ControllerOutputState,
+    rightController: ?VR_ControllerOutputState,
+    useViveHandTracking: bool,
+
+    pub fn write(self: VR_OutputState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.leftController), self.leftController);
+        try ipc.write(@TypeOf(self.rightController), self.rightController);
+        try ipc.write(@TypeOf(self.useViveHandTracking), self.useViveHandTracking);
+    }
+    pub fn read(ipc: IpcDeserializer) !VR_OutputState {
+        var self: VR_OutputState = undefined;
+        self.leftController = try ipc.read(@TypeOf(self.leftController));
+        self.rightController = try ipc.read(@TypeOf(self.rightController));
+        self.useViveHandTracking = try ipc.read(@TypeOf(self.useViveHandTracking));
+        return self;
+    }
+};
+
 pub const RenderTransform = struct {
     position: math.Vector3f,
     scale: math.Vector3f,
@@ -2044,6 +2402,393 @@ pub const RenderSH2 = struct {
     }
 };
 
+pub const TransformsUpdate = struct {
+    targetTransformCount: i32,
+    removals: SharedMemoryBufferDescriptor,
+    parentUpdates: SharedMemoryBufferDescriptor,
+    poseUpdates: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: TransformsUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.targetTransformCount), self.targetTransformCount);
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.parentUpdates), self.parentUpdates);
+        try ipc.write(@TypeOf(self.poseUpdates), self.poseUpdates);
+    }
+    pub fn read(ipc: IpcDeserializer) !TransformsUpdate {
+        var self: TransformsUpdate = undefined;
+        self.targetTransformCount = try ipc.read(@TypeOf(self.targetTransformCount));
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.parentUpdates = try ipc.read(@TypeOf(self.parentUpdates));
+        self.poseUpdates = try ipc.read(@TypeOf(self.poseUpdates));
+        return self;
+    }
+};
+
+pub const MeshRenderablesUpdate = struct {
+    meshStates: SharedMemoryBufferDescriptor,
+    meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: MeshRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.meshStates), self.meshStates);
+        try ipc.write(@TypeOf(self.meshMaterialsAndPropertyBlocks), self.meshMaterialsAndPropertyBlocks);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshRenderablesUpdate {
+        var self: MeshRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.meshStates = try ipc.read(@TypeOf(self.meshStates));
+        self.meshMaterialsAndPropertyBlocks = try ipc.read(@TypeOf(self.meshMaterialsAndPropertyBlocks));
+        return self;
+    }
+};
+
+pub const SkinnedMeshRenderablesUpdate = struct {
+    boundsUpdates: SharedMemoryBufferDescriptor,
+    realtimeBoundsUpdates: SharedMemoryBufferDescriptor,
+    boneAssignments: SharedMemoryBufferDescriptor,
+    boneTransformIndexes: SharedMemoryBufferDescriptor,
+    blendshapeUpdateBatches: SharedMemoryBufferDescriptor,
+    blendshapeUpdates: SharedMemoryBufferDescriptor,
+    meshStates: SharedMemoryBufferDescriptor,
+    meshMaterialsAndPropertyBlocks: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: SkinnedMeshRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.meshStates), self.meshStates);
+        try ipc.write(@TypeOf(self.meshMaterialsAndPropertyBlocks), self.meshMaterialsAndPropertyBlocks);
+        try ipc.write(@TypeOf(self.boundsUpdates), self.boundsUpdates);
+        try ipc.write(@TypeOf(self.realtimeBoundsUpdates), self.realtimeBoundsUpdates);
+        try ipc.write(@TypeOf(self.boneAssignments), self.boneAssignments);
+        try ipc.write(@TypeOf(self.boneTransformIndexes), self.boneTransformIndexes);
+        try ipc.write(@TypeOf(self.blendshapeUpdateBatches), self.blendshapeUpdateBatches);
+        try ipc.write(@TypeOf(self.blendshapeUpdates), self.blendshapeUpdates);
+    }
+    pub fn read(ipc: IpcDeserializer) !SkinnedMeshRenderablesUpdate {
+        var self: SkinnedMeshRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.meshStates = try ipc.read(@TypeOf(self.meshStates));
+        self.meshMaterialsAndPropertyBlocks = try ipc.read(@TypeOf(self.meshMaterialsAndPropertyBlocks));
+        self.boundsUpdates = try ipc.read(@TypeOf(self.boundsUpdates));
+        self.realtimeBoundsUpdates = try ipc.read(@TypeOf(self.realtimeBoundsUpdates));
+        self.boneAssignments = try ipc.read(@TypeOf(self.boneAssignments));
+        self.boneTransformIndexes = try ipc.read(@TypeOf(self.boneTransformIndexes));
+        self.blendshapeUpdateBatches = try ipc.read(@TypeOf(self.blendshapeUpdateBatches));
+        self.blendshapeUpdates = try ipc.read(@TypeOf(self.blendshapeUpdates));
+        return self;
+    }
+};
+
+pub const LightRenderablesUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: LightRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !LightRenderablesUpdate {
+        var self: LightRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
+pub const CameraRenderablesUpdate = struct {
+    transformIds: SharedMemoryBufferDescriptor,
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: CameraRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+        try ipc.write(@TypeOf(self.transformIds), self.transformIds);
+    }
+    pub fn read(ipc: IpcDeserializer) !CameraRenderablesUpdate {
+        var self: CameraRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        self.transformIds = try ipc.read(@TypeOf(self.transformIds));
+        return self;
+    }
+};
+
+pub const CameraPortalsRenderablesUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: CameraPortalsRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !CameraPortalsRenderablesUpdate {
+        var self: CameraPortalsRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
+pub const ReflectionProbeRenderablesUpdate = struct {
+    changedProbesToRender: SharedMemoryBufferDescriptor,
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: ReflectionProbeRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+        try ipc.write(@TypeOf(self.changedProbesToRender), self.changedProbesToRender);
+    }
+    pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderablesUpdate {
+        var self: ReflectionProbeRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        self.changedProbesToRender = try ipc.read(@TypeOf(self.changedProbesToRender));
+        return self;
+    }
+};
+
+pub const ReflectionProbeSH2Tasks = struct {
+    tasks: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: ReflectionProbeSH2Tasks, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.tasks), self.tasks);
+    }
+    pub fn read(ipc: IpcDeserializer) !ReflectionProbeSH2Tasks {
+        var self: ReflectionProbeSH2Tasks = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.tasks = try ipc.read(@TypeOf(self.tasks));
+        return self;
+    }
+};
+
+pub const LayerUpdate = struct {
+    layerAssignments: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: LayerUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.layerAssignments), self.layerAssignments);
+    }
+    pub fn read(ipc: IpcDeserializer) !LayerUpdate {
+        var self: LayerUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.layerAssignments = try ipc.read(@TypeOf(self.layerAssignments));
+        return self;
+    }
+};
+
+pub const BillboardRenderBufferUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: BillboardRenderBufferUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !BillboardRenderBufferUpdate {
+        var self: BillboardRenderBufferUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
+pub const MeshRenderBufferUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: MeshRenderBufferUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshRenderBufferUpdate {
+        var self: MeshRenderBufferUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
+pub const TrailsRendererUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: TrailsRendererUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !TrailsRendererUpdate {
+        var self: TrailsRendererUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
+pub const LightsBufferRendererUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: LightsBufferRendererUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !LightsBufferRendererUpdate {
+        var self: LightsBufferRendererUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
+pub const RenderTransformOverridesUpdate = struct {
+    skinnedMeshRenderersIndexes: SharedMemoryBufferDescriptor,
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: RenderTransformOverridesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+        try ipc.write(@TypeOf(self.skinnedMeshRenderersIndexes), self.skinnedMeshRenderersIndexes);
+    }
+    pub fn read(ipc: IpcDeserializer) !RenderTransformOverridesUpdate {
+        var self: RenderTransformOverridesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        self.skinnedMeshRenderersIndexes = try ipc.read(@TypeOf(self.skinnedMeshRenderersIndexes));
+        return self;
+    }
+};
+
+pub const RenderMaterialOverridesUpdate = struct {
+    materialOverrideStates: SharedMemoryBufferDescriptor,
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: RenderMaterialOverridesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+        try ipc.write(@TypeOf(self.materialOverrideStates), self.materialOverrideStates);
+    }
+    pub fn read(ipc: IpcDeserializer) !RenderMaterialOverridesUpdate {
+        var self: RenderMaterialOverridesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        self.materialOverrideStates = try ipc.read(@TypeOf(self.materialOverrideStates));
+        return self;
+    }
+};
+
+pub const BlitToDisplayRenderablesUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: BlitToDisplayRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !BlitToDisplayRenderablesUpdate {
+        var self: BlitToDisplayRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
+pub const LODGroupRenderablesUpdate = struct {
+    lodStates: SharedMemoryBufferDescriptor,
+    packedMeshRendererIds: SharedMemoryBufferDescriptor,
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: LODGroupRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+        try ipc.write(@TypeOf(self.lodStates), self.lodStates);
+        try ipc.write(@TypeOf(self.packedMeshRendererIds), self.packedMeshRendererIds);
+    }
+    pub fn read(ipc: IpcDeserializer) !LODGroupRenderablesUpdate {
+        var self: LODGroupRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        self.lodStates = try ipc.read(@TypeOf(self.lodStates));
+        self.packedMeshRendererIds = try ipc.read(@TypeOf(self.packedMeshRendererIds));
+        return self;
+    }
+};
+
+pub const GaussianSplatRenderablesUpdate = struct {
+    states: SharedMemoryBufferDescriptor,
+    removals: SharedMemoryBufferDescriptor,
+    additions: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: GaussianSplatRenderablesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.removals), self.removals);
+        try ipc.write(@TypeOf(self.additions), self.additions);
+        try ipc.write(@TypeOf(self.states), self.states);
+    }
+    pub fn read(ipc: IpcDeserializer) !GaussianSplatRenderablesUpdate {
+        var self: GaussianSplatRenderablesUpdate = undefined;
+        self.removals = try ipc.read(@TypeOf(self.removals));
+        self.additions = try ipc.read(@TypeOf(self.additions));
+        self.states = try ipc.read(@TypeOf(self.states));
+        return self;
+    }
+};
+
 pub const ReflectionProbeRenderTask = struct {
     renderableIndex: i32,
     renderTaskId: i32,
@@ -2071,6 +2816,52 @@ pub const ReflectionProbeRenderTask = struct {
         self.mipOrigins = try ipc.readNestedList(@TypeOf(self.mipOrigins));
         self.resultData = try ipc.read(@TypeOf(self.resultData));
         self.excludeTransformIds = try ipc.readList(@TypeOf(self.excludeTransformIds));
+        return self;
+    }
+};
+
+pub const CameraRenderParameters = struct {
+    resolution: math.Vector2i,
+    textureFormat: TextureFormat,
+    projection: CameraProjection,
+    fov: f32,
+    orthographicSize: f32,
+    clearMode: CameraClearMode,
+    clearColor: math.Vector4f,
+    nearClip: f32,
+    farClip: f32,
+    renderPrivateUI: bool,
+    postProcessing: bool,
+    screenSpaceReflections: bool,
+
+    pub fn write(self: CameraRenderParameters, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.resolution), self.resolution);
+        try ipc.write(@TypeOf(self.textureFormat), self.textureFormat);
+        try ipc.write(@TypeOf(self.projection), self.projection);
+        try ipc.write(@TypeOf(self.fov), self.fov);
+        try ipc.write(@TypeOf(self.orthographicSize), self.orthographicSize);
+        try ipc.write(@TypeOf(self.clearMode), self.clearMode);
+        try ipc.write(@TypeOf(self.clearColor), self.clearColor);
+        try ipc.write(@TypeOf(self.nearClip), self.nearClip);
+        try ipc.write(@TypeOf(self.farClip), self.farClip);
+        try ipc.write(@TypeOf(self.renderPrivateUI), self.renderPrivateUI);
+        try ipc.write(@TypeOf(self.postProcessing), self.postProcessing);
+        try ipc.write(@TypeOf(self.screenSpaceReflections), self.screenSpaceReflections);
+    }
+    pub fn read(ipc: IpcDeserializer) !CameraRenderParameters {
+        var self: CameraRenderParameters = undefined;
+        self.resolution = try ipc.read(@TypeOf(self.resolution));
+        self.textureFormat = try ipc.read(@TypeOf(self.textureFormat));
+        self.projection = try ipc.read(@TypeOf(self.projection));
+        self.fov = try ipc.read(@TypeOf(self.fov));
+        self.orthographicSize = try ipc.read(@TypeOf(self.orthographicSize));
+        self.clearMode = try ipc.read(@TypeOf(self.clearMode));
+        self.clearColor = try ipc.read(@TypeOf(self.clearColor));
+        self.nearClip = try ipc.read(@TypeOf(self.nearClip));
+        self.farClip = try ipc.read(@TypeOf(self.farClip));
+        self.renderPrivateUI = try ipc.read(@TypeOf(self.renderPrivateUI));
+        self.postProcessing = try ipc.read(@TypeOf(self.postProcessing));
+        self.screenSpaceReflections = try ipc.read(@TypeOf(self.screenSpaceReflections));
         return self;
     }
 };
@@ -2110,11 +2901,37 @@ pub const SubmeshTopology = enum(i32) {
     Triangles = 1,
 };
 
-pub const BlendshapeDataFlags = packed struct(i32) { // NOTE: Skipped NONE
+pub const BlendshapeDataFlags = packed struct(i32) {
+    // NOTE: Skipped NONE
     Positions: bool,
     Normals: bool,
     Tangets: bool,
     padding: u29 = 0,
+};
+
+pub const MeshUploadHint_Flag = packed struct(i32) {
+    VertexLayout: bool,
+    SubmeshLayout: bool,
+    Geometry: bool,
+    Positions: bool,
+    Normals: bool,
+    Tangents: bool,
+    Colors: bool,
+    UV0s: bool,
+    UV1s: bool,
+    UV2s: bool,
+    UV3s: bool,
+    UV4s: bool,
+    UV5s: bool,
+    UV6s: bool,
+    UV7s: bool,
+    BindPoses: bool,
+    BoneWeights: bool,
+    Blendshapes: bool,
+    Dynamic: bool,
+    Readable: bool,
+    Debug: bool,
+    padding: u11 = 0,
 };
 
 pub const MaterialPropertyUpdateType = enum(u8) {
@@ -2152,4 +2969,1737 @@ pub const RenderIntRect = struct {
         self.height = try ipc.read(@TypeOf(self.height));
         return self;
     }
+};
+
+pub const Key = enum(i32) {
+    None = 0,
+    Backspace = 8,
+    Tab = 9,
+    Clear = 12,
+    Return = 13,
+    Pause = 19,
+    Escape = 27,
+    Space = 32,
+    Exclaim = 33,
+    DoubleQuote = 34,
+    Hash = 35,
+    Dollar = 36,
+    Ampersand = 38,
+    Quote = 39,
+    LeftParenthesis = 40,
+    RightParenthesis = 41,
+    Asterisk = 42,
+    Plus = 43,
+    Comma = 44,
+    Minus = 45,
+    Period = 46,
+    Slash = 47,
+    Alpha0 = 48,
+    Alpha1 = 49,
+    Alpha2 = 50,
+    Alpha3 = 51,
+    Alpha4 = 52,
+    Alpha5 = 53,
+    Alpha6 = 54,
+    Alpha7 = 55,
+    Alpha8 = 56,
+    Alpha9 = 57,
+    Colon = 58,
+    Semicolon = 59,
+    Less = 60,
+    Equals = 61,
+    Greater = 62,
+    Question = 63,
+    At = 64,
+    VerticalBar = 65,
+    LeftBracket = 91,
+    Backslash = 92,
+    RightBracket = 93,
+    Caret = 94,
+    Underscore = 95,
+    BackQuote = 96,
+    A = 97,
+    B = 98,
+    C = 99,
+    D = 100,
+    E = 101,
+    F = 102,
+    G = 103,
+    H = 104,
+    I = 105,
+    J = 106,
+    K = 107,
+    L = 108,
+    M = 109,
+    N = 110,
+    O = 111,
+    P = 112,
+    Q = 113,
+    R = 114,
+    S = 115,
+    T = 116,
+    U = 117,
+    V = 118,
+    W = 119,
+    X = 120,
+    Y = 121,
+    Z = 122,
+    Percent = 123,
+    Tilde = 124,
+    LeftBrace = 125,
+    RightBrace = 126,
+    Delete = 127,
+    Keypad0 = 256,
+    Keypad1 = 257,
+    Keypad2 = 258,
+    Keypad3 = 259,
+    Keypad4 = 260,
+    Keypad5 = 261,
+    Keypad6 = 262,
+    Keypad7 = 263,
+    Keypad8 = 264,
+    Keypad9 = 265,
+    KeypadPeriod = 266,
+    KeypadDivide = 267,
+    KeypadMultiply = 268,
+    KeypadMinus = 269,
+    KeypadPlus = 270,
+    KeypadEnter = 271,
+    KeypadEquals = 272,
+    UpArrow = 273,
+    DownArrow = 274,
+    RightArrow = 275,
+    LeftArrow = 276,
+    Insert = 277,
+    Home = 278,
+    End = 279,
+    PageUp = 280,
+    PageDown = 281,
+    F1 = 282,
+    F2 = 283,
+    F3 = 284,
+    F4 = 285,
+    F5 = 286,
+    F6 = 287,
+    F7 = 288,
+    F8 = 289,
+    F9 = 290,
+    F10 = 291,
+    F11 = 292,
+    F12 = 293,
+    F13 = 294,
+    F14 = 295,
+    F15 = 296,
+    Numlock = 300,
+    CapsLock = 301,
+    ScrollLock = 302,
+    RightShift = 303,
+    LeftShift = 304,
+    RightControl = 305,
+    LeftControl = 306,
+    RightAlt = 307,
+    LeftAlt = 308,
+    RightApple = 309,
+    LeftApple = 310,
+    LeftWindows = 311,
+    RightWindows = 312,
+    AltGr = 313,
+    Help = 315,
+    Print = 316,
+    SysReq = 317,
+    Break = 318,
+    Menu = 319,
+    Shift = 512,
+    Control = 513,
+    Alt = 514,
+    Windows = 515,
+};
+
+pub const DragAndDropEvent = struct {
+    paths: []const []const u16,
+    dropPoint: math.Vector2i,
+
+    pub fn write(self: DragAndDropEvent, ipc: IpcSerializer) !void {
+        try ipc.writeList(@TypeOf(self.paths), self.paths);
+        try ipc.write(@TypeOf(self.dropPoint), self.dropPoint);
+    }
+    pub fn read(ipc: IpcDeserializer) !DragAndDropEvent {
+        var self: DragAndDropEvent = undefined;
+        self.paths = try ipc.readList(@TypeOf(self.paths));
+        self.dropPoint = try ipc.read(@TypeOf(self.dropPoint));
+        return self;
+    }
+};
+
+pub const HeadsetState = struct {
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+    connectionType: HeadsetConnection,
+    headsetManufacturer: []const u16,
+    headsetModel: []const u16,
+
+    pub fn write(self: HeadsetState, ipc: IpcSerializer) !void {
+        try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_001e: brfalse.s IL_0044
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.connectionType), self.connectionType);
+        try ipc.write(@TypeOf(self.headsetManufacturer), self.headsetManufacturer);
+        try ipc.write(@TypeOf(self.headsetModel), self.headsetModel);
+    }
+    pub fn read(ipc: IpcDeserializer) !HeadsetState {
+        var self: HeadsetState = undefined;
+        self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0018: brfalse.s IL_003e
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.connectionType = try ipc.read(@TypeOf(self.connectionType));
+        self.headsetManufacturer = try ipc.read(@TypeOf(self.headsetManufacturer));
+        self.headsetModel = try ipc.read(@TypeOf(self.headsetModel));
+        return self;
+    }
+};
+
+pub const VR_ControllerStateTypes = enum(i32) {
+    CosmosControllerState,
+    GenericControllerState,
+    HP_ReverbControllerState,
+    IndexControllerState,
+    PicoNeo2ControllerState,
+    TouchControllerState,
+    ViveControllerState,
+    WindowsMR_ControllerState,
+};
+pub const VR_ControllerState = union(VR_ControllerStateTypes) {
+    CosmosControllerState: CosmosControllerState,
+    GenericControllerState: GenericControllerState,
+    HP_ReverbControllerState: HP_ReverbControllerState,
+    IndexControllerState: IndexControllerState,
+    PicoNeo2ControllerState: PicoNeo2ControllerState,
+    TouchControllerState: TouchControllerState,
+    ViveControllerState: ViveControllerState,
+    WindowsMR_ControllerState: WindowsMR_ControllerState,
+};
+
+pub const TrackerState = struct {
+    uniqueId: []const u16,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: TrackerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
+        try ipc.write8PackedBools(self.isTracking, self.batteryCharging, false, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_002a: brfalse.s IL_0044
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+    }
+    pub fn read(ipc: IpcDeserializer) !TrackerState {
+        var self: TrackerState = undefined;
+        self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
+        self.isTracking, self.batteryCharging, _, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0024: brfalse.s IL_003e
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        return self;
+    }
+};
+
+pub const TrackingReferenceState = struct {
+    uniqueId: []const u16,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+
+    pub fn write(self: TrackingReferenceState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
+        try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_001e: brfalse.s IL_0038
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+    }
+    pub fn read(ipc: IpcDeserializer) !TrackingReferenceState {
+        var self: TrackingReferenceState = undefined;
+        self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
+        self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_001e: brfalse.s IL_0038
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        return self;
+    }
+};
+
+pub const HandState = struct {
+    uniqueId: []const u16,
+    priority: i32,
+    chirality: Chirality,
+    isDeviceActive: bool,
+    isTracking: bool,
+    tracksMetacarpals: bool,
+    confidence: f32,
+    wristPosition: math.Vector3f,
+    wristRotation: math.Quaternionf,
+    segmentPositions: []const math.Vector3f,
+    segmentRotations: []const math.Quaternionf,
+
+    pub fn write(self: HandState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.uniqueId), self.uniqueId);
+        try ipc.write(@TypeOf(self.priority), self.priority);
+        try ipc.write(@TypeOf(self.chirality), self.chirality);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.tracksMetacarpals, false, false, false, false, false);
+        try ipc.write(@TypeOf(self.confidence), self.confidence);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_0085
+        try ipc.write(@TypeOf(self.wristPosition), self.wristPosition);
+        try ipc.write(@TypeOf(self.wristRotation), self.wristRotation);
+        try ipc.writeList(@TypeOf(self.segmentPositions), self.segmentPositions);
+        try ipc.writeList(@TypeOf(self.segmentRotations), self.segmentRotations);
+    }
+    pub fn read(ipc: IpcDeserializer) !HandState {
+        var self: HandState = undefined;
+        self.uniqueId = try ipc.read(@TypeOf(self.uniqueId));
+        self.priority = try ipc.read(@TypeOf(self.priority));
+        self.chirality = try ipc.read(@TypeOf(self.chirality));
+        self.isDeviceActive, self.isTracking, self.tracksMetacarpals, _, _, _, _, _ = try ipc.read8PackedBools();
+        self.confidence = try ipc.read(@TypeOf(self.confidence));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_0080
+        self.wristPosition = try ipc.read(@TypeOf(self.wristPosition));
+        self.wristRotation = try ipc.read(@TypeOf(self.wristRotation));
+        self.segmentPositions = try ipc.readList(@TypeOf(self.segmentPositions));
+        self.segmentRotations = try ipc.readList(@TypeOf(self.segmentRotations));
+        return self;
+    }
+};
+
+pub const ViveHandTrackingInputState = struct {
+    isTracking: bool,
+    left: ?ViveHandState,
+    right: ?ViveHandState,
+
+    pub fn write(self: ViveHandTrackingInputState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.isTracking), self.isTracking);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0012: brfalse.s IL_002c
+        try ipc.write(@TypeOf(self.left), self.left);
+        try ipc.write(@TypeOf(self.right), self.right);
+    }
+    pub fn read(ipc: IpcDeserializer) !ViveHandTrackingInputState {
+        var self: ViveHandTrackingInputState = undefined;
+        self.isTracking = try ipc.read(@TypeOf(self.isTracking));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0012: brfalse.s IL_002c
+        self.left = try ipc.read(@TypeOf(self.left));
+        self.right = try ipc.read(@TypeOf(self.right));
+        return self;
+    }
+};
+
+pub const RectOrientation = enum(i32) {
+    Default = 0,
+    Clockwise90 = 1,
+    UpsideDown180 = 2,
+    CounterClockwise90 = 3,
+};
+
+pub const VR_ControllerOutputState = struct {
+    side: Chirality,
+    vibrateTime: f64,
+    hapticState: HapticPointState,
+
+    pub fn write(self: VR_ControllerOutputState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.vibrateTime), self.vibrateTime);
+        try ipc.write(@TypeOf(self.hapticState), self.hapticState);
+    }
+    pub fn read(ipc: IpcDeserializer) !VR_ControllerOutputState {
+        var self: VR_ControllerOutputState = undefined;
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.vibrateTime = try ipc.read(@TypeOf(self.vibrateTime));
+        self.hapticState = try ipc.read(@TypeOf(self.hapticState));
+        return self;
+    }
+};
+
+pub const TransformParentUpdate = struct {
+    transformId: i32,
+    newParentId: i32,
+
+    pub fn write(self: TransformParentUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.transformId), self.transformId);
+        try ipc.write(@TypeOf(self.newParentId), self.newParentId);
+    }
+    pub fn read(ipc: IpcDeserializer) !TransformParentUpdate {
+        var self: TransformParentUpdate = undefined;
+        self.transformId = try ipc.read(@TypeOf(self.transformId));
+        self.newParentId = try ipc.read(@TypeOf(self.newParentId));
+        return self;
+    }
+};
+
+pub const TransformPoseUpdate = struct {
+    transformId: i32,
+    pose: RenderTransform,
+
+    pub fn write(self: TransformPoseUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.transformId), self.transformId);
+        try ipc.write(@TypeOf(self.pose), self.pose);
+    }
+    pub fn read(ipc: IpcDeserializer) !TransformPoseUpdate {
+        var self: TransformPoseUpdate = undefined;
+        self.transformId = try ipc.read(@TypeOf(self.transformId));
+        self.pose = try ipc.read(@TypeOf(self.pose));
+        return self;
+    }
+};
+
+pub const MeshRendererState = struct {
+    renderableIndex: i32,
+    meshAssetId: i32,
+    materialCount: i32,
+    materialPropertyBlockCount: i32,
+    sortingOrder: i32,
+    shadowCastMode: ShadowCastMode,
+    motionVectorMode: MotionVectorMode,
+
+    pub fn write(self: MeshRendererState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.meshAssetId), self.meshAssetId);
+        try ipc.write(@TypeOf(self.materialCount), self.materialCount);
+        try ipc.write(@TypeOf(self.materialPropertyBlockCount), self.materialPropertyBlockCount);
+        try ipc.write(@TypeOf(self.sortingOrder), self.sortingOrder);
+        try ipc.write(@TypeOf(self.shadowCastMode), self.shadowCastMode);
+        try ipc.write(@TypeOf(self.motionVectorMode), self.motionVectorMode);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshRendererState {
+        var self: MeshRendererState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.meshAssetId = try ipc.read(@TypeOf(self.meshAssetId));
+        self.materialCount = try ipc.read(@TypeOf(self.materialCount));
+        self.materialPropertyBlockCount = try ipc.read(@TypeOf(self.materialPropertyBlockCount));
+        self.sortingOrder = try ipc.read(@TypeOf(self.sortingOrder));
+        self.shadowCastMode = try ipc.read(@TypeOf(self.shadowCastMode));
+        self.motionVectorMode = try ipc.read(@TypeOf(self.motionVectorMode));
+        return self;
+    }
+};
+
+// TODO: Missing generator for Renderite.Shared.SkinnedMeshBoundsUpdate
+// TODO: Missing generator for Renderite.Shared.SkinnedMeshRealtimeBoundsUpdate
+pub const BoneAssignment = struct {
+    renderableIndex: i32,
+    rootBoneTransformId: i32,
+    boneCount: i32,
+
+    pub fn write(self: BoneAssignment, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.rootBoneTransformId), self.rootBoneTransformId);
+        try ipc.write(@TypeOf(self.boneCount), self.boneCount);
+    }
+    pub fn read(ipc: IpcDeserializer) !BoneAssignment {
+        var self: BoneAssignment = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.rootBoneTransformId = try ipc.read(@TypeOf(self.rootBoneTransformId));
+        self.boneCount = try ipc.read(@TypeOf(self.boneCount));
+        return self;
+    }
+};
+
+pub const BlendshapeUpdateBatch = struct {
+    renderableIndex: i32,
+    blendshapeUpdateCount: i32,
+
+    pub fn write(self: BlendshapeUpdateBatch, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.blendshapeUpdateCount), self.blendshapeUpdateCount);
+    }
+    pub fn read(ipc: IpcDeserializer) !BlendshapeUpdateBatch {
+        var self: BlendshapeUpdateBatch = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.blendshapeUpdateCount = try ipc.read(@TypeOf(self.blendshapeUpdateCount));
+        return self;
+    }
+};
+
+pub const BlendshapeUpdate = struct {
+    blendshapeIndex: i32,
+    weight: f32,
+
+    pub fn write(self: BlendshapeUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.blendshapeIndex), self.blendshapeIndex);
+        try ipc.write(@TypeOf(self.weight), self.weight);
+    }
+    pub fn read(ipc: IpcDeserializer) !BlendshapeUpdate {
+        var self: BlendshapeUpdate = undefined;
+        self.blendshapeIndex = try ipc.read(@TypeOf(self.blendshapeIndex));
+        self.weight = try ipc.read(@TypeOf(self.weight));
+        return self;
+    }
+};
+
+pub const LightState = struct {
+    renderableIndex: i32,
+    intensity: f32,
+    range: f32,
+    spotAngle: f32,
+    color: math.Vector4f,
+    shadowStrength: f32,
+    shadowNearPlane: f32,
+    shadowMapResolutionOverride: i32,
+    shadowBias: f32,
+    shadowNormalBias: f32,
+    cookieTextureAssetId: i32,
+    type: LightType,
+    shadowType: ShadowType,
+
+    pub fn write(self: LightState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.intensity), self.intensity);
+        try ipc.write(@TypeOf(self.range), self.range);
+        try ipc.write(@TypeOf(self.spotAngle), self.spotAngle);
+        try ipc.write(@TypeOf(self.color), self.color);
+        try ipc.write(@TypeOf(self.shadowStrength), self.shadowStrength);
+        try ipc.write(@TypeOf(self.shadowNearPlane), self.shadowNearPlane);
+        try ipc.write(@TypeOf(self.shadowMapResolutionOverride), self.shadowMapResolutionOverride);
+        try ipc.write(@TypeOf(self.shadowBias), self.shadowBias);
+        try ipc.write(@TypeOf(self.shadowNormalBias), self.shadowNormalBias);
+        try ipc.write(@TypeOf(self.cookieTextureAssetId), self.cookieTextureAssetId);
+        try ipc.write(@TypeOf(self.type), self.type);
+        try ipc.write(@TypeOf(self.shadowType), self.shadowType);
+    }
+    pub fn read(ipc: IpcDeserializer) !LightState {
+        var self: LightState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.intensity = try ipc.read(@TypeOf(self.intensity));
+        self.range = try ipc.read(@TypeOf(self.range));
+        self.spotAngle = try ipc.read(@TypeOf(self.spotAngle));
+        self.color = try ipc.read(@TypeOf(self.color));
+        self.shadowStrength = try ipc.read(@TypeOf(self.shadowStrength));
+        self.shadowNearPlane = try ipc.read(@TypeOf(self.shadowNearPlane));
+        self.shadowMapResolutionOverride = try ipc.read(@TypeOf(self.shadowMapResolutionOverride));
+        self.shadowBias = try ipc.read(@TypeOf(self.shadowBias));
+        self.shadowNormalBias = try ipc.read(@TypeOf(self.shadowNormalBias));
+        self.cookieTextureAssetId = try ipc.read(@TypeOf(self.cookieTextureAssetId));
+        self.type = try ipc.read(@TypeOf(self.type));
+        self.shadowType = try ipc.read(@TypeOf(self.shadowType));
+        return self;
+    }
+};
+
+pub const CameraState = struct {
+    renderableIndex: i32,
+    fieldOfView: f32,
+    orthographicSize: f32,
+    nearClip: f32,
+    farClip: f32,
+    backgroundColor: math.Vector4f,
+    viewport: RenderRect,
+    depth: f32,
+    renderTextureAssetId: i32,
+    selectiveRenderCount: i32,
+    excludeRenderCount: i32,
+    clearMode: CameraClearMode,
+    projection: CameraProjection,
+    flags: u16,
+
+    pub fn write(self: CameraState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.fieldOfView), self.fieldOfView);
+        try ipc.write(@TypeOf(self.orthographicSize), self.orthographicSize);
+        try ipc.write(@TypeOf(self.nearClip), self.nearClip);
+        try ipc.write(@TypeOf(self.farClip), self.farClip);
+        try ipc.write(@TypeOf(self.backgroundColor), self.backgroundColor);
+        try ipc.write(@TypeOf(self.viewport), self.viewport);
+        try ipc.write(@TypeOf(self.depth), self.depth);
+        try ipc.write(@TypeOf(self.renderTextureAssetId), self.renderTextureAssetId);
+        try ipc.write(@TypeOf(self.selectiveRenderCount), self.selectiveRenderCount);
+        try ipc.write(@TypeOf(self.excludeRenderCount), self.excludeRenderCount);
+        try ipc.write(@TypeOf(self.clearMode), self.clearMode);
+        try ipc.write(@TypeOf(self.projection), self.projection);
+        try ipc.write(@TypeOf(self.flags), self.flags);
+    }
+    pub fn read(ipc: IpcDeserializer) !CameraState {
+        var self: CameraState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.fieldOfView = try ipc.read(@TypeOf(self.fieldOfView));
+        self.orthographicSize = try ipc.read(@TypeOf(self.orthographicSize));
+        self.nearClip = try ipc.read(@TypeOf(self.nearClip));
+        self.farClip = try ipc.read(@TypeOf(self.farClip));
+        self.backgroundColor = try ipc.read(@TypeOf(self.backgroundColor));
+        self.viewport = try ipc.read(@TypeOf(self.viewport));
+        self.depth = try ipc.read(@TypeOf(self.depth));
+        self.renderTextureAssetId = try ipc.read(@TypeOf(self.renderTextureAssetId));
+        self.selectiveRenderCount = try ipc.read(@TypeOf(self.selectiveRenderCount));
+        self.excludeRenderCount = try ipc.read(@TypeOf(self.excludeRenderCount));
+        self.clearMode = try ipc.read(@TypeOf(self.clearMode));
+        self.projection = try ipc.read(@TypeOf(self.projection));
+        self.flags = try ipc.read(@TypeOf(self.flags));
+        return self;
+    }
+};
+
+pub const CameraPortalState = struct {
+    renderableIndex: i32,
+    meshRendererIndex: i32,
+    planeNormal: math.Vector3f,
+    planeOffset: f32,
+    renderTextureId: i32,
+    portalTransform: math.Matrix4x4f,
+    portalPlanePosition: math.Vector3f,
+    portalPlaneNormal: math.Vector3f,
+    overrideFarClipValue: f32,
+    overrideClearFlagValue: CameraClearMode,
+    flags: i32,
+
+    pub fn write(self: CameraPortalState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.meshRendererIndex), self.meshRendererIndex);
+        try ipc.write(@TypeOf(self.planeNormal), self.planeNormal);
+        try ipc.write(@TypeOf(self.planeOffset), self.planeOffset);
+        try ipc.write(@TypeOf(self.renderTextureId), self.renderTextureId);
+        try ipc.write(@TypeOf(self.portalTransform), self.portalTransform);
+        try ipc.write(@TypeOf(self.portalPlanePosition), self.portalPlanePosition);
+        try ipc.write(@TypeOf(self.portalPlaneNormal), self.portalPlaneNormal);
+        try ipc.write(@TypeOf(self.overrideFarClipValue), self.overrideFarClipValue);
+        try ipc.write(@TypeOf(self.overrideClearFlagValue), self.overrideClearFlagValue);
+        // NOTE: field with gap/overlap, flags = offset:124, size:4, gap:3
+        try ipc.write(@TypeOf(self.flags), self.flags);
+    }
+    pub fn read(ipc: IpcDeserializer) !CameraPortalState {
+        var self: CameraPortalState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.meshRendererIndex = try ipc.read(@TypeOf(self.meshRendererIndex));
+        self.planeNormal = try ipc.read(@TypeOf(self.planeNormal));
+        self.planeOffset = try ipc.read(@TypeOf(self.planeOffset));
+        self.renderTextureId = try ipc.read(@TypeOf(self.renderTextureId));
+        self.portalTransform = try ipc.read(@TypeOf(self.portalTransform));
+        self.portalPlanePosition = try ipc.read(@TypeOf(self.portalPlanePosition));
+        self.portalPlaneNormal = try ipc.read(@TypeOf(self.portalPlaneNormal));
+        self.overrideFarClipValue = try ipc.read(@TypeOf(self.overrideFarClipValue));
+        self.overrideClearFlagValue = try ipc.read(@TypeOf(self.overrideClearFlagValue));
+        // NOTE: field with gap/overlap, flags = offset:124, size:4, gap:3
+        self.flags = try ipc.read(@TypeOf(self.flags));
+        return self;
+    }
+};
+
+pub const ReflectionProbeState = struct {
+    renderableIndex: i32,
+    importance: i32,
+    intensity: f32,
+    blendDistance: f32,
+    boxSize: math.Vector3f,
+    cubemapAssetId: i32,
+    resolution: i32,
+    shadowDistance: f32,
+    backgroundColor: math.Vector4f,
+    nearClip: f32,
+    farClip: f32,
+    type: ReflectionProbeType,
+    clearFlags: ReflectionProbeClear,
+    timeSlicingMode: ReflectionProbeTimeSlicingMode,
+    flags: u8,
+
+    pub fn write(self: ReflectionProbeState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.importance), self.importance);
+        try ipc.write(@TypeOf(self.intensity), self.intensity);
+        try ipc.write(@TypeOf(self.blendDistance), self.blendDistance);
+        try ipc.write(@TypeOf(self.boxSize), self.boxSize);
+        try ipc.write(@TypeOf(self.cubemapAssetId), self.cubemapAssetId);
+        try ipc.write(@TypeOf(self.resolution), self.resolution);
+        try ipc.write(@TypeOf(self.shadowDistance), self.shadowDistance);
+        try ipc.write(@TypeOf(self.backgroundColor), self.backgroundColor);
+        try ipc.write(@TypeOf(self.nearClip), self.nearClip);
+        try ipc.write(@TypeOf(self.farClip), self.farClip);
+        try ipc.write(@TypeOf(self.type), self.type);
+        try ipc.write(@TypeOf(self.clearFlags), self.clearFlags);
+        try ipc.write(@TypeOf(self.timeSlicingMode), self.timeSlicingMode);
+        try ipc.write(@TypeOf(self.flags), self.flags);
+    }
+    pub fn read(ipc: IpcDeserializer) !ReflectionProbeState {
+        var self: ReflectionProbeState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.importance = try ipc.read(@TypeOf(self.importance));
+        self.intensity = try ipc.read(@TypeOf(self.intensity));
+        self.blendDistance = try ipc.read(@TypeOf(self.blendDistance));
+        self.boxSize = try ipc.read(@TypeOf(self.boxSize));
+        self.cubemapAssetId = try ipc.read(@TypeOf(self.cubemapAssetId));
+        self.resolution = try ipc.read(@TypeOf(self.resolution));
+        self.shadowDistance = try ipc.read(@TypeOf(self.shadowDistance));
+        self.backgroundColor = try ipc.read(@TypeOf(self.backgroundColor));
+        self.nearClip = try ipc.read(@TypeOf(self.nearClip));
+        self.farClip = try ipc.read(@TypeOf(self.farClip));
+        self.type = try ipc.read(@TypeOf(self.type));
+        self.clearFlags = try ipc.read(@TypeOf(self.clearFlags));
+        self.timeSlicingMode = try ipc.read(@TypeOf(self.timeSlicingMode));
+        self.flags = try ipc.read(@TypeOf(self.flags));
+        return self;
+    }
+};
+
+// TODO: Missing generator for Renderite.Shared.ReflectionProbeSH2Task
+pub const LayerType = enum(u8) {
+    Hidden = 0,
+    Overlay = 1,
+};
+
+pub const BillboardRenderBufferState = struct {
+    renderableIndex: i32,
+    pointRenderBufferAssetId: i32,
+    materialAssetId: i32,
+    minBillboardScreenSize: f32,
+    maxBillboardScreenSize: f32,
+    alignment: BillboardAlignment,
+    motionVectorMode: MotionVectorMode,
+
+    pub fn write(self: BillboardRenderBufferState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.pointRenderBufferAssetId), self.pointRenderBufferAssetId);
+        try ipc.write(@TypeOf(self.materialAssetId), self.materialAssetId);
+        try ipc.write(@TypeOf(self.minBillboardScreenSize), self.minBillboardScreenSize);
+        try ipc.write(@TypeOf(self.maxBillboardScreenSize), self.maxBillboardScreenSize);
+        try ipc.write(@TypeOf(self.alignment), self.alignment);
+        try ipc.write(@TypeOf(self.motionVectorMode), self.motionVectorMode);
+    }
+    pub fn read(ipc: IpcDeserializer) !BillboardRenderBufferState {
+        var self: BillboardRenderBufferState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.pointRenderBufferAssetId = try ipc.read(@TypeOf(self.pointRenderBufferAssetId));
+        self.materialAssetId = try ipc.read(@TypeOf(self.materialAssetId));
+        self.minBillboardScreenSize = try ipc.read(@TypeOf(self.minBillboardScreenSize));
+        self.maxBillboardScreenSize = try ipc.read(@TypeOf(self.maxBillboardScreenSize));
+        self.alignment = try ipc.read(@TypeOf(self.alignment));
+        self.motionVectorMode = try ipc.read(@TypeOf(self.motionVectorMode));
+        return self;
+    }
+};
+
+pub const MeshRenderBufferState = struct {
+    renderableIndex: i32,
+    pointRenderBufferAssetId: i32,
+    materialAssetId: i32,
+    meshAssetId: i32,
+    alignment: MeshAlignment,
+
+    pub fn write(self: MeshRenderBufferState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.pointRenderBufferAssetId), self.pointRenderBufferAssetId);
+        try ipc.write(@TypeOf(self.materialAssetId), self.materialAssetId);
+        try ipc.write(@TypeOf(self.meshAssetId), self.meshAssetId);
+        try ipc.write(@TypeOf(self.alignment), self.alignment);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshRenderBufferState {
+        var self: MeshRenderBufferState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.pointRenderBufferAssetId = try ipc.read(@TypeOf(self.pointRenderBufferAssetId));
+        self.materialAssetId = try ipc.read(@TypeOf(self.materialAssetId));
+        self.meshAssetId = try ipc.read(@TypeOf(self.meshAssetId));
+        self.alignment = try ipc.read(@TypeOf(self.alignment));
+        return self;
+    }
+};
+
+pub const TrailsRendererState = struct {
+    renderableIndex: i32,
+    trailsRenderBufferAssetId: i32,
+    materialAssetId: i32,
+    textureMode: TrailTextureMode,
+    motionVectorMode: MotionVectorMode,
+    generateLightingData: bool,
+
+    pub fn write(self: TrailsRendererState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.trailsRenderBufferAssetId), self.trailsRenderBufferAssetId);
+        try ipc.write(@TypeOf(self.materialAssetId), self.materialAssetId);
+        try ipc.write(@TypeOf(self.textureMode), self.textureMode);
+        try ipc.write(@TypeOf(self.motionVectorMode), self.motionVectorMode);
+        try ipc.write(@TypeOf(self.generateLightingData), self.generateLightingData);
+    }
+    pub fn read(ipc: IpcDeserializer) !TrailsRendererState {
+        var self: TrailsRendererState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.trailsRenderBufferAssetId = try ipc.read(@TypeOf(self.trailsRenderBufferAssetId));
+        self.materialAssetId = try ipc.read(@TypeOf(self.materialAssetId));
+        self.textureMode = try ipc.read(@TypeOf(self.textureMode));
+        self.motionVectorMode = try ipc.read(@TypeOf(self.motionVectorMode));
+        self.generateLightingData = try ipc.read(@TypeOf(self.generateLightingData));
+        return self;
+    }
+};
+
+pub const LightsBufferRendererState = struct {
+    renderableIndex: i32,
+    globalUniqueId: i32,
+    shadowStrength: f32,
+    shadowNearPlane: f32,
+    shadowMapResolution: i32,
+    shadowBias: f32,
+    shadowNormalBias: f32,
+    cookieTextureAssetId: i32,
+    lightType: LightType,
+    shadowType: ShadowType,
+
+    pub fn write(self: LightsBufferRendererState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.globalUniqueId), self.globalUniqueId);
+        try ipc.write(@TypeOf(self.shadowStrength), self.shadowStrength);
+        try ipc.write(@TypeOf(self.shadowNearPlane), self.shadowNearPlane);
+        try ipc.write(@TypeOf(self.shadowMapResolution), self.shadowMapResolution);
+        try ipc.write(@TypeOf(self.shadowBias), self.shadowBias);
+        try ipc.write(@TypeOf(self.shadowNormalBias), self.shadowNormalBias);
+        try ipc.write(@TypeOf(self.cookieTextureAssetId), self.cookieTextureAssetId);
+        try ipc.write(@TypeOf(self.lightType), self.lightType);
+        try ipc.write(@TypeOf(self.shadowType), self.shadowType);
+    }
+    pub fn read(ipc: IpcDeserializer) !LightsBufferRendererState {
+        var self: LightsBufferRendererState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.globalUniqueId = try ipc.read(@TypeOf(self.globalUniqueId));
+        self.shadowStrength = try ipc.read(@TypeOf(self.shadowStrength));
+        self.shadowNearPlane = try ipc.read(@TypeOf(self.shadowNearPlane));
+        self.shadowMapResolution = try ipc.read(@TypeOf(self.shadowMapResolution));
+        self.shadowBias = try ipc.read(@TypeOf(self.shadowBias));
+        self.shadowNormalBias = try ipc.read(@TypeOf(self.shadowNormalBias));
+        self.cookieTextureAssetId = try ipc.read(@TypeOf(self.cookieTextureAssetId));
+        self.lightType = try ipc.read(@TypeOf(self.lightType));
+        self.shadowType = try ipc.read(@TypeOf(self.shadowType));
+        return self;
+    }
+};
+
+pub const RenderTransformOverrideState = struct {
+    renderableIndex: i32,
+    positionOverride: math.Vector3f,
+    rotationOverride: math.Quaternionf,
+    scaleOverride: math.Vector3f,
+    skinnedMeshRendererCount: i32,
+    context: RenderingContext,
+    overrideFlags: u8,
+
+    pub fn write(self: RenderTransformOverrideState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.positionOverride), self.positionOverride);
+        // NOTE: field with gap/overlap, rotationOverride = offset:20, size:16, gap:4
+        try ipc.write(@TypeOf(self.rotationOverride), self.rotationOverride);
+        try ipc.write(@TypeOf(self.scaleOverride), self.scaleOverride);
+        try ipc.write(@TypeOf(self.skinnedMeshRendererCount), self.skinnedMeshRendererCount);
+        try ipc.write(@TypeOf(self.context), self.context);
+        try ipc.write(@TypeOf(self.overrideFlags), self.overrideFlags);
+    }
+    pub fn read(ipc: IpcDeserializer) !RenderTransformOverrideState {
+        var self: RenderTransformOverrideState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.positionOverride = try ipc.read(@TypeOf(self.positionOverride));
+        // NOTE: field with gap/overlap, rotationOverride = offset:20, size:16, gap:4
+        self.rotationOverride = try ipc.read(@TypeOf(self.rotationOverride));
+        self.scaleOverride = try ipc.read(@TypeOf(self.scaleOverride));
+        self.skinnedMeshRendererCount = try ipc.read(@TypeOf(self.skinnedMeshRendererCount));
+        self.context = try ipc.read(@TypeOf(self.context));
+        self.overrideFlags = try ipc.read(@TypeOf(self.overrideFlags));
+        return self;
+    }
+};
+
+// TODO: Missing generator for Renderite.Shared.MaterialOverrideState
+pub const RenderMaterialOverrideState = struct {
+    renderableIndex: i32,
+    packedMeshRendererIndex: i32,
+    materrialOverrideCount: i16,
+    context: RenderingContext,
+
+    pub fn write(self: RenderMaterialOverrideState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.packedMeshRendererIndex), self.packedMeshRendererIndex);
+        try ipc.write(@TypeOf(self.materrialOverrideCount), self.materrialOverrideCount);
+        try ipc.write(@TypeOf(self.context), self.context);
+    }
+    pub fn read(ipc: IpcDeserializer) !RenderMaterialOverrideState {
+        var self: RenderMaterialOverrideState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.packedMeshRendererIndex = try ipc.read(@TypeOf(self.packedMeshRendererIndex));
+        self.materrialOverrideCount = try ipc.read(@TypeOf(self.materrialOverrideCount));
+        self.context = try ipc.read(@TypeOf(self.context));
+        return self;
+    }
+};
+
+pub const BlitToDisplayState = struct {
+    renderableIndex: i32,
+    textureId: i32,
+    backgroundColor: math.Vector4f,
+    displayIndex: i16,
+    _flags: u8,
+
+    pub fn write(self: BlitToDisplayState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.textureId), self.textureId);
+        try ipc.write(@TypeOf(self.backgroundColor), self.backgroundColor);
+        try ipc.write(@TypeOf(self.displayIndex), self.displayIndex);
+        try ipc.write(@TypeOf(self._flags), self._flags);
+    }
+    pub fn read(ipc: IpcDeserializer) !BlitToDisplayState {
+        var self: BlitToDisplayState = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.textureId = try ipc.read(@TypeOf(self.textureId));
+        self.backgroundColor = try ipc.read(@TypeOf(self.backgroundColor));
+        self.displayIndex = try ipc.read(@TypeOf(self.displayIndex));
+        self._flags = try ipc.read(@TypeOf(self._flags));
+        return self;
+    }
+};
+
+// TODO: Missing generator for Renderite.Shared.LODState
+// TODO: Missing generator for Renderite.Shared.LODGroupState
+// TODO: Missing generator for Renderite.Shared.GaussianSplatRendererState
+pub const CameraProjection = enum(u8) {
+    Perspective = 0,
+    Orthographic = 1,
+    Panoramic = 2,
+};
+
+pub const CameraClearMode = enum(u8) {
+    Skybox = 0,
+    Color = 1,
+    Depth = 2,
+    Nothing = 3,
+};
+
+pub const HeadsetConnection = enum(i32) {
+    Wired = 0,
+    WirelessGeneral = 1,
+    WirelessSteamLink = 2,
+};
+
+pub const CosmosControllerState = struct {
+    joystickTouch: bool,
+    joystickClick: bool,
+    joystickRaw: math.Vector2f,
+    triggerTouch: bool,
+    triggerClick: bool,
+    trigger: f32,
+    gripClick: bool,
+    vive: bool,
+    buttonAX: bool,
+    buttonBY: bool,
+    bumper: bool,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: CosmosControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY);
+        try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+        try ipc.write(@TypeOf(self.trigger), self.trigger);
+        try ipc.write(@TypeOf(self.bumper), self.bumper);
+    }
+    pub fn read(ipc: IpcDeserializer) !CosmosControllerState {
+        var self: CosmosControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, self.gripClick, self.vive, self.buttonAX, self.buttonBY = try ipc.read8PackedBools();
+        self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+        self.trigger = try ipc.read(@TypeOf(self.trigger));
+        self.bumper = try ipc.read(@TypeOf(self.bumper));
+        return self;
+    }
+};
+
+pub const GenericControllerState = struct {
+    strength: f32,
+    axis: math.Vector2f,
+    touchingStrength: bool,
+    touchingAxis: bool,
+    primary: bool,
+    menu: bool,
+    grab: bool,
+    secondary: bool,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: GenericControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write(@TypeOf(self.strength), self.strength);
+        try ipc.write(@TypeOf(self.axis), self.axis);
+        try ipc.write8PackedBools(self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, false, false);
+    }
+    pub fn read(ipc: IpcDeserializer) !GenericControllerState {
+        var self: GenericControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.strength = try ipc.read(@TypeOf(self.strength));
+        self.axis = try ipc.read(@TypeOf(self.axis));
+        self.touchingStrength, self.touchingAxis, self.primary, self.menu, self.grab, self.secondary, _, _ = try ipc.read8PackedBools();
+        return self;
+    }
+};
+
+pub const HP_ReverbControllerState = struct {
+    appMenu: bool,
+    buttonYB: bool,
+    buttonXA: bool,
+    gripTouch: bool,
+    gripClick: bool,
+    grip: f32,
+    joystickClick: bool,
+    joystickRaw: math.Vector2f,
+    triggerHair: bool,
+    triggerClick: bool,
+    trigger: f32,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: HP_ReverbControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write8PackedBools(self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick);
+        try ipc.write(@TypeOf(self.grip), self.grip);
+        try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+        try ipc.write(@TypeOf(self.trigger), self.trigger);
+    }
+    pub fn read(ipc: IpcDeserializer) !HP_ReverbControllerState {
+        var self: HP_ReverbControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.appMenu, self.buttonYB, self.buttonXA, self.gripTouch, self.gripClick, self.joystickClick, self.triggerHair, self.triggerClick = try ipc.read8PackedBools();
+        self.grip = try ipc.read(@TypeOf(self.grip));
+        self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+        self.trigger = try ipc.read(@TypeOf(self.trigger));
+        return self;
+    }
+};
+
+pub const IndexControllerState = struct {
+    grip: f32,
+    gripTouch: bool,
+    gripClick: bool,
+    buttonA: bool,
+    buttonB: bool,
+    buttonAtouch: bool,
+    buttonBtouch: bool,
+    trigger: f32,
+    triggerTouch: bool,
+    triggerClick: bool,
+    joystickRaw: math.Vector2f,
+    joystickTouch: bool,
+    joystickClick: bool,
+    touchpad: math.Vector2f,
+    touchpadTouch: bool,
+    touchpadPress: bool,
+    touchpadForce: f32,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: IndexControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write8PackedBools(self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick);
+        try ipc.write(@TypeOf(self.grip), self.grip);
+        try ipc.write(@TypeOf(self.trigger), self.trigger);
+        try ipc.write8PackedBools(self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, false, false, false, false);
+        try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+        try ipc.write(@TypeOf(self.touchpad), self.touchpad);
+        try ipc.write(@TypeOf(self.touchpadForce), self.touchpadForce);
+    }
+    pub fn read(ipc: IpcDeserializer) !IndexControllerState {
+        var self: IndexControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.gripTouch, self.gripClick, self.buttonA, self.buttonB, self.buttonAtouch, self.buttonBtouch, self.triggerTouch, self.triggerClick = try ipc.read8PackedBools();
+        self.grip = try ipc.read(@TypeOf(self.grip));
+        self.trigger = try ipc.read(@TypeOf(self.trigger));
+        self.joystickTouch, self.joystickClick, self.touchpadTouch, self.touchpadPress, _, _, _, _ = try ipc.read8PackedBools();
+        self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+        self.touchpad = try ipc.read(@TypeOf(self.touchpad));
+        self.touchpadForce = try ipc.read(@TypeOf(self.touchpadForce));
+        return self;
+    }
+};
+
+pub const PicoNeo2ControllerState = struct {
+    app: bool,
+    pico: bool,
+    buttonYB: bool,
+    buttonXA: bool,
+    gripClick: bool,
+    joystickTouch: bool,
+    joystickClick: bool,
+    joystick: math.Vector2f,
+    triggerClick: bool,
+    trigger: f32,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: PicoNeo2ControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write8PackedBools(self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick);
+        try ipc.write(@TypeOf(self.joystick), self.joystick);
+        try ipc.write(@TypeOf(self.trigger), self.trigger);
+    }
+    pub fn read(ipc: IpcDeserializer) !PicoNeo2ControllerState {
+        var self: PicoNeo2ControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.app, self.pico, self.buttonYB, self.buttonXA, self.gripClick, self.joystickTouch, self.joystickClick, self.triggerClick = try ipc.read8PackedBools();
+        self.joystick = try ipc.read(@TypeOf(self.joystick));
+        self.trigger = try ipc.read(@TypeOf(self.trigger));
+        return self;
+    }
+};
+
+pub const TouchControllerState = struct {
+    model: TouchControllerModel,
+    start: bool,
+    buttonYB: bool,
+    buttonXA: bool,
+    buttonYB_touch: bool,
+    buttonXA_touch: bool,
+    thumbrestTouch: bool,
+    grip: f32,
+    gripClick: bool,
+    joystickRaw: math.Vector2f,
+    joystickTouch: bool,
+    joystickClick: bool,
+    trigger: f32,
+    triggerTouch: bool,
+    triggerClick: bool,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: TouchControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write(@TypeOf(self.model), self.model);
+        try ipc.write8PackedBools(self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, false, false);
+        try ipc.write8PackedBools(self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, false, false, false);
+        try ipc.write(@TypeOf(self.grip), self.grip);
+        try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+        try ipc.write(@TypeOf(self.trigger), self.trigger);
+    }
+    pub fn read(ipc: IpcDeserializer) !TouchControllerState {
+        var self: TouchControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.model = try ipc.read(@TypeOf(self.model));
+        self.start, self.buttonYB, self.buttonXA, self.buttonYB_touch, self.buttonXA_touch, self.thumbrestTouch, _, _ = try ipc.read8PackedBools();
+        self.gripClick, self.joystickTouch, self.joystickClick, self.triggerTouch, self.triggerClick, _, _, _ = try ipc.read8PackedBools();
+        self.grip = try ipc.read(@TypeOf(self.grip));
+        self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+        self.trigger = try ipc.read(@TypeOf(self.trigger));
+        return self;
+    }
+};
+
+pub const ViveControllerState = struct {
+    grip: bool,
+    app: bool,
+    triggerHair: bool,
+    triggerClick: bool,
+    trigger: f32,
+    touchpadTouch: bool,
+    touchpadClick: bool,
+    touchpad: math.Vector2f,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: ViveControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, false, false);
+        try ipc.write(@TypeOf(self.trigger), self.trigger);
+        try ipc.write(@TypeOf(self.touchpad), self.touchpad);
+    }
+    pub fn read(ipc: IpcDeserializer) !ViveControllerState {
+        var self: ViveControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, _, _ = try ipc.read8PackedBools();
+        self.trigger = try ipc.read(@TypeOf(self.trigger));
+        self.touchpad = try ipc.read(@TypeOf(self.touchpad));
+        return self;
+    }
+};
+
+pub const WindowsMR_ControllerState = struct {
+    grip: bool,
+    app: bool,
+    triggerHair: bool,
+    triggerClick: bool,
+    trigger: f32,
+    touchpadTouch: bool,
+    touchpadClick: bool,
+    touchpad: math.Vector2f,
+    joystickClick: bool,
+    joystickRaw: math.Vector2f,
+    deviceID: []const u16,
+    deviceModel: []const u16,
+    side: Chirality,
+    bodyNode: BodyNode,
+    isDeviceActive: bool,
+    isTracking: bool,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    hasBoundHand: bool,
+    handPosition: math.Vector3f,
+    handRotation: math.Quaternionf,
+    batteryLevel: f32,
+    batteryCharging: bool,
+
+    pub fn write(self: WindowsMR_ControllerState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.deviceID), self.deviceID);
+        try ipc.write(@TypeOf(self.deviceModel), self.deviceModel);
+        try ipc.write(@TypeOf(self.side), self.side);
+        try ipc.write(@TypeOf(self.bodyNode), self.bodyNode);
+        try ipc.write8PackedBools(self.isDeviceActive, self.isTracking, self.hasBoundHand, false, false, false, false, false);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0053: brfalse.s IL_00a5
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_0073: brfalse.s IL_008d
+        try ipc.write(@TypeOf(self.handPosition), self.handPosition);
+        try ipc.write(@TypeOf(self.handRotation), self.handRotation);
+        try ipc.write(@TypeOf(self.batteryLevel), self.batteryLevel);
+        try ipc.write(@TypeOf(self.batteryCharging), self.batteryCharging);
+        try ipc.write8PackedBools(self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, false);
+        try ipc.write(@TypeOf(self.trigger), self.trigger);
+        try ipc.write(@TypeOf(self.touchpad), self.touchpad);
+        try ipc.write(@TypeOf(self.joystickRaw), self.joystickRaw);
+    }
+    pub fn read(ipc: IpcDeserializer) !WindowsMR_ControllerState {
+        var self: WindowsMR_ControllerState = undefined;
+        self.deviceID = try ipc.read(@TypeOf(self.deviceID));
+        self.deviceModel = try ipc.read(@TypeOf(self.deviceModel));
+        self.side = try ipc.read(@TypeOf(self.side));
+        self.bodyNode = try ipc.read(@TypeOf(self.bodyNode));
+        self.isDeviceActive, self.isTracking, self.hasBoundHand, _, _, _, _, _ = try ipc.read8PackedBools();
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_004e: brfalse.s IL_00a0
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        // FIXME: Unknown Cond_Branch instruction
+        // IL_006e: brfalse.s IL_0088
+        self.handPosition = try ipc.read(@TypeOf(self.handPosition));
+        self.handRotation = try ipc.read(@TypeOf(self.handRotation));
+        self.batteryLevel = try ipc.read(@TypeOf(self.batteryLevel));
+        self.batteryCharging = try ipc.read(@TypeOf(self.batteryCharging));
+        self.grip, self.app, self.triggerHair, self.triggerClick, self.touchpadTouch, self.touchpadClick, self.joystickClick, _ = try ipc.read8PackedBools();
+        self.trigger = try ipc.read(@TypeOf(self.trigger));
+        self.touchpad = try ipc.read(@TypeOf(self.touchpad));
+        self.joystickRaw = try ipc.read(@TypeOf(self.joystickRaw));
+        return self;
+    }
+};
+
+pub const Chirality = enum(i8) {
+    Left = 0,
+    Right = 1,
+};
+
+pub const ViveHandState = struct {
+    confidence: f32,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    pinchStrength: f32,
+    points: []const math.Vector3f,
+
+    pub fn write(self: ViveHandState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.confidence), self.confidence);
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        try ipc.write(@TypeOf(self.pinchStrength), self.pinchStrength);
+        try ipc.writeList(@TypeOf(self.points), self.points);
+    }
+    pub fn read(ipc: IpcDeserializer) !ViveHandState {
+        var self: ViveHandState = undefined;
+        self.confidence = try ipc.read(@TypeOf(self.confidence));
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        self.pinchStrength = try ipc.read(@TypeOf(self.pinchStrength));
+        self.points = try ipc.readList(@TypeOf(self.points));
+        return self;
+    }
+};
+
+pub const HapticPointState = struct {
+    force: f32,
+    temperature: f32,
+    pain: f32,
+    vibration: f32,
+
+    pub fn write(self: HapticPointState, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.force), self.force);
+        try ipc.write(@TypeOf(self.temperature), self.temperature);
+        try ipc.write(@TypeOf(self.pain), self.pain);
+        try ipc.write(@TypeOf(self.vibration), self.vibration);
+    }
+    pub fn read(ipc: IpcDeserializer) !HapticPointState {
+        var self: HapticPointState = undefined;
+        self.force = try ipc.read(@TypeOf(self.force));
+        self.temperature = try ipc.read(@TypeOf(self.temperature));
+        self.pain = try ipc.read(@TypeOf(self.pain));
+        self.vibration = try ipc.read(@TypeOf(self.vibration));
+        return self;
+    }
+};
+
+pub const ShadowCastMode = enum(u8) {
+    Off = 0,
+    On = 1,
+    ShadowOnly = 2,
+    DoubleSided = 3,
+};
+
+pub const MotionVectorMode = enum(u8) {
+    Camera = 0,
+    Object = 1,
+    NoMotion = 2,
+};
+
+pub const LightType = enum(u8) {
+    Point = 0,
+    Directional = 1,
+    Spot = 2,
+};
+
+pub const ShadowType = enum(u8) {
+    None = 0,
+    Hard = 1,
+    Soft = 2,
+};
+
+pub const RenderRect = struct {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+
+    pub fn write(self: RenderRect, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.x), self.x);
+        try ipc.write(@TypeOf(self.y), self.y);
+        try ipc.write(@TypeOf(self.width), self.width);
+        try ipc.write(@TypeOf(self.height), self.height);
+    }
+    pub fn read(ipc: IpcDeserializer) !RenderRect {
+        var self: RenderRect = undefined;
+        self.x = try ipc.read(@TypeOf(self.x));
+        self.y = try ipc.read(@TypeOf(self.y));
+        self.width = try ipc.read(@TypeOf(self.width));
+        self.height = try ipc.read(@TypeOf(self.height));
+        return self;
+    }
+};
+
+pub const ReflectionProbeType = enum(u8) {
+    Baked = 0,
+    OnChanges = 1,
+    Realtime = 2,
+};
+
+pub const ReflectionProbeClear = enum(u8) {
+    Skybox = 0,
+    Color = 1,
+};
+
+pub const ReflectionProbeTimeSlicingMode = enum(u8) {
+    AllFacesAtOnce = 0,
+    IndividualFaces = 1,
+    NoTimeSlicing = 2,
+};
+
+pub const BillboardAlignment = enum(u8) {
+    View = 0,
+    Facing = 1,
+    Local = 2,
+    Global = 3,
+    Direction = 4,
+};
+
+pub const MeshAlignment = enum(u8) {
+    View = 0,
+    Facing = 1,
+    Local = 2,
+    Global = 3,
+};
+
+pub const TrailTextureMode = enum(u8) {
+    Stretch = 0,
+    Tile = 1,
+    DistributePerSegment = 2,
+    RepeatPerSegment = 3,
+};
+
+pub const RenderingContext = enum(u8) {
+    UserView = 0,
+    ExternalView = 1,
+    Camera = 2,
+    Mirror = 3,
+    Portal = 4,
+    RenderToAsset = 5,
+};
+
+pub const BodyNode = enum(i32) {
+    NONE = 0,
+    Root = 1,
+    View = 2,
+    LeftController = 3,
+    RightController = 4,
+    Hips = 5,
+    Spine = 6,
+    Chest = 7,
+    UpperChest = 8,
+    Neck = 9,
+    Head = 10,
+    Jaw = 11,
+    LeftEye = 12,
+    RightEye = 13,
+    LeftShoulder = 14,
+    LeftUpperArm = 15,
+    LeftLowerArm = 16,
+    LeftHand = 17,
+    LeftPalm = 18,
+    LeftThumb_Metacarpal = 19,
+    LeftThumb_Proximal = 20,
+    LeftThumb_Distal = 21,
+    LeftThumb_Tip = 22,
+    LeftIndexFinger_Metacarpal = 23,
+    LeftIndexFinger_Proximal = 24,
+    LeftIndexFinger_Intermediate = 25,
+    LeftIndexFinger_Distal = 26,
+    LeftIndexFinger_Tip = 27,
+    LeftMiddleFinger_Metacarpal = 28,
+    LeftMiddleFinger_Proximal = 29,
+    LeftMiddleFinger_Intermediate = 30,
+    LeftMiddleFinger_Distal = 31,
+    LeftMiddleFinger_Tip = 32,
+    LeftRingFinger_Metacarpal = 33,
+    LeftRingFinger_Proximal = 34,
+    LeftRingFinger_Intermediate = 35,
+    LeftRingFinger_Distal = 36,
+    LeftRingFinger_Tip = 37,
+    LeftPinky_Metacarpal = 38,
+    LeftPinky_Proximal = 39,
+    LeftPinky_Intermediate = 40,
+    LeftPinky_Distal = 41,
+    LeftPinky_Tip = 42,
+    RightShoulder = 43,
+    RightUpperArm = 44,
+    RightLowerArm = 45,
+    RightHand = 46,
+    RightPalm = 47,
+    RightThumb_Metacarpal = 48,
+    RightThumb_Proximal = 49,
+    RightThumb_Distal = 50,
+    RightThumb_Tip = 51,
+    RightIndexFinger_Metacarpal = 52,
+    RightIndexFinger_Proximal = 53,
+    RightIndexFinger_Intermediate = 54,
+    RightIndexFinger_Distal = 55,
+    RightIndexFinger_Tip = 56,
+    RightMiddleFinger_Metacarpal = 57,
+    RightMiddleFinger_Proximal = 58,
+    RightMiddleFinger_Intermediate = 59,
+    RightMiddleFinger_Distal = 60,
+    RightMiddleFinger_Tip = 61,
+    RightRingFinger_Metacarpal = 62,
+    RightRingFinger_Proximal = 63,
+    RightRingFinger_Intermediate = 64,
+    RightRingFinger_Distal = 65,
+    RightRingFinger_Tip = 66,
+    RightPinky_Metacarpal = 67,
+    RightPinky_Proximal = 68,
+    RightPinky_Intermediate = 69,
+    RightPinky_Distal = 70,
+    RIGHT_FINGER_END = 71,
+    LeftUpperLeg = 72,
+    LeftLowerLeg = 73,
+    LeftFoot = 74,
+    LeftToes = 75,
+    RightUpperLeg = 76,
+    RightLowerLeg = 77,
+    RightFoot = 78,
+    RightToes = 79,
+    END = 80,
+};
+
+pub const TouchControllerModel = enum(i8) {
+    CV1 = 0,
+    QuestAndRiftS = 1,
 };

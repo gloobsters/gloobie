@@ -57,7 +57,8 @@ public class PackableStructGenerator : StructGenerator
             FlowControl flow = instruction.OpCode.FlowControl;
             if (flow != FlowControl.Next && flow != FlowControl.Call && flow != FlowControl.Return)
             {
-                w.Any($"FIXME: Unknown {flow} instruction:\n{instruction}");
+                w.Fixme($"Unknown {flow} instruction");
+                w.Comment(instruction.ToString());
             }
 
             if (instruction.OpCode.Code is Code.Ldfld or Code.Ldflda)
