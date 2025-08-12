@@ -68,7 +68,7 @@ public class EnumGenerator : TypeGenerator
         {
             if (Convert.ToInt32(value.Value) == 0)
             {
-                w.Note($"\t// Skipped {value.Name}");
+                w.Note($"Skipped {value.Name}");
                 continue;
             }
             

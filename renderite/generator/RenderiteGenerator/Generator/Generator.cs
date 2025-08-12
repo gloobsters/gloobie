@@ -62,7 +62,8 @@ public class Generator
         
         this._logger.LogTrace(LogCategory.Startup, "Initializing type generators...");
         this._generators.Add(new PolymorphicGenerator(this._context));
-        this._generators.Add(new PackableGenerator(this._context));
+        this._generators.Add(new PackableStructGenerator(this._context));
+        this._generators.Add(new ExplicitStructGenerator(this._context));
         this._generators.Add(new EnumGenerator(this._context));
     }
 

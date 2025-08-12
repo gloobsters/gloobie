@@ -168,6 +168,14 @@ public class Writer : IDisposable
         this._writer.Write("struct {");
         return new Block(this);
     }
+    
+    public Block BeginExternStruct(string name)
+    {
+        this.Indents();
+        this.PubEql(name);
+        this._writer.Write("struct {");
+        return new Block(this);
+    }
 
     public Block BeginPackedStruct(string name, string type)
     {
