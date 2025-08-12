@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace RenderiteGenerator;
+namespace RenderiteGenerator.Generator;
 
 public static class Zig
 {

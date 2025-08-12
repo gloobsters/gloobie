@@ -1,16 +1,32 @@
-﻿using System.Runtime;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime;
 using CommandLine;
-using RenderiteGenerator;
+using NotEnoughLogs;
+using NotEnoughLogs.Behaviour;
+using RenderiteGenerator.Generator;
+using RenderiteGenerator.Logging;
+using RenderiteGenerator.Options;
 
 GCSettings.LatencyMode = GCLatencyMode.Batch;
 
+using Logger logger = new(new LoggerConfiguration
+{
+    Behaviour = new DirectLoggingBehaviour(),
+    #if DEBUG
+    MaxLevel = LogLevel.Trace,
+    #else
+    MaxLevel = LogLevel.Info,
+    #endif
+});
+
 Parser.Default.ParseArguments<GeneratorOptions>(args)
-    .WithParsed(o =>
+    .WithParsed([SuppressMessage("ReSharper", "AccessToDisposedClosure")] (o) =>
     {
-        using(Generator generator = new(o))
-        {
-            generator.Run();
-        }
+        logger.LogDebug(LogCategory.Generator, "Parsed generator options");
+        if (o.OutputZigFile == null) o.DetermineDefaultOutputPath();
+
+        Generator generator = new(logger, o);
+        generator.Run();
         
         Zig.Format(o.OutputZigFile!);
     });

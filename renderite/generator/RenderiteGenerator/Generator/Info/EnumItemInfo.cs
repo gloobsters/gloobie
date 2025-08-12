@@ -1,4 +1,4 @@
-﻿namespace RenderiteGenerator;
+﻿namespace RenderiteGenerator.Generator.Info;
 
 public struct EnumItemInfo
 {
