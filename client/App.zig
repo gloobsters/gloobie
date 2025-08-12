@@ -365,6 +365,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .app = app,
             .assets_open = true,
             .loadstate_open = true,
+            .demo_open = true,
             .temporary_graphics_bindings = .empty,
         };
     };

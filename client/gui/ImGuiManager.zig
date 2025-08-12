@@ -8,6 +8,8 @@ const Texture = @import("../Texture.zig");
 pub const ImGuiManager = @This();
 
 context: imgui.Context,
+
+demo_open: bool,
 assets_open: bool,
 loadstate_open: bool,
 
@@ -75,8 +77,7 @@ pub fn start(self: *ImGuiManager) !void {
         }
     }
 
-    var show_demo_window: bool = true;
-    imgui.showDemoWindow(&show_demo_window);
+    imgui.showDemoWindow(&self.demo_open);
 
     imgui.render();
 }
