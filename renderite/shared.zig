@@ -1521,6 +1521,12 @@ pub const UnloadVideoTexture = struct {
     }
 };
 
+pub const TextureType = enum(i32) {
+    Texture2D = 0,
+    Cubemap = 1,
+    Texture3D = 2,
+};
+
 pub const HeadOutputDevice = enum(i32) {
     Autodetect = 0,
     Headless = 1,
@@ -3399,8 +3405,16 @@ pub const MeshRendererState = struct {
     }
 };
 
-// TODO: Missing generator for Renderite.Shared.SkinnedMeshBoundsUpdate
-// TODO: Missing generator for Renderite.Shared.SkinnedMeshRealtimeBoundsUpdate
+pub const SkinnedMeshBoundsUpdate = struct {
+    renderableIndex: i32,
+    localBounds: RenderBoundingBox,
+};
+
+pub const SkinnedMeshRealtimeBoundsUpdate = struct {
+    renderableIndex: i32,
+    computedGlobalBounds: RenderBoundingBox,
+};
+
 pub const BoneAssignment = struct {
     renderableIndex: i32,
     rootBoneTransformId: i32,
@@ -3653,7 +3667,13 @@ pub const ReflectionProbeState = struct {
     }
 };
 
-// TODO: Missing generator for Renderite.Shared.ReflectionProbeSH2Task
+pub const ReflectionProbeSH2Task = struct {
+    renderableIndex: i32,
+    reflectionProbeRenderableIndex: i32,
+    result: ComputeResult,
+    resultData: RenderSH2,
+};
+
 pub const LayerType = enum(u8) {
     Hidden = 0,
     Overlay = 1,
@@ -3816,7 +3836,11 @@ pub const RenderTransformOverrideState = struct {
     }
 };
 
-// TODO: Missing generator for Renderite.Shared.MaterialOverrideState
+pub const MaterialOverrideState = struct {
+    materialSlotIndex: i32,
+    materialAssetId: i32,
+};
+
 pub const RenderMaterialOverrideState = struct {
     renderableIndex: i32,
     packedMeshRendererIndex: i32,
@@ -3864,9 +3888,28 @@ pub const BlitToDisplayState = struct {
     }
 };
 
-// TODO: Missing generator for Renderite.Shared.LODState
-// TODO: Missing generator for Renderite.Shared.LODGroupState
-// TODO: Missing generator for Renderite.Shared.GaussianSplatRendererState
+pub const LODState = struct {
+    screenRelativeTransitionHeight: f32,
+    fadeTransitionWidth: f32,
+    rendererCount: i32,
+};
+
+pub const LODGroupState = struct {
+    renderableIndex: i32,
+    lodCount: i32,
+    crossFade: bool,
+    animateCrossFading: bool,
+};
+
+pub const GaussianSplatRendererState = struct {
+    renderableIndex: i32,
+    gaussianSplatAssetId: i32,
+    sizeScale: f32,
+    opacityScale: f32,
+    maxSHOrder: i32,
+    sphericalHamornicsOnly: bool,
+};
+
 pub const CameraProjection = enum(u8) {
     Perspective = 0,
     Orthographic = 1,
@@ -4582,6 +4625,13 @@ pub const ReflectionProbeTimeSlicingMode = enum(u8) {
     AllFacesAtOnce = 0,
     IndividualFaces = 1,
     NoTimeSlicing = 2,
+};
+
+pub const ComputeResult = enum(i32) {
+    Scheduled = 0,
+    Computed = 1,
+    Postpone = 2,
+    Failed = 3,
 };
 
 pub const BillboardAlignment = enum(u8) {

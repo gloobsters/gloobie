@@ -18,7 +18,7 @@ public abstract class StructGenerator : TypeGenerator
             w.StructMember(field.Name, MapToZigType(field.FieldType));
         }
 
-        if (fields.Length > 0)
+        if (this.Packable && fields.Length > 0)
         {
             // ReSharper disable once RedundantAssignment
             bool generated = false;
@@ -39,6 +39,8 @@ public abstract class StructGenerator : TypeGenerator
             }
         }
     }
+
+    protected virtual bool Packable => true;
 
     public abstract bool Pack(Type t, Writer w, FieldInfo[] fields, bool write);
 

@@ -65,6 +65,7 @@ public class Generator
         this._generators.Add(new PackableStructGenerator(this._context));
         this._generators.Add(new ExplicitStructGenerator(this._context));
         this._generators.Add(new EnumGenerator(this._context));
+        this._generators.Add(new GeneralStructGenerator(this._context));
     }
 
     public void Run()
@@ -98,6 +99,8 @@ public class Generator
         w.Line();
         
         this.GenerateType(root);
+        // HACK: This doesn't get baked in because nothing accesses it
+        this._context.TypeQueue.Enqueue(this._context.Types.First(t => t.Name == "TextureType"));
         while (_context.TypeQueue.TryDequeue(out Type? type))
         {
             Debug.Assert(type != null);
