@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics;
+using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -112,6 +113,7 @@ public class PackableStructGenerator : StructGenerator
                         {
                             paramsList.Add("_");
                         }
+                        Debug.Assert(paramsList.Count == 8);
                         w.Any($"{string.Join(", ", paramsList)} = try ipc.read{paramsList.Count}PackedBools();");
                         names.Clear();
                         written = true;
