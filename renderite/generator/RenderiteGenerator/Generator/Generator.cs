@@ -28,12 +28,19 @@ public class Generator
             Generator = this,
         };
 
+        this._context.Types = this._context.Assembly.GetTypes();
+        this._logger.LogTrace(LogCategory.Startup, $"Loaded {this._context.Assembly.FullName}");
+        
+        string output = this._context.Options.OutputZigFile!;
+        Debug.Assert(output != null);
+        if (File.Exists(output))
+        {
+            this._logger.LogDebug(LogCategory.Output, "Deleting existing output zig file");
+            File.Delete(output);
+        }
+
         Debug.Assert(options.OutputZigFile != null);
         this._writer = new Writer(this._context, options.OutputZigFile);
-
-        this._context.Types = this._context.Assembly.GetTypes();
-        
-        this._logger.LogTrace(LogCategory.Startup, $"Loaded {this._context.Assembly.FullName}");
         
         this._logger.LogInfo(LogCategory.Startup, "Finding FE version...");
         try
@@ -59,6 +66,7 @@ public class Generator
     public void Run()
     {
         this._logger.LogInfo(LogCategory.Generator, $"Generating for engine version {this._context.EngineVersion}");
+        
         Type? rootType = _context.Types.First(t => t.Name == "RendererCommand");
         if (rootType == null)
             throw new Exception("Could not find root type");
@@ -86,7 +94,7 @@ public class Generator
         w.Line();
         
         this.GenerateType(root);
-        while (_context.RemainingTypes.TryDequeue(out Type? type))
+        while (_context.TypeQueue.TryDequeue(out Type? type))
         {
             Debug.Assert(type != null);
             this.GenerateType(type);
@@ -95,14 +103,22 @@ public class Generator
 
     private void GenerateType(Type type)
     {
-        TypeGenerator generator = GeneratorForType(type);
+        this._context.GeneratedTypes.Add(type);
+        
+        TypeGenerator? generator = GeneratorForType(type);
+        if (generator == null)
+        {
+            this._logger.LogWarning(LogCategory.Generator, $"Missing generator for {type.FullName}");
+            this._writer.Fixme($"Missing generator for {type.FullName}");
+            return;
+        }
 
         this._logger.LogDebug(LogCategory.Generator, $"Generating type {type.FullName} with {generator.GetType().Name}");
         generator.Generate(type, this._writer);
     }
 
-    private TypeGenerator GeneratorForType(Type type)
+    private TypeGenerator? GeneratorForType(Type type)
     {
-        return this._generators.First(g => g.CanGenerateType(type));
+        return this._generators.FirstOrDefault(g => g.CanGenerateType(type));
     }
 }

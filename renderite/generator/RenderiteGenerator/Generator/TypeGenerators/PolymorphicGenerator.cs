@@ -16,19 +16,24 @@ public class PolymorphicGenerator : TypeGenerator
     public override void Generate(Type type, Writer w)
     {
         List<string> typeNames = [];
+        
+        TypeDefinition typeDef = this.Context.AssemblyCecil.MainModule.GetType(type.FullName);
+        MethodDefinition? ctor = typeDef.GetStaticConstructor();
+        if (ctor == null)
+            throw new Exception($"Couldn't find static constructor for {type.Name}");
             
         using (Block _ = w.BeginEnum($"{type.Name}Types", "i32"))
         {
-            TypeDefinition typeDef = this.Context.AssemblyCecil.MainModule.GetType(type.FullName);
-            MethodDefinition? ctor = typeDef.GetStaticConstructor();
-            if (ctor == null)
-                throw new Exception($"Couldn't find static constructor for {type.Name}");
-        
             foreach (Instruction instruction in ctor.Body.Instructions)
             {
                 if (instruction.OpCode.Code != Code.Ldtoken) continue;
 
-                string name = ((TypeDefinition)instruction.Operand).Name;
+                TypeDefinition insnType = (TypeDefinition)instruction.Operand;
+
+                Type originalType = this.Context.Assembly.GetType(insnType.FullName)!;
+                this.QueueType(originalType);
+
+                string name = insnType.Name;
                 w.EnumMember(name);
                 typeNames.Add(name);
             }

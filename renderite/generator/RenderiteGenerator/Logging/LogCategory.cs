@@ -6,4 +6,5 @@ public enum LogCategory
     Settings,
     Generator,
     Parsing,
+    Output,
 }

@@ -519,7 +519,7 @@ public class LegacyGenerator : IDisposable
         this._writer.WriteLine("};\n");
     }
 
-    private string MapToZigType(Type type, bool inList = false)
+    protected string MapToZigType(Type type, bool inList = false)
     {
         if (type == typeof(string))
             return "[]const u16";
@@ -603,7 +603,7 @@ public class LegacyGenerator : IDisposable
         return type.Name;
     }
 
-    private void QueueType(Type type)
+    protected void QueueType(Type type)
     {
         if (this._generatedTypes.Contains(type)) return;
 
