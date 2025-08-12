@@ -86,12 +86,19 @@ public class Generator
         w.Line();
         
         this.GenerateType(root);
+        while (_context.RemainingTypes.TryDequeue(out Type? type))
+        {
+            Debug.Assert(type != null);
+            this.GenerateType(type);
+        }
     }
 
-    public void GenerateType(Type type)
+    private void GenerateType(Type type)
     {
         TypeGenerator generator = GeneratorForType(type);
-        generator.Generate(type, this._context, this._writer);
+
+        this._logger.LogDebug(LogCategory.Generator, $"Generating type {type.FullName} with {generator.GetType().Name}");
+        generator.Generate(type, this._writer);
     }
 
     private TypeGenerator GeneratorForType(Type type)

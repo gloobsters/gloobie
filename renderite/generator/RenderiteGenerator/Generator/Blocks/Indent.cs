@@ -3,14 +3,15 @@
 public class Indent : IDisposable
 {
     private readonly GeneratorContext _context;
+    protected readonly Writer Writer;
 
-    public Indent(GeneratorContext context)
+    public Indent(Writer writer)
     {
-        this._context = context;
-        context.CurrentIndent++;
+        this.Writer = writer;
+        this._context = writer.Context;
     }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         this._context.CurrentIndent--;
     }

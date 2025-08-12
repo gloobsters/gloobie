@@ -17,6 +17,8 @@ public class GeneratorContext
     public AssemblyDefinition AssemblyCecil;
 
     public Type[] Types;
+    public Queue<Type> RemainingTypes = [];
+    public List<Type> GeneratedTypes = [];
 
     public int CurrentIndent;
 }

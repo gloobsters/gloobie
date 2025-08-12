@@ -6,9 +6,9 @@ public abstract class TypeGenerator
 
     protected TypeGenerator(GeneratorContext context)
     {
-        Context = context;
+        this.Context = context;
     }
 
-    public abstract void Generate(Type type, GeneratorContext context, Writer w);
+    public abstract void Generate(Type type, Writer w);
     public abstract bool CanGenerateType(Type type);
 }
