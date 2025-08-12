@@ -132,7 +132,11 @@ pub fn setProperties3d(
         .SetTexture3DResult = .{
             .assetId = properties.assetId,
             .instanceChanged = false,
-            .type = .PropertiesSet,
+            .type = .{
+                .PropertiesSet = true,
+                .DataUpload = false,
+                .FormatSet = false,
+            },
         },
     });
 }
@@ -156,7 +160,11 @@ pub fn setPropertiesCubemap(
         .SetCubemapResult = .{
             .assetId = properties.assetId,
             .instanceChanged = false,
-            .type = .PropertiesSet,
+            .type = .{
+                .DataUpload = false,
+                .FormatSet = false,
+                .PropertiesSet = true,
+            },
         },
     });
 }
@@ -313,7 +321,11 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         .SetTexture3DResult = .{
             .assetId = renderite_format.assetId,
             .instanceChanged = true,
-            .type = .FormatSet,
+            .type = .{
+                .DataUpload = false,
+                .FormatSet = true,
+                .PropertiesSet = false,
+            },
         },
     });
 }
@@ -395,7 +407,11 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
         .SetCubemapResult = .{
             .assetId = renderite_format.assetId,
             .instanceChanged = true,
-            .type = .FormatSet,
+            .type = .{
+                .DataUpload = false,
+                .FormatSet = true,
+                .PropertiesSet = false,
+            },
         },
     });
 }
@@ -521,7 +537,11 @@ pub fn setData2d(
         .SetTexture2DResult = .{
             .assetId = data.assetId,
             .instanceChanged = false,
-            .type = .DataUpload,
+            .type = .{
+                .DataUpload = true,
+                .FormatSet = false,
+                .PropertiesSet = false,
+            },
         },
     });
 }
@@ -596,7 +616,11 @@ pub fn setData3d(
         .SetTexture3DResult = .{
             .assetId = data.assetId,
             .instanceChanged = false,
-            .type = .DataUpload,
+            .type = .{
+                .DataUpload = true,
+                .FormatSet = false,
+                .PropertiesSet = false,
+            },
         },
     });
 }
@@ -723,7 +747,11 @@ pub fn setDataCubemap(
         .SetCubemapResult = .{
             .assetId = data.assetId,
             .instanceChanged = false,
-            .type = .DataUpload,
+            .type = .{
+                .DataUpload = true,
+                .FormatSet = false,
+                .PropertiesSet = false,
+            },
         },
     });
 }
