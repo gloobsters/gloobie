@@ -92,7 +92,7 @@ const MessagingData = struct {
     letter_allocation_mutex: std.Thread.Mutex,
 
     pub fn deinit(self: *MessagingData, gpa: std.mem.Allocator) void {
-        self.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {};
+        self.host.primary.sendTimeout(.{ .RendererShutdownRequest = .{} }, std.time.ns_per_s) catch {};
         self.host.deinit();
 
         if (self.accessor) |*accessor| accessor.deinit(gpa);
@@ -438,7 +438,7 @@ pub fn deinit(self: *App) void {
 fn beginExit(self: *App) void {
     if (self.game.load_state.full_init) {
         self.game.exiting = true;
-        self.messaging.host.primary.send(.{ .RendererShutdownRequest = .{} }) catch {
+        self.messaging.host.primary.sendTimeout(.{ .RendererShutdownRequest = .{} }, std.time.ns_per_s) catch {
             log.warn("Failed to send shutdown request, exiting without waiting for engine", .{});
             self.game.run_loop = false;
         };
@@ -499,7 +499,7 @@ fn handleRendererCommand(
 
             log.debug("Set shmem prefix to {s} (len {d})", .{ shmem_prefix.constSlice(), shmem_prefix.len });
 
-            try self.messaging.host.primary.send(.{
+            try self.messaging.host.primary.sendTimeout(.{
                 .RendererInitResult = .{
                     .actualOutputDevice = self.game.head_output_device,
                     .stereoRenderingMode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
@@ -509,7 +509,7 @@ fn handleRendererCommand(
                     .maxTextureSize = 16384, // TODO: determine this from GPU code
                     .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
                 },
-            });
+            }, std.time.ns_per_s);
 
             self.game.load_state.init = true;
         },
@@ -1055,7 +1055,7 @@ pub fn frameLoop(self: *App) !void {
 
             // send a frame start if the engine thread is waiting for us to do so
             if (self.game.load_state.full_init and begin_new_frame) {
-                try self.messaging.host.primary.send(.{
+                try self.messaging.host.primary.sendTimeout(.{
                     .FrameStartData = .{
                         .lastFrameIndex = self.game.last_frame_index,
                         .inputs = .{
@@ -1083,7 +1083,7 @@ pub fn frameLoop(self: *App) !void {
                         .performance = null,
                         .renderedReflectionProbes = &.{},
                     },
-                });
+                }, std.time.ns_per_s);
 
                 if (self.game.type_delta.items.len > 0) {
                     log.debug("Sent string {f} to engine", .{std.unicode.fmtUtf16Le(self.game.type_delta.items)});

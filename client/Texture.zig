@@ -100,17 +100,17 @@ pub fn setProperties2d(
         .type = .Texture2D,
     };
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetTexture2DResult = .{
             .assetId = properties.assetId,
             .instanceChanged = false,
             .type = .{
-                .PropertiesSet = true,
                 .FormatSet = false,
+                .PropertiesSet = true,
                 .DataUpload = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setProperties3d(
@@ -128,7 +128,7 @@ pub fn setProperties3d(
         .mipmap_bias = 0,
     };
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetTexture3DResult = .{
             .assetId = properties.assetId,
             .instanceChanged = false,
@@ -138,7 +138,7 @@ pub fn setProperties3d(
                 .FormatSet = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setPropertiesCubemap(
@@ -156,7 +156,7 @@ pub fn setPropertiesCubemap(
         .mipmap_bias = properties.mipmapBias,
     };
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetCubemapResult = .{
             .assetId = properties.assetId,
             .instanceChanged = false,
@@ -166,7 +166,7 @@ pub fn setPropertiesCubemap(
                 .PropertiesSet = true,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetTexture2DFormat) !void {
@@ -235,17 +235,17 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         .ready = false,
     };
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetTexture2DResult = .{
             .assetId = renderite_format.assetId,
             .instanceChanged = true,
             .type = .{
-                .PropertiesSet = false,
                 .FormatSet = true,
                 .DataUpload = false,
+                .PropertiesSet = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetTexture3DFormat) !void {
@@ -317,7 +317,7 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         .ready = false,
     };
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetTexture3DResult = .{
             .assetId = renderite_format.assetId,
             .instanceChanged = true,
@@ -327,7 +327,7 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
                 .PropertiesSet = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetCubemapFormat) !void {
@@ -403,7 +403,7 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
         .ready = false,
     };
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetCubemapResult = .{
             .assetId = renderite_format.assetId,
             .instanceChanged = true,
@@ -413,7 +413,7 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
                 .PropertiesSet = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setData2d(
@@ -533,7 +533,7 @@ pub fn setData2d(
     }
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetTexture2DResult = .{
             .assetId = data.assetId,
             .instanceChanged = false,
@@ -543,7 +543,7 @@ pub fn setData2d(
                 .PropertiesSet = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setData3d(
@@ -612,7 +612,7 @@ pub fn setData3d(
         .id = .from(data.assetId),
         .type = .Texture3D,
     });
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetTexture3DResult = .{
             .assetId = data.assetId,
             .instanceChanged = false,
@@ -622,7 +622,7 @@ pub fn setData3d(
                 .PropertiesSet = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn setDataCubemap(
@@ -743,7 +743,7 @@ pub fn setDataCubemap(
     }
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .SetCubemapResult = .{
             .assetId = data.assetId,
             .instanceChanged = false,
@@ -753,7 +753,7 @@ pub fn setDataCubemap(
                 .PropertiesSet = false,
             },
         },
-    });
+    }, std.time.ns_per_s);
 }
 
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {

@@ -211,12 +211,12 @@ pub fn setData(
     const vertex_attributes = try convertVertexAttributes(gpa, data_request.vertexAttributes);
     errdefer gpa.free(vertex_attributes);
 
-    try frame_context.messaging_host.background.send(.{
+    try frame_context.messaging_host.background.sendTimeout(.{
         .MeshUploadResult = .{
             .assetId = data_request.assetId,
             .instanceChanged = true,
         },
-    });
+    }, std.time.ns_per_s);
 
     self.* = .{
         .vertex_buffer = vertex_buffer,
