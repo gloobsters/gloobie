@@ -13,6 +13,8 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.15.0-dev.1283+1fcaf90dd
+          cache-key: ${{ matrix.target }}_${{ matrix.optimize }}_${{ matrix.os }}
+          cache-size-limit: 512 # 512mb
       - name: Build & Install
         run: zig build -Dtarget=${{ matrix.target }} install
       - name: Run Tests
