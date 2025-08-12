@@ -774,6 +774,111 @@ fn imguiFillTextures(self: *App, imgui_data: *ImGuiData, texture_type: Texture.T
     }
 }
 
+fn imguiFillMeshes(self: *App) void {
+    var mesh_iter = self.assets.meshes.iterator();
+    while (mesh_iter.next()) |mesh_entry| {
+        const asset_id, const mesh = .{ mesh_entry.key_ptr.*, mesh_entry.value_ptr };
+        defer imgui.separator();
+
+        imgui.c.igText("Mesh %d", asset_id.to());
+        imgui.c.igText("Vertex Buffer Capacity: %u", mesh.vertex_buffer_capacity);
+        imgui.c.igText("Index Buffer Capacity: %u", mesh.index_buffer_capacity);
+        imgui.c.igText(
+            "Buffer Present: %s/%s",
+            if (mesh.vertex_buffer == null) "false".ptr else "true".ptr,
+            if (mesh.index_buffer == null) "false".ptr else "true".ptr,
+        );
+
+        var name_buf: [64]u8 = undefined;
+        // SAFETY: it's big enough
+        const attributes_header = std.fmt.bufPrintZ(&name_buf, "Attributes##{d}", .{
+            asset_id.to(),
+        }) catch unreachable;
+
+        if (imgui.collapsingHeader(attributes_header, 0)) {
+            for (mesh.vertex_attributes, 0..) |attribute, i| {
+                imgui.c.igText(
+                    "Attribute %d, %s/%s",
+                    @as(i32, @intCast(i)),
+                    @tagName(attribute.format).ptr,
+                    @tagName(attribute.type).ptr,
+                );
+            }
+        }
+
+        const submeshes_header = std.fmt.bufPrintZ(&name_buf, "Sub Meshes##{d}", .{
+            asset_id.to(),
+        }) catch unreachable;
+
+        if (imgui.collapsingHeader(submeshes_header, 0)) {
+            for (mesh.submeshes, 0..) |submesh, i| {
+                imgui.c.igText(
+                    "Submesh %d, %s, %u/%u, %fx%fx%f/%fx%fx%f",
+                    @as(i32, @intCast(i)),
+                    @tagName(submesh.topology).ptr,
+                    submesh.index_start,
+                    submesh.index_count,
+                    submesh.bounds.center.x,
+                    submesh.bounds.center.y,
+                    submesh.bounds.center.z,
+                    submesh.bounds.extents.x,
+                    submesh.bounds.extents.y,
+                    submesh.bounds.extents.z,
+                );
+            }
+        }
+    }
+}
+
+fn imguiFillRenderSpaces(self: *App) void {
+    self.game.render_spaces_lock.lock();
+    defer self.game.render_spaces_lock.unlock();
+
+    const render_spaces = self.game.render_spaces.values();
+
+    for (render_spaces) |*render_space| {
+        defer imgui.separator();
+
+        const root_transform = render_space.properties.root_transform;
+
+        imgui.c.igText("Render Space %d", render_space.id.to());
+        imgui.c.igText("Active: %d", @as(u32, @intFromBool(render_space.properties.active)));
+        imgui.c.igText("Overlay: %d", @as(u32, @intFromBool(render_space.properties.overlay)));
+        imgui.c.igText("Private: %d", @as(u32, @intFromBool(render_space.properties.private)));
+        imgui.c.igText("View Position Is External: %d", @as(u32, @intFromBool(render_space.properties.private)));
+        imgui.c.igText(
+            "Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
+            root_transform.position.x,
+            root_transform.position.y,
+            root_transform.position.z,
+            root_transform.scale.x,
+            root_transform.scale.y,
+            root_transform.scale.z,
+            root_transform.rotation.x,
+            root_transform.rotation.y,
+            root_transform.rotation.z,
+            root_transform.rotation.w,
+        );
+        if (render_space.properties.overridden_view_transform) |overridden_root_transform| {
+            imgui.c.igText(
+                "Overridden Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
+                overridden_root_transform.position.x,
+                overridden_root_transform.position.y,
+                overridden_root_transform.position.z,
+                overridden_root_transform.scale.x,
+                overridden_root_transform.scale.y,
+                overridden_root_transform.scale.z,
+                overridden_root_transform.rotation.x,
+                overridden_root_transform.rotation.y,
+                overridden_root_transform.rotation.z,
+                overridden_root_transform.rotation.w,
+            );
+        } else {
+            imgui.c.igText("View transform not overridden.");
+        }
+    }
+}
+
 fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceUpdate) !void {
     self.game.render_spaces_lock.lock();
     defer self.game.render_spaces_lock.unlock();
@@ -1156,80 +1261,24 @@ pub fn frameLoop(self: *App) !void {
                         imgui_data.temporary_graphics_bindings.clearRetainingCapacity();
                         try imgui_data.temporary_graphics_bindings.ensureTotalCapacity(self.gpa, self.assets.textures.count());
 
-                        {
-                            if (imgui.collapsingHeader("Texture 2Ds", 0)) {
-                                self.imguiFillTextures(imgui_data, .Texture2D);
-                            }
+                        if (imgui.collapsingHeader("Texture 2Ds", 0)) {
+                            self.imguiFillTextures(imgui_data, .Texture2D);
                         }
 
-                        {
-                            if (imgui.collapsingHeader("Texture 3Ds", 0)) {
-                                self.imguiFillTextures(imgui_data, .Texture3D);
-                            }
+                        if (imgui.collapsingHeader("Texture 3Ds", 0)) {
+                            self.imguiFillTextures(imgui_data, .Texture3D);
                         }
 
-                        {
-                            if (imgui.collapsingHeader("Cubemaps", 0)) {
-                                self.imguiFillTextures(imgui_data, .Cubemap);
-                            }
+                        if (imgui.collapsingHeader("Cubemaps", 0)) {
+                            self.imguiFillTextures(imgui_data, .Cubemap);
                         }
 
-                        {
-                            if (imgui.collapsingHeader("Meshes", 0)) {
-                                var mesh_iter = self.assets.meshes.iterator();
-                                while (mesh_iter.next()) |mesh_entry| {
-                                    const asset_id, const mesh = .{ mesh_entry.key_ptr.*, mesh_entry.value_ptr };
-                                    defer imgui.separator();
+                        if (imgui.collapsingHeader("Meshes", 0)) {
+                            self.imguiFillMeshes();
+                        }
 
-                                    imgui.c.igText("Mesh %d", asset_id.to());
-                                    imgui.c.igText("Vertex Buffer Capacity: %u", mesh.vertex_buffer_capacity);
-                                    imgui.c.igText("Index Buffer Capacity: %u", mesh.index_buffer_capacity);
-                                    imgui.c.igText(
-                                        "Buffer Present: %s/%s",
-                                        if (mesh.vertex_buffer == null) "false".ptr else "true".ptr,
-                                        if (mesh.index_buffer == null) "false".ptr else "true".ptr,
-                                    );
-
-                                    var name_buf: [64]u8 = undefined;
-                                    // SAFETY: it's big enough
-                                    const attributes_header = std.fmt.bufPrintZ(&name_buf, "Attributes##{d}", .{
-                                        asset_id.to(),
-                                    }) catch unreachable;
-
-                                    if (imgui.collapsingHeader(attributes_header, 0)) {
-                                        for (mesh.vertex_attributes, 0..) |attribute, i| {
-                                            imgui.c.igText(
-                                                "Attribute %d, %s/%s",
-                                                @as(i32, @intCast(i)),
-                                                @tagName(attribute.format).ptr,
-                                                @tagName(attribute.type).ptr,
-                                            );
-                                        }
-                                    }
-
-                                    const submeshes_header = std.fmt.bufPrintZ(&name_buf, "Sub Meshes##{d}", .{
-                                        asset_id.to(),
-                                    }) catch unreachable;
-
-                                    if (imgui.collapsingHeader(submeshes_header, 0)) {
-                                        for (mesh.submeshes, 0..) |submesh, i| {
-                                            imgui.c.igText(
-                                                "Submesh %d, %s, %u/%u, %fx%fx%f/%fx%fx%f",
-                                                @as(i32, @intCast(i)),
-                                                @tagName(submesh.topology).ptr,
-                                                submesh.index_start,
-                                                submesh.index_count,
-                                                submesh.bounds.center.x,
-                                                submesh.bounds.center.y,
-                                                submesh.bounds.center.z,
-                                                submesh.bounds.extents.x,
-                                                submesh.bounds.extents.y,
-                                                submesh.bounds.extents.z,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
+                        if (imgui.collapsingHeader("Render Spaces", 0)) {
+                            self.imguiFillRenderSpaces();
                         }
                     }
                 }
