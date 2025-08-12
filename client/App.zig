@@ -18,6 +18,7 @@ const graphics = @import("graphics.zig");
 const Input = @import("Input.zig");
 const RenderSpace = @import("RenderSpace.zig");
 const Texture = @import("Texture.zig");
+const ImGuiManager = @import("gui/ImGuiManager.zig");
 
 pub const MessagingHost = renderite.MessagingHost(*App);
 const log = std.log.scoped(.app);
@@ -116,24 +117,8 @@ const MessagingData = struct {
     }
 };
 
-const ImGuiData = struct {
-    context: imgui.Context,
-
-    assets_open: bool,
-    loadstate_open: bool,
-
-    temporary_graphics_bindings: std.ArrayListUnmanaged(gpu.TextureSamplerBinding),
-
-    pub fn deinit(self: *ImGuiData, gpa: std.mem.Allocator) void {
-        self.temporary_graphics_bindings.deinit(gpa);
-        imgui.gpu.shutdown();
-        imgui.sdl3.shutdown();
-        self.context.destroy();
-    }
-};
-
 // TODO: warn when we need to update this (when this differs on full load)
-const total_load_phases = 25;
+pub const total_load_phases = 25;
 
 const LoadPhase = struct {
     phase_index: u8,
@@ -193,7 +178,7 @@ xr: ?XrData,
 graphics_data: GraphicsData,
 window: WindowData,
 messaging: MessagingData,
-imgui_data: ?ImGuiData,
+imgui_data: ?ImGuiManager,
 assets: Assets,
 
 pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
@@ -344,7 +329,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     log.debug("Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
 
     // TODO: make ImGui an optional build dependency
-    var maybe_imgui_data: ?ImGuiData = create_imgui_data: {
+    var maybe_imgui_data: ?ImGuiManager = create_imgui_data: {
         const context = try imgui.Context.create(null);
         errdefer context.destroy();
 
@@ -377,6 +362,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
         break :create_imgui_data .{
             .context = context,
+            .app = app,
             .assets_open = true,
             .loadstate_open = true,
             .temporary_graphics_bindings = .empty,
@@ -726,157 +712,6 @@ pub fn sendLetterToEngine(self: *App, letter: ToEngineLetter) !void {
     envelope.* = .{ .letter = letter };
 
     try self.game.to_engine_mailbox.send(envelope);
-}
-
-fn imguiFillTextures(self: *App, imgui_data: *ImGuiData, texture_type: Texture.Type) void {
-    var texture_iter = self.assets.textures.iterator();
-    while (texture_iter.next()) |texture_entry| {
-        if (texture_entry.value_ptr.properties.type != texture_type) {
-            continue;
-        }
-
-        defer imgui.separator();
-
-        const handle, const texture = .{ texture_entry.key_ptr.*, texture_entry.value_ptr };
-
-        imgui.c.igText("%s %d", @tagName(handle.type).ptr, @intFromEnum(handle.id));
-        imgui.c.igText("Filter Mode: %s", @tagName(texture.properties.filter_mode).ptr);
-        imgui.c.igText("Anisotropicsy Level: %d", texture.properties.aniso_level);
-        imgui.c.igText("Wrap U/V: %s/%s", @tagName(texture.properties.wrap_u).ptr, @tagName(texture.properties.wrap_v).ptr);
-        imgui.c.igText("Mipmap bias: %f", texture.properties.mipmap_bias);
-        // NOTE: we're pulling a reference because we need a stable pointer to `.binding`!!!
-        if (texture.graphics_data) |*graphics_data| {
-            imgui.c.igText("Extents: %ux%ux%u", graphics_data.width, graphics_data.height, graphics_data.depth);
-            imgui.c.igText("Format/Color Profile: %s %s", @tagName(graphics_data.texture_format).ptr, @tagName(graphics_data.profile).ptr);
-            imgui.c.igText("Mipmap count: %u", graphics_data.mipmap_count);
-
-            if (graphics_data.ready) {
-                const render_scale = 512.0 / @as(f32, @floatFromInt(if (graphics_data.height > graphics_data.width) graphics_data.height else graphics_data.width));
-
-                const width = render_scale * @as(f32, @floatFromInt(graphics_data.width));
-                const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
-
-                // We can only display 2D textures in ImGui
-                if (texture_type == .Texture2D) {
-                    // Put it into a stable array
-                    imgui_data.temporary_graphics_bindings.appendAssumeCapacity(graphics_data.binding);
-
-                    imgui.image(
-                        &imgui_data.temporary_graphics_bindings.items[imgui_data.temporary_graphics_bindings.items.len - 1],
-                        width,
-                        height,
-                    );
-                }
-            }
-        } else {
-            imgui.c.igText("No graphics data");
-        }
-    }
-}
-
-fn imguiFillMeshes(self: *App) void {
-    var mesh_iter = self.assets.meshes.iterator();
-    while (mesh_iter.next()) |mesh_entry| {
-        const asset_id, const mesh = .{ mesh_entry.key_ptr.*, mesh_entry.value_ptr };
-        defer imgui.separator();
-
-        imgui.c.igText("Mesh %d", asset_id.to());
-        imgui.c.igText("Vertex Buffer Capacity: %u", mesh.vertex_buffer_capacity);
-        imgui.c.igText("Index Buffer Capacity: %u", mesh.index_buffer_capacity);
-        imgui.c.igText(
-            "Buffer Present: %s/%s",
-            if (mesh.vertex_buffer == null) "false".ptr else "true".ptr,
-            if (mesh.index_buffer == null) "false".ptr else "true".ptr,
-        );
-
-        var name_buf: [64]u8 = undefined;
-        // SAFETY: it's big enough
-        const attributes_header = std.fmt.bufPrintZ(&name_buf, "Attributes##{d}", .{
-            asset_id.to(),
-        }) catch unreachable;
-
-        if (imgui.collapsingHeader(attributes_header, 0)) {
-            for (mesh.vertex_attributes, 0..) |attribute, i| {
-                imgui.c.igText(
-                    "Attribute %d, %s/%s",
-                    @as(i32, @intCast(i)),
-                    @tagName(attribute.format).ptr,
-                    @tagName(attribute.type).ptr,
-                );
-            }
-        }
-
-        const submeshes_header = std.fmt.bufPrintZ(&name_buf, "Sub Meshes##{d}", .{
-            asset_id.to(),
-        }) catch unreachable;
-
-        if (imgui.collapsingHeader(submeshes_header, 0)) {
-            for (mesh.submeshes, 0..) |submesh, i| {
-                imgui.c.igText(
-                    "Submesh %d, %s, %u/%u, %fx%fx%f/%fx%fx%f",
-                    @as(i32, @intCast(i)),
-                    @tagName(submesh.topology).ptr,
-                    submesh.index_start,
-                    submesh.index_count,
-                    submesh.bounds.center.x,
-                    submesh.bounds.center.y,
-                    submesh.bounds.center.z,
-                    submesh.bounds.extents.x,
-                    submesh.bounds.extents.y,
-                    submesh.bounds.extents.z,
-                );
-            }
-        }
-    }
-}
-
-fn imguiFillRenderSpaces(self: *App) void {
-    self.game.render_spaces_lock.lock();
-    defer self.game.render_spaces_lock.unlock();
-
-    const render_spaces = self.game.render_spaces.values();
-
-    for (render_spaces) |*render_space| {
-        defer imgui.separator();
-
-        const root_transform = render_space.properties.root_transform;
-
-        imgui.c.igText("Render Space %d", render_space.id.to());
-        imgui.c.igText("Active: %d", @as(u32, @intFromBool(render_space.properties.active)));
-        imgui.c.igText("Overlay: %d", @as(u32, @intFromBool(render_space.properties.overlay)));
-        imgui.c.igText("Private: %d", @as(u32, @intFromBool(render_space.properties.private)));
-        imgui.c.igText("View Position Is External: %d", @as(u32, @intFromBool(render_space.properties.private)));
-        imgui.c.igText(
-            "Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
-            root_transform.position.x,
-            root_transform.position.y,
-            root_transform.position.z,
-            root_transform.scale.x,
-            root_transform.scale.y,
-            root_transform.scale.z,
-            root_transform.rotation.x,
-            root_transform.rotation.y,
-            root_transform.rotation.z,
-            root_transform.rotation.w,
-        );
-        if (render_space.properties.overridden_view_transform) |overridden_root_transform| {
-            imgui.c.igText(
-                "Overridden Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
-                overridden_root_transform.position.x,
-                overridden_root_transform.position.y,
-                overridden_root_transform.position.z,
-                overridden_root_transform.scale.x,
-                overridden_root_transform.scale.y,
-                overridden_root_transform.scale.z,
-                overridden_root_transform.rotation.x,
-                overridden_root_transform.rotation.y,
-                overridden_root_transform.rotation.z,
-                overridden_root_transform.rotation.w,
-            );
-        } else {
-            imgui.c.igText("View transform not overridden.");
-        }
-    }
 }
 
 fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceUpdate) !void {
@@ -1245,78 +1080,14 @@ pub fn frameLoop(self: *App) !void {
                 const trace = tracy.traceNamed(@src(), "ImGui start frame");
                 defer trace.end();
 
-                // imgui new frame
-                imgui.gpu.newFrame();
-                imgui.sdl3.newFrame();
-                imgui.newFrame();
-
-                {
-                    const assets_render = imgui.begin("Assets", &imgui_data.assets_open, 0);
-                    defer imgui.end();
-                    if (assets_render) {
-                        self.assets.lock.lockShared();
-                        defer self.assets.lock.unlockShared();
-
-                        // ensure there's enough to handle all the textures
-                        imgui_data.temporary_graphics_bindings.clearRetainingCapacity();
-                        try imgui_data.temporary_graphics_bindings.ensureTotalCapacity(self.gpa, self.assets.textures.count());
-
-                        if (imgui.collapsingHeader("Texture 2Ds", 0)) {
-                            self.imguiFillTextures(imgui_data, .Texture2D);
-                        }
-
-                        if (imgui.collapsingHeader("Texture 3Ds", 0)) {
-                            self.imguiFillTextures(imgui_data, .Texture3D);
-                        }
-
-                        if (imgui.collapsingHeader("Cubemaps", 0)) {
-                            self.imguiFillTextures(imgui_data, .Cubemap);
-                        }
-
-                        if (imgui.collapsingHeader("Meshes", 0)) {
-                            self.imguiFillMeshes();
-                        }
-
-                        if (imgui.collapsingHeader("Render Spaces", 0)) {
-                            self.imguiFillRenderSpaces();
-                        }
-                    }
-                }
-
-                if (!self.game.load_state.full_init) {
-                    const phase = &self.game.load_state.phase;
-                    const loadstate_render = imgui.begin("Loading...", &imgui_data.loadstate_open, 0);
-                    defer imgui.end();
-                    if (loadstate_render) {
-                        imgui.text(phase.phase_name.buffer[0..phase.phase_name.len :0]);
-                        if (phase.sub_phase_name.len != 0)
-                            imgui.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
-
-                        const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(total_load_phases));
-                        imgui.progressBar(progress, .{ .x = 0, .y = 0 }, "");
-                    }
-                }
-
-                var show_demo_window: bool = true;
-                imgui.showDemoWindow(&show_demo_window);
-
-                imgui.render();
+                try imgui_data.start();
             }
 
             if (maybe_swapchain_texture) |swapchain_texture| {
                 const render_trace = tracy.traceNamed(@src(), "Render Frame");
                 defer render_trace.end();
 
-                const imgui_draw_data = if (self.imgui_data != null) create_draw_data: {
-                    const draw_data = imgui.getDrawData();
-                    const is_minimized = draw_data.DisplaySize.x <= 0.0 or draw_data.DisplaySize.y <= 0.0;
-
-                    if (!is_minimized) {
-                        imgui.gpu.prepareDrawData(draw_data, command_buffer);
-                    }
-
-                    break :create_draw_data if (is_minimized) null else draw_data;
-                } else null;
+                const imgui_draw_data = if (self.imgui_data != null) ImGuiManager.getDrawData(command_buffer) else null;
 
                 const render_pass = command_buffer.beginRenderPass(&.{.{
                     .texture = swapchain_texture,
@@ -1325,12 +1096,7 @@ pub fn frameLoop(self: *App) !void {
                 }}, null);
 
                 if (imgui_draw_data) |draw_data| {
-                    imgui.gpu.renderDrawData(
-                        draw_data,
-                        command_buffer,
-                        render_pass,
-                        null,
-                    );
+                    ImGuiManager.draw(draw_data, command_buffer, render_pass);
                 }
 
                 render_pass.end();
