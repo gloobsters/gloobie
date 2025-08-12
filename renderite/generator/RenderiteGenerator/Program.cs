@@ -3,7 +3,6 @@ using System.Runtime;
 using CommandLine;
 using NotEnoughLogs;
 using NotEnoughLogs.Behaviour;
-using RenderiteGenerator;
 using RenderiteGenerator.Generator;
 using RenderiteGenerator.Logging;
 using RenderiteGenerator.Options;
@@ -25,11 +24,9 @@ Parser.Default.ParseArguments<GeneratorOptions>(args)
     {
         logger.LogDebug(LogCategory.Generator, "Parsed generator options");
         if (o.OutputZigFile == null) o.DetermineDefaultOutputPath();
-        
-        using(LegacyGenerator generator = new(o))
-        {
-            generator.Run();
-        }
+
+        Generator generator = new(logger, o);
+        generator.Run();
         
         Zig.Format(o.OutputZigFile!);
     });

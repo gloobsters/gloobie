@@ -2,6 +2,7 @@
 
 public enum LogCategory
 {
+    Startup,
     Settings,
     Generator,
     Parsing,
