@@ -1,6 +1,7 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using RenderiteGenerator.Generator.Blocks;
 
 namespace RenderiteGenerator.Generator.TypeGenerators;
 

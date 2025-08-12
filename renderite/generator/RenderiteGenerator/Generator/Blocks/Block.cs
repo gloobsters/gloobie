@@ -1,13 +1,17 @@
-﻿namespace RenderiteGenerator.Generator;
+﻿namespace RenderiteGenerator.Generator.Blocks;
 
 public class Block : Indent
 {
-    public Block(Writer writer) : base(writer)
-    {}
+    private readonly bool _endWithSemicolon;
+
+    public Block(Writer writer, bool endWithSemicolon = true) : base(writer)
+    {
+        this._endWithSemicolon = endWithSemicolon;
+    }
 
     public override void Dispose()
     {
         base.Dispose();
-        this.Writer.CloseBlock();
+        this.Writer.CloseBlock(this._endWithSemicolon);
     }
 }

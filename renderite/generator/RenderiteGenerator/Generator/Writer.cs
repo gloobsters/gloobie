@@ -1,4 +1,6 @@
-﻿namespace RenderiteGenerator.Generator;
+﻿using RenderiteGenerator.Generator.Blocks;
+
+namespace RenderiteGenerator.Generator;
 
 public class Writer : IDisposable
 {
@@ -129,6 +131,14 @@ public class Writer : IDisposable
         this._writer.Write(name);
         this._writer.WriteLine(',');
     }
+    public void EnumMember(string name, string value)
+    {
+        this.Indents();
+        this._writer.Write(name);
+        this._writer.Write(" = ");
+        this._writer.Write(value);
+        this._writer.WriteLine(',');
+    }
     
     public Block BeginUnion(string name)
     {
@@ -139,18 +149,57 @@ public class Writer : IDisposable
         this._writer.Write("Types) {");
         return new Block(this);
     }
+    
+    public Block BeginStruct(string name)
+    {
+        this.Indents();
+        this.PubEql(name);
+        this._writer.Write("struct {");
+        return new Block(this);
+    }
 
-    public void StructMember(string name, string type)
+    public Block BeginPackedStruct(string name, string type)
+    {
+        this.Indents();
+        this.PubEql(name);
+        this._writer.Write("packed struct(");
+        this._writer.Write(type);
+        this._writer.Write(") {");
+        return new Block(this);
+    }
+
+    public Block BeginFunction(string name, string type, params FuncParam[] paramList)
+    {
+        this.Indents();
+        this._writer.Write("pub fn ");
+        this._writer.Write(name);
+        this._writer.Write('(');
+        this._writer.Write(string.Join(", ", paramList.Select(p => p.ToString())));
+        this._writer.Write(") ");
+        this._writer.Write(type);
+        this._writer.Write(" {");
+        return new Block(this, false);
+    }
+
+    public void StructMember(string name, string type, string? defaultDef = null)
     {
         this.Indents();
         this._writer.Write(name);
         this._writer.Write(": ");
         this._writer.Write(type);
+        if (defaultDef != null)
+        {
+            this._writer.Write(" = ");
+            this._writer.Write(defaultDef);
+        }
         this._writer.WriteLine(',');
     }
 
-    public void CloseBlock()
+    public void CloseBlock(bool endWithSemicolon = true)
     {
-        this._writer.WriteLine("};");
+        if(endWithSemicolon)
+            this._writer.WriteLine("};");
+        else
+            this._writer.Write('}');
     }
 }

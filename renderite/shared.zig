@@ -146,69 +146,1053 @@ pub const RendererCommand = union(RendererCommandTypes) {
     VideoTextureStartAudioTrack: VideoTextureStartAudioTrack,
     UnloadVideoTexture: UnloadVideoTexture,
 };
-// FIXME: Missing generator for Renderite.Shared.RendererInitData
-// FIXME: Missing generator for Renderite.Shared.RendererInitResult
-// FIXME: Missing generator for Renderite.Shared.RendererInitProgressUpdate
-// FIXME: Missing generator for Renderite.Shared.RendererInitFinalizeData
-// FIXME: Missing generator for Renderite.Shared.RendererShutdownRequest
-// FIXME: Missing generator for Renderite.Shared.RendererShutdown
-// FIXME: Missing generator for Renderite.Shared.KeepAlive
-// FIXME: Missing generator for Renderite.Shared.RendererParentWindow
-// FIXME: Missing generator for Renderite.Shared.FrameStartData
-// FIXME: Missing generator for Renderite.Shared.FrameSubmitData
-// FIXME: Missing generator for Renderite.Shared.PostProcessingConfig
-// FIXME: Missing generator for Renderite.Shared.QualityConfig
-// FIXME: Missing generator for Renderite.Shared.ResolutionConfig
-// FIXME: Missing generator for Renderite.Shared.DesktopConfig
-// FIXME: Missing generator for Renderite.Shared.GaussianSplatConfig
-// FIXME: Missing generator for Renderite.Shared.MeshUploadData
-// FIXME: Missing generator for Renderite.Shared.MeshUnload
-// FIXME: Missing generator for Renderite.Shared.MeshUploadResult
-// FIXME: Missing generator for Renderite.Shared.ShaderUpload
-// FIXME: Missing generator for Renderite.Shared.ShaderUnload
-// FIXME: Missing generator for Renderite.Shared.ShaderUploadResult
-// FIXME: Missing generator for Renderite.Shared.MaterialPropertyIdRequest
-// FIXME: Missing generator for Renderite.Shared.MaterialPropertyIdResult
-// FIXME: Missing generator for Renderite.Shared.MaterialsUpdateBatch
-// FIXME: Missing generator for Renderite.Shared.MaterialsUpdateBatchResult
-// FIXME: Missing generator for Renderite.Shared.SetTexture2DFormat
-// FIXME: Missing generator for Renderite.Shared.SetTexture2DProperties
-// FIXME: Missing generator for Renderite.Shared.SetTexture2DData
-// FIXME: Missing generator for Renderite.Shared.SetTexture2DResult
-// FIXME: Missing generator for Renderite.Shared.UnloadTexture2D
-// FIXME: Missing generator for Renderite.Shared.SetTexture3DFormat
-// FIXME: Missing generator for Renderite.Shared.SetTexture3DProperties
-// FIXME: Missing generator for Renderite.Shared.SetTexture3DData
-// FIXME: Missing generator for Renderite.Shared.SetTexture3DResult
-// FIXME: Missing generator for Renderite.Shared.UnloadTexture3D
-// FIXME: Missing generator for Renderite.Shared.SetCubemapFormat
-// FIXME: Missing generator for Renderite.Shared.SetCubemapProperties
-// FIXME: Missing generator for Renderite.Shared.SetCubemapData
-// FIXME: Missing generator for Renderite.Shared.SetCubemapResult
-// FIXME: Missing generator for Renderite.Shared.UnloadCubemap
-// FIXME: Missing generator for Renderite.Shared.SetRenderTextureFormat
-// FIXME: Missing generator for Renderite.Shared.RenderTextureResult
-// FIXME: Missing generator for Renderite.Shared.UnloadRenderTexture
-// FIXME: Missing generator for Renderite.Shared.SetDesktopTextureProperties
-// FIXME: Missing generator for Renderite.Shared.DesktopTexturePropertiesUpdate
-// FIXME: Missing generator for Renderite.Shared.UnloadDesktopTexture
-// FIXME: Missing generator for Renderite.Shared.PointRenderBufferUpload
-// FIXME: Missing generator for Renderite.Shared.PointRenderBufferConsumed
-// FIXME: Missing generator for Renderite.Shared.PointRenderBufferUnload
-// FIXME: Missing generator for Renderite.Shared.TrailRenderBufferUpload
-// FIXME: Missing generator for Renderite.Shared.TrailRenderBufferConsumed
-// FIXME: Missing generator for Renderite.Shared.TrailRenderBufferUnload
-// FIXME: Missing generator for Renderite.Shared.GaussianSplatUploadRaw
-// FIXME: Missing generator for Renderite.Shared.GaussianSplatUploadEncoded
-// FIXME: Missing generator for Renderite.Shared.GaussianSplatResult
-// FIXME: Missing generator for Renderite.Shared.UnloadGaussianSplat
-// FIXME: Missing generator for Renderite.Shared.LightsBufferRendererSubmission
-// FIXME: Missing generator for Renderite.Shared.LightsBufferRendererConsumed
-// FIXME: Missing generator for Renderite.Shared.ReflectionProbeRenderResult
-// FIXME: Missing generator for Renderite.Shared.VideoTextureLoad
-// FIXME: Missing generator for Renderite.Shared.VideoTextureUpdate
-// FIXME: Missing generator for Renderite.Shared.VideoTextureReady
-// FIXME: Missing generator for Renderite.Shared.VideoTextureChanged
-// FIXME: Missing generator for Renderite.Shared.VideoTextureProperties
-// FIXME: Missing generator for Renderite.Shared.VideoTextureStartAudioTrack
-// FIXME: Missing generator for Renderite.Shared.UnloadVideoTexture
+
+pub const RendererInitData = struct {
+    sharedMemoryPrefix: []const u16,
+    mainProcessId: i32,
+    debugFramePacing: bool,
+    outputDevice: HeadOutputDevice,
+    windowTitle: []const u16,
+
+    pub fn write(self: RendererInitData, ipc: IpcSerializer) !void {}
+    pub fn read(self: RendererInitData, ipc: IpcDeserializer) !RendererInitData {
+        var self: RendererInitData = undefined;
+        return self;
+    }
+};
+
+pub const RendererInitResult = struct {
+    actualOutputDevice: HeadOutputDevice,
+    rendererIdentifier: []const u16,
+    mainWindowHandlePtr: i64,
+    stereoRenderingMode: []const u16,
+    maxTextureSize: i32,
+    isGPUTexturePOTByteAligned: bool,
+    supportedTextureFormats: []const TextureFormat,
+
+    pub fn write(self: RendererInitResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: RendererInitResult, ipc: IpcDeserializer) !RendererInitResult {
+        var self: RendererInitResult = undefined;
+        return self;
+    }
+};
+
+pub const RendererInitProgressUpdate = struct {
+    phaseIndex: i32,
+    phase: []const u16,
+    subPhase: []const u16,
+    forceShow: bool,
+
+    pub fn write(self: RendererInitProgressUpdate, ipc: IpcSerializer) !void {}
+    pub fn read(self: RendererInitProgressUpdate, ipc: IpcDeserializer) !RendererInitProgressUpdate {
+        var self: RendererInitProgressUpdate = undefined;
+        return self;
+    }
+};
+
+pub const RendererInitFinalizeData = struct {};
+
+pub const RendererShutdownRequest = struct {};
+
+pub const RendererShutdown = struct {};
+
+pub const KeepAlive = struct {};
+
+pub const RendererParentWindow = struct {
+    windowHandle: i64,
+
+    pub fn write(self: RendererParentWindow, ipc: IpcSerializer) !void {}
+    pub fn read(self: RendererParentWindow, ipc: IpcDeserializer) !RendererParentWindow {
+        var self: RendererParentWindow = undefined;
+        return self;
+    }
+};
+
+pub const FrameStartData = struct {
+    lastFrameIndex: i32,
+    performance: ?PerformanceState,
+    inputs: ?InputState,
+    renderedReflectionProbes: []const RenderableHandle,
+
+    pub fn write(self: FrameStartData, ipc: IpcSerializer) !void {}
+    pub fn read(self: FrameStartData, ipc: IpcDeserializer) !FrameStartData {
+        var self: FrameStartData = undefined;
+        return self;
+    }
+};
+
+pub const FrameSubmitData = struct {
+    frameIndex: i32,
+    debugLog: bool,
+    vrActive: bool,
+    nearClip: f32,
+    farClip: f32,
+    desktopFOV: f32,
+    outputState: ?OutputState,
+    renderSpaces: []const RenderSpaceUpdate,
+    renderTasks: []const CameraRenderTask,
+
+    pub fn write(self: FrameSubmitData, ipc: IpcSerializer) !void {}
+    pub fn read(self: FrameSubmitData, ipc: IpcDeserializer) !FrameSubmitData {
+        var self: FrameSubmitData = undefined;
+        return self;
+    }
+};
+
+pub const PostProcessingConfig = struct {
+    motionBlurIntensity: f32,
+    bloomIntensity: f32,
+    ambientOcclusionIntensity: f32,
+    screenSpaceReflections: bool,
+    antialiasing: AntiAliasingMethod,
+
+    pub fn write(self: PostProcessingConfig, ipc: IpcSerializer) !void {}
+    pub fn read(self: PostProcessingConfig, ipc: IpcDeserializer) !PostProcessingConfig {
+        var self: PostProcessingConfig = undefined;
+        return self;
+    }
+};
+
+pub const QualityConfig = struct {
+    perPixelLight: i32,
+    shadowCascades: ShadowCascadeMode,
+    shadowResolution: ShadowResolutionMode,
+    shadowDistance: f32,
+    skinWeightMode: SkinWeightMode,
+
+    pub fn write(self: QualityConfig, ipc: IpcSerializer) !void {}
+    pub fn read(self: QualityConfig, ipc: IpcDeserializer) !QualityConfig {
+        var self: QualityConfig = undefined;
+        return self;
+    }
+};
+
+pub const ResolutionConfig = struct {
+    resolution: math.Vector2i,
+    fullscreen: bool,
+
+    pub fn write(self: ResolutionConfig, ipc: IpcSerializer) !void {}
+    pub fn read(self: ResolutionConfig, ipc: IpcDeserializer) !ResolutionConfig {
+        var self: ResolutionConfig = undefined;
+        return self;
+    }
+};
+
+pub const DesktopConfig = struct {
+    maximumBackgroundFramerate: ?i32,
+    maximumForegroundFramerate: ?i32,
+    vSync: bool,
+
+    pub fn write(self: DesktopConfig, ipc: IpcSerializer) !void {}
+    pub fn read(self: DesktopConfig, ipc: IpcDeserializer) !DesktopConfig {
+        var self: DesktopConfig = undefined;
+        return self;
+    }
+};
+
+pub const GaussianSplatConfig = struct {
+    sortingMegaOperationsPerCamera: f32,
+
+    pub fn write(self: GaussianSplatConfig, ipc: IpcSerializer) !void {}
+    pub fn read(self: GaussianSplatConfig, ipc: IpcDeserializer) !GaussianSplatConfig {
+        var self: GaussianSplatConfig = undefined;
+        return self;
+    }
+};
+
+pub const MeshUploadData = struct {
+    highPriority: bool,
+    buffer: SharedMemoryBufferDescriptor,
+    vertexCount: i32,
+    boneWeightCount: i32,
+    boneCount: i32,
+    indexBufferFormat: IndexBufferFormat,
+    vertexAttributes: []const VertexAttributeDescriptor,
+    submeshes: []const SubmeshBufferDescriptor,
+    blendshapeBuffers: []const BlendshapeBufferDescriptor,
+    uploadHint: MeshUploadHint,
+    bounds: RenderBoundingBox,
+    assetId: i32,
+
+    pub fn write(self: MeshUploadData, ipc: IpcSerializer) !void {}
+    pub fn read(self: MeshUploadData, ipc: IpcDeserializer) !MeshUploadData {
+        var self: MeshUploadData = undefined;
+        return self;
+    }
+};
+
+pub const MeshUnload = struct {
+    assetId: i32,
+
+    pub fn write(self: MeshUnload, ipc: IpcSerializer) !void {}
+    pub fn read(self: MeshUnload, ipc: IpcDeserializer) !MeshUnload {
+        var self: MeshUnload = undefined;
+        return self;
+    }
+};
+
+pub const MeshUploadResult = struct {
+    instanceChanged: bool,
+    assetId: i32,
+
+    pub fn write(self: MeshUploadResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: MeshUploadResult, ipc: IpcDeserializer) !MeshUploadResult {
+        var self: MeshUploadResult = undefined;
+        return self;
+    }
+};
+
+pub const ShaderUpload = struct {
+    file: []const u16,
+    assetId: i32,
+
+    pub fn write(self: ShaderUpload, ipc: IpcSerializer) !void {}
+    pub fn read(self: ShaderUpload, ipc: IpcDeserializer) !ShaderUpload {
+        var self: ShaderUpload = undefined;
+        return self;
+    }
+};
+
+pub const ShaderUnload = struct {
+    assetId: i32,
+
+    pub fn write(self: ShaderUnload, ipc: IpcSerializer) !void {}
+    pub fn read(self: ShaderUnload, ipc: IpcDeserializer) !ShaderUnload {
+        var self: ShaderUnload = undefined;
+        return self;
+    }
+};
+
+pub const ShaderUploadResult = struct {
+    instanceChanged: bool,
+    assetId: i32,
+
+    pub fn write(self: ShaderUploadResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: ShaderUploadResult, ipc: IpcDeserializer) !ShaderUploadResult {
+        var self: ShaderUploadResult = undefined;
+        return self;
+    }
+};
+
+pub const MaterialPropertyIdRequest = struct {
+    requestId: i32,
+    propertyNames: []const []const u16,
+
+    pub fn write(self: MaterialPropertyIdRequest, ipc: IpcSerializer) !void {}
+    pub fn read(self: MaterialPropertyIdRequest, ipc: IpcDeserializer) !MaterialPropertyIdRequest {
+        var self: MaterialPropertyIdRequest = undefined;
+        return self;
+    }
+};
+
+pub const MaterialPropertyIdResult = struct {
+    requestId: i32,
+    propertyIDs: []const i32,
+
+    pub fn write(self: MaterialPropertyIdResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: MaterialPropertyIdResult, ipc: IpcDeserializer) !MaterialPropertyIdResult {
+        var self: MaterialPropertyIdResult = undefined;
+        return self;
+    }
+};
+
+pub const MaterialsUpdateBatch = struct {
+    updateBatchId: i32,
+    materialRemovals: SharedMemoryBufferDescriptor,
+    materialPropertyBlockRemovals: SharedMemoryBufferDescriptor,
+    materialUpdates: []const SharedMemoryBufferDescriptor,
+    materialUpdateCount: i32,
+    intBuffers: []const SharedMemoryBufferDescriptor,
+    floatBuffers: []const SharedMemoryBufferDescriptor,
+    float4Buffers: []const SharedMemoryBufferDescriptor,
+    matrixBuffers: []const SharedMemoryBufferDescriptor,
+    instanceChangedBuffer: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: MaterialsUpdateBatch, ipc: IpcSerializer) !void {}
+    pub fn read(self: MaterialsUpdateBatch, ipc: IpcDeserializer) !MaterialsUpdateBatch {
+        var self: MaterialsUpdateBatch = undefined;
+        return self;
+    }
+};
+
+pub const MaterialsUpdateBatchResult = struct {
+    updateBatchId: i32,
+
+    pub fn write(self: MaterialsUpdateBatchResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: MaterialsUpdateBatchResult, ipc: IpcDeserializer) !MaterialsUpdateBatchResult {
+        var self: MaterialsUpdateBatchResult = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture2DFormat = struct {
+    width: i32,
+    height: i32,
+    mipmapCount: i32,
+    format: TextureFormat,
+    profile: ColorProfile,
+    assetId: i32,
+
+    pub fn write(self: SetTexture2DFormat, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture2DFormat, ipc: IpcDeserializer) !SetTexture2DFormat {
+        var self: SetTexture2DFormat = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture2DProperties = struct {
+    filterMode: TextureFilterMode,
+    anisoLevel: i32,
+    wrapU: TextureWrapMode,
+    wrapV: TextureWrapMode,
+    mipmapBias: f32,
+    applyImmediatelly: bool,
+    highPriority: bool,
+    assetId: i32,
+
+    pub fn write(self: SetTexture2DProperties, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture2DProperties, ipc: IpcDeserializer) !SetTexture2DProperties {
+        var self: SetTexture2DProperties = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture2DData = struct {
+    data: SharedMemoryBufferDescriptor,
+    startMipLevel: i32,
+    mipMapSizes: []const math.Vector2i,
+    mipStarts: []const i32,
+    flipY: bool,
+    hint: TextureUploadHint,
+    highPriority: bool,
+    assetId: i32,
+
+    pub fn write(self: SetTexture2DData, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture2DData, ipc: IpcDeserializer) !SetTexture2DData {
+        var self: SetTexture2DData = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture2DResult = struct {
+    type: TextureUpdateResultType,
+    instanceChanged: bool,
+    assetId: i32,
+
+    pub fn write(self: SetTexture2DResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture2DResult, ipc: IpcDeserializer) !SetTexture2DResult {
+        var self: SetTexture2DResult = undefined;
+        return self;
+    }
+};
+
+pub const UnloadTexture2D = struct {
+    assetId: i32,
+
+    pub fn write(self: UnloadTexture2D, ipc: IpcSerializer) !void {}
+    pub fn read(self: UnloadTexture2D, ipc: IpcDeserializer) !UnloadTexture2D {
+        var self: UnloadTexture2D = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture3DFormat = struct {
+    width: i32,
+    height: i32,
+    depth: i32,
+    mipmapCount: i32,
+    format: TextureFormat,
+    profile: ColorProfile,
+    assetId: i32,
+
+    pub fn write(self: SetTexture3DFormat, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture3DFormat, ipc: IpcDeserializer) !SetTexture3DFormat {
+        var self: SetTexture3DFormat = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture3DProperties = struct {
+    filterMode: TextureFilterMode,
+    anisoLevel: i32,
+    wrapU: TextureWrapMode,
+    wrapV: TextureWrapMode,
+    wrapW: TextureWrapMode,
+    applyImmediatelly: bool,
+    highPriority: bool,
+    assetId: i32,
+
+    pub fn write(self: SetTexture3DProperties, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture3DProperties, ipc: IpcDeserializer) !SetTexture3DProperties {
+        var self: SetTexture3DProperties = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture3DData = struct {
+    data: SharedMemoryBufferDescriptor,
+    hint: Texture3DUploadHint,
+    highPriority: bool,
+    assetId: i32,
+
+    pub fn write(self: SetTexture3DData, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture3DData, ipc: IpcDeserializer) !SetTexture3DData {
+        var self: SetTexture3DData = undefined;
+        return self;
+    }
+};
+
+pub const SetTexture3DResult = struct {
+    type: TextureUpdateResultType,
+    instanceChanged: bool,
+    assetId: i32,
+
+    pub fn write(self: SetTexture3DResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetTexture3DResult, ipc: IpcDeserializer) !SetTexture3DResult {
+        var self: SetTexture3DResult = undefined;
+        return self;
+    }
+};
+
+pub const UnloadTexture3D = struct {
+    assetId: i32,
+
+    pub fn write(self: UnloadTexture3D, ipc: IpcSerializer) !void {}
+    pub fn read(self: UnloadTexture3D, ipc: IpcDeserializer) !UnloadTexture3D {
+        var self: UnloadTexture3D = undefined;
+        return self;
+    }
+};
+
+pub const SetCubemapFormat = struct {
+    size: i32,
+    mipmapCount: i32,
+    format: TextureFormat,
+    profile: ColorProfile,
+    assetId: i32,
+
+    pub fn write(self: SetCubemapFormat, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetCubemapFormat, ipc: IpcDeserializer) !SetCubemapFormat {
+        var self: SetCubemapFormat = undefined;
+        return self;
+    }
+};
+
+pub const SetCubemapProperties = struct {
+    filterMode: TextureFilterMode,
+    anisoLevel: i32,
+    mipmapBias: f32,
+    applyImmediatelly: bool,
+    highPriority: bool,
+    assetId: i32,
+
+    pub fn write(self: SetCubemapProperties, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetCubemapProperties, ipc: IpcDeserializer) !SetCubemapProperties {
+        var self: SetCubemapProperties = undefined;
+        return self;
+    }
+};
+
+pub const SetCubemapData = struct {
+    data: SharedMemoryBufferDescriptor,
+    startMipLevel: i32,
+    mipMapSizes: []const math.Vector2i,
+    mipStarts: []const []const i32,
+    flipY: bool,
+    highPriority: bool,
+    assetId: i32,
+
+    pub fn write(self: SetCubemapData, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetCubemapData, ipc: IpcDeserializer) !SetCubemapData {
+        var self: SetCubemapData = undefined;
+        return self;
+    }
+};
+
+pub const SetCubemapResult = struct {
+    type: TextureUpdateResultType,
+    instanceChanged: bool,
+    assetId: i32,
+
+    pub fn write(self: SetCubemapResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetCubemapResult, ipc: IpcDeserializer) !SetCubemapResult {
+        var self: SetCubemapResult = undefined;
+        return self;
+    }
+};
+
+pub const UnloadCubemap = struct {
+    assetId: i32,
+
+    pub fn write(self: UnloadCubemap, ipc: IpcSerializer) !void {}
+    pub fn read(self: UnloadCubemap, ipc: IpcDeserializer) !UnloadCubemap {
+        var self: UnloadCubemap = undefined;
+        return self;
+    }
+};
+
+pub const SetRenderTextureFormat = struct {
+    size: math.Vector2i,
+    depth: i32,
+    filterMode: TextureFilterMode,
+    anisoLevel: i32,
+    wrapU: TextureWrapMode,
+    wrapV: TextureWrapMode,
+    assetId: i32,
+
+    pub fn write(self: SetRenderTextureFormat, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetRenderTextureFormat, ipc: IpcDeserializer) !SetRenderTextureFormat {
+        var self: SetRenderTextureFormat = undefined;
+        return self;
+    }
+};
+
+pub const RenderTextureResult = struct {
+    instanceChanged: bool,
+    assetId: i32,
+
+    pub fn write(self: RenderTextureResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: RenderTextureResult, ipc: IpcDeserializer) !RenderTextureResult {
+        var self: RenderTextureResult = undefined;
+        return self;
+    }
+};
+
+pub const UnloadRenderTexture = struct {
+    assetId: i32,
+
+    pub fn write(self: UnloadRenderTexture, ipc: IpcSerializer) !void {}
+    pub fn read(self: UnloadRenderTexture, ipc: IpcDeserializer) !UnloadRenderTexture {
+        var self: UnloadRenderTexture = undefined;
+        return self;
+    }
+};
+
+pub const SetDesktopTextureProperties = struct {
+    displayIndex: i32,
+    assetId: i32,
+
+    pub fn write(self: SetDesktopTextureProperties, ipc: IpcSerializer) !void {}
+    pub fn read(self: SetDesktopTextureProperties, ipc: IpcDeserializer) !SetDesktopTextureProperties {
+        var self: SetDesktopTextureProperties = undefined;
+        return self;
+    }
+};
+
+pub const DesktopTexturePropertiesUpdate = struct {
+    size: math.Vector2i,
+    assetId: i32,
+
+    pub fn write(self: DesktopTexturePropertiesUpdate, ipc: IpcSerializer) !void {}
+    pub fn read(self: DesktopTexturePropertiesUpdate, ipc: IpcDeserializer) !DesktopTexturePropertiesUpdate {
+        var self: DesktopTexturePropertiesUpdate = undefined;
+        return self;
+    }
+};
+
+pub const UnloadDesktopTexture = struct {
+    assetId: i32,
+
+    pub fn write(self: UnloadDesktopTexture, ipc: IpcSerializer) !void {}
+    pub fn read(self: UnloadDesktopTexture, ipc: IpcDeserializer) !UnloadDesktopTexture {
+        var self: UnloadDesktopTexture = undefined;
+        return self;
+    }
+};
+
+pub const PointRenderBufferUpload = struct {
+    count: i32,
+    positionsOffset: i32,
+    rotationsOffset: i32,
+    sizesOffset: i32,
+    colorsOffset: i32,
+    frameIndexesOffset: i32,
+    frameGridSize: math.Vector2i,
+    buffer: SharedMemoryBufferDescriptor,
+    assetId: i32,
+
+    pub fn write(self: PointRenderBufferUpload, ipc: IpcSerializer) !void {}
+    pub fn read(self: PointRenderBufferUpload, ipc: IpcDeserializer) !PointRenderBufferUpload {
+        var self: PointRenderBufferUpload = undefined;
+        return self;
+    }
+};
+
+pub const PointRenderBufferConsumed = struct {
+    assetId: i32,
+
+    pub fn write(self: PointRenderBufferConsumed, ipc: IpcSerializer) !void {}
+    pub fn read(self: PointRenderBufferConsumed, ipc: IpcDeserializer) !PointRenderBufferConsumed {
+        var self: PointRenderBufferConsumed = undefined;
+        return self;
+    }
+};
+
+pub const PointRenderBufferUnload = struct {
+    assetId: i32,
+
+    pub fn write(self: PointRenderBufferUnload, ipc: IpcSerializer) !void {}
+    pub fn read(self: PointRenderBufferUnload, ipc: IpcDeserializer) !PointRenderBufferUnload {
+        var self: PointRenderBufferUnload = undefined;
+        return self;
+    }
+};
+
+pub const TrailRenderBufferUpload = struct {
+    trailsCount: i32,
+    trailPointCount: i32,
+    trailsOffset: i32,
+    positionsOffset: i32,
+    colorsOffset: i32,
+    sizesOffset: i32,
+    buffer: SharedMemoryBufferDescriptor,
+    assetId: i32,
+
+    pub fn write(self: TrailRenderBufferUpload, ipc: IpcSerializer) !void {}
+    pub fn read(self: TrailRenderBufferUpload, ipc: IpcDeserializer) !TrailRenderBufferUpload {
+        var self: TrailRenderBufferUpload = undefined;
+        return self;
+    }
+};
+
+pub const TrailRenderBufferConsumed = struct {
+    assetId: i32,
+
+    pub fn write(self: TrailRenderBufferConsumed, ipc: IpcSerializer) !void {}
+    pub fn read(self: TrailRenderBufferConsumed, ipc: IpcDeserializer) !TrailRenderBufferConsumed {
+        var self: TrailRenderBufferConsumed = undefined;
+        return self;
+    }
+};
+
+pub const TrailRenderBufferUnload = struct {
+    assetId: i32,
+
+    pub fn write(self: TrailRenderBufferUnload, ipc: IpcSerializer) !void {}
+    pub fn read(self: TrailRenderBufferUnload, ipc: IpcDeserializer) !TrailRenderBufferUnload {
+        var self: TrailRenderBufferUnload = undefined;
+        return self;
+    }
+};
+
+pub const GaussianSplatUploadRaw = struct {
+    alphasBuffer: SharedMemoryBufferDescriptor,
+    splatCount: i32,
+    bounds: RenderBoundingBox,
+    positionsBuffer: SharedMemoryBufferDescriptor,
+    rotationsBuffer: SharedMemoryBufferDescriptor,
+    scalesBuffer: SharedMemoryBufferDescriptor,
+    colorsBuffer: SharedMemoryBufferDescriptor,
+    assetId: i32,
+
+    pub fn write(self: GaussianSplatUploadRaw, ipc: IpcSerializer) !void {}
+    pub fn read(self: GaussianSplatUploadRaw, ipc: IpcDeserializer) !GaussianSplatUploadRaw {
+        var self: GaussianSplatUploadRaw = undefined;
+        return self;
+    }
+};
+
+pub const GaussianSplatUploadEncoded = struct {
+    positionsFormat: GaussianVectorFormat,
+    rotationsFormat: GaussianRotationFormat,
+    scalesFormat: GaussianVectorFormat,
+    colorsFormat: GaussianColorFormat,
+    shFormat: GaussianSHFormat,
+    texture2DtextureAssetId: i32,
+    shIndexesOffset: i32,
+    chunkCount: i32,
+    shBuffer: SharedMemoryBufferDescriptor,
+    chunksBuffer: SharedMemoryBufferDescriptor,
+    splatCount: i32,
+    bounds: RenderBoundingBox,
+    positionsBuffer: SharedMemoryBufferDescriptor,
+    rotationsBuffer: SharedMemoryBufferDescriptor,
+    scalesBuffer: SharedMemoryBufferDescriptor,
+    colorsBuffer: SharedMemoryBufferDescriptor,
+    assetId: i32,
+
+    pub fn write(self: GaussianSplatUploadEncoded, ipc: IpcSerializer) !void {}
+    pub fn read(self: GaussianSplatUploadEncoded, ipc: IpcDeserializer) !GaussianSplatUploadEncoded {
+        var self: GaussianSplatUploadEncoded = undefined;
+        return self;
+    }
+};
+
+pub const GaussianSplatResult = struct {
+    instanceChanged: bool,
+    assetId: i32,
+
+    pub fn write(self: GaussianSplatResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: GaussianSplatResult, ipc: IpcDeserializer) !GaussianSplatResult {
+        var self: GaussianSplatResult = undefined;
+        return self;
+    }
+};
+
+pub const UnloadGaussianSplat = struct {
+    assetId: i32,
+
+    pub fn write(self: UnloadGaussianSplat, ipc: IpcSerializer) !void {}
+    pub fn read(self: UnloadGaussianSplat, ipc: IpcDeserializer) !UnloadGaussianSplat {
+        var self: UnloadGaussianSplat = undefined;
+        return self;
+    }
+};
+
+pub const LightsBufferRendererSubmission = struct {
+    lightsBufferUniqueId: i32,
+    lightsCount: i32,
+    lights: SharedMemoryBufferDescriptor,
+
+    pub fn write(self: LightsBufferRendererSubmission, ipc: IpcSerializer) !void {}
+    pub fn read(self: LightsBufferRendererSubmission, ipc: IpcDeserializer) !LightsBufferRendererSubmission {
+        var self: LightsBufferRendererSubmission = undefined;
+        return self;
+    }
+};
+
+pub const LightsBufferRendererConsumed = struct {
+    globalUniqueId: i32,
+
+    pub fn write(self: LightsBufferRendererConsumed, ipc: IpcSerializer) !void {}
+    pub fn read(self: LightsBufferRendererConsumed, ipc: IpcDeserializer) !LightsBufferRendererConsumed {
+        var self: LightsBufferRendererConsumed = undefined;
+        return self;
+    }
+};
+
+pub const ReflectionProbeRenderResult = struct {
+    renderTaskId: i32,
+    success: bool,
+
+    pub fn write(self: ReflectionProbeRenderResult, ipc: IpcSerializer) !void {}
+    pub fn read(self: ReflectionProbeRenderResult, ipc: IpcDeserializer) !ReflectionProbeRenderResult {
+        var self: ReflectionProbeRenderResult = undefined;
+        return self;
+    }
+};
+
+pub const VideoTextureLoad = struct {
+    source: []const u16,
+    overrideEngine: []const u16,
+    mimeType: []const u16,
+    isStream: bool,
+    audioSystemSampleRate: i32,
+    assetId: i32,
+
+    pub fn write(self: VideoTextureLoad, ipc: IpcSerializer) !void {}
+    pub fn read(self: VideoTextureLoad, ipc: IpcDeserializer) !VideoTextureLoad {
+        var self: VideoTextureLoad = undefined;
+        return self;
+    }
+};
+
+pub const VideoTextureUpdate = struct {
+    position: f64,
+    play: bool,
+    loop: bool,
+    assetId: i32,
+
+    pub fn write(self: VideoTextureUpdate, ipc: IpcSerializer) !void {}
+    pub fn read(self: VideoTextureUpdate, ipc: IpcDeserializer) !VideoTextureUpdate {
+        var self: VideoTextureUpdate = undefined;
+        return self;
+    }
+};
+
+pub const VideoTextureReady = struct {
+    length: f64,
+    size: math.Vector2i,
+    hasAlpha: bool,
+    playbackEngine: []const u16,
+    instanceChanged: bool,
+    audioTracks: []const VideoAudioTrack,
+    assetId: i32,
+
+    pub fn write(self: VideoTextureReady, ipc: IpcSerializer) !void {}
+    pub fn read(self: VideoTextureReady, ipc: IpcDeserializer) !VideoTextureReady {
+        var self: VideoTextureReady = undefined;
+        return self;
+    }
+};
+
+pub const VideoTextureChanged = struct {
+    assetId: i32,
+
+    pub fn write(self: VideoTextureChanged, ipc: IpcSerializer) !void {}
+    pub fn read(self: VideoTextureChanged, ipc: IpcDeserializer) !VideoTextureChanged {
+        var self: VideoTextureChanged = undefined;
+        return self;
+    }
+};
+
+pub const VideoTextureProperties = struct {
+    filterMode: TextureFilterMode,
+    anisoLevel: i32,
+    wrapU: TextureWrapMode,
+    wrapV: TextureWrapMode,
+    assetId: i32,
+
+    pub fn write(self: VideoTextureProperties, ipc: IpcSerializer) !void {}
+    pub fn read(self: VideoTextureProperties, ipc: IpcDeserializer) !VideoTextureProperties {
+        var self: VideoTextureProperties = undefined;
+        return self;
+    }
+};
+
+pub const VideoTextureStartAudioTrack = struct {
+    audioTrackIndex: i32,
+    queueCapacity: i32,
+    queueName: []const u16,
+    assetId: i32,
+
+    pub fn write(self: VideoTextureStartAudioTrack, ipc: IpcSerializer) !void {}
+    pub fn read(self: VideoTextureStartAudioTrack, ipc: IpcDeserializer) !VideoTextureStartAudioTrack {
+        var self: VideoTextureStartAudioTrack = undefined;
+        return self;
+    }
+};
+
+pub const UnloadVideoTexture = struct {
+    assetId: i32,
+
+    pub fn write(self: UnloadVideoTexture, ipc: IpcSerializer) !void {}
+    pub fn read(self: UnloadVideoTexture, ipc: IpcDeserializer) !UnloadVideoTexture {
+        var self: UnloadVideoTexture = undefined;
+        return self;
+    }
+};
+
+pub const HeadOutputDevice = enum(i32) {
+    Autodetect = 0,
+    Headless = 1,
+    Screen = 2,
+    Screen360 = 3,
+    StaticCamera = 4,
+    StaticCamera360 = 5,
+    SteamVR = 6,
+    WindowsMR = 7,
+    Oculus = 8,
+    OculusQuest = 9,
+    UNKNOWN = 10,
+};
+
+pub const TextureFormat = enum(i32) {
+    Unknown = 0,
+    Alpha8 = 1,
+    R8 = 2,
+    RGB24 = 16,
+    ARGB32 = 17,
+    RGBA32 = 18,
+    BGRA32 = 19,
+    RGB565 = 24,
+    BGR565 = 25,
+    RGBAHalf = 32,
+    ARGBHalf = 33,
+    RHalf = 34,
+    RGHalf = 35,
+    RGBAFloat = 48,
+    ARGBFloat = 49,
+    RFloat = 50,
+    RGFloat = 51,
+    BC1 = 64,
+    BC2 = 65,
+    BC3 = 66,
+    BC4 = 67,
+    BC5 = 68,
+    BC6H = 69,
+    BC7 = 70,
+    ETC2_RGB = 96,
+    ETC2_RGBA1 = 97,
+    ETC2_RGBA8 = 98,
+    ASTC_4x4 = 128,
+    ASTC_5x5 = 129,
+    ASTC_6x6 = 130,
+    ASTC_8x8 = 131,
+    ASTC_10x10 = 132,
+    ASTC_12x12 = 133,
+};
+
+// FIXME: Missing generator for Renderite.Shared.RenderableHandle
+pub const RenderSpaceUpdate = struct {
+    id: i32,
+    isActive: bool,
+    isOverlay: bool,
+    isPrivate: bool,
+    rootTransform: RenderTransform,
+    viewPositionIsExternal: bool,
+    overrideViewPosition: bool,
+    skyboxMaterialAssetId: i32,
+    ambientLight: RenderSH2,
+    overridenViewTransform: RenderTransform,
+    transformsUpdate: ?TransformsUpdate,
+    meshRenderersUpdate: ?MeshRenderablesUpdate,
+    skinnedMeshRenderersUpdate: ?SkinnedMeshRenderablesUpdate,
+    lightsUpdate: ?LightRenderablesUpdate,
+    camerasUpdate: ?CameraRenderablesUpdate,
+    cameraPortalsUpdate: ?CameraPortalsRenderablesUpdate,
+    reflectionProbesUpdate: ?ReflectionProbeRenderablesUpdate,
+    reflectionProbeSH2Taks: ?ReflectionProbeSH2Tasks,
+    layersUpdate: ?LayerUpdate,
+    billboardBuffersUpdate: ?BillboardRenderBufferUpdate,
+    meshRenderBuffersUpdate: ?MeshRenderBufferUpdate,
+    trailRenderersUpdate: ?TrailsRendererUpdate,
+    lightsBufferRenderersUpdate: ?LightsBufferRendererUpdate,
+    renderTransformOverridesUpdate: ?RenderTransformOverridesUpdate,
+    renderMaterialOverridesUpdate: ?RenderMaterialOverridesUpdate,
+    blitToDisplaysUpdate: ?BlitToDisplayRenderablesUpdate,
+    lodGroupUpdate: ?LODGroupRenderablesUpdate,
+    gaussianSplatRenderersUpdate: ?GaussianSplatRenderablesUpdate,
+    reflectionProbeRenderTasks: []const ReflectionProbeRenderTask,
+
+    pub fn write(self: RenderSpaceUpdate, ipc: IpcSerializer) !void {}
+    pub fn read(self: RenderSpaceUpdate, ipc: IpcDeserializer) !RenderSpaceUpdate {
+        var self: RenderSpaceUpdate = undefined;
+        return self;
+    }
+};
+
+pub const CameraRenderTask = struct {
+    renderSpaceId: i32,
+    position: math.Vector3f,
+    rotation: math.Quaternionf,
+    parameters: ?CameraRenderParameters,
+    resultData: SharedMemoryBufferDescriptor,
+    onlyRenderList: []const i32,
+    excludeRenderList: []const i32,
+
+    pub fn write(self: CameraRenderTask, ipc: IpcSerializer) !void {}
+    pub fn read(self: CameraRenderTask, ipc: IpcDeserializer) !CameraRenderTask {
+        var self: CameraRenderTask = undefined;
+        return self;
+    }
+};
+
+pub const AntiAliasingMethod = enum(i32) {
+    Off = 0,
+    FXAA = 1,
+    CTAA = 2,
+    SMAA = 3,
+    TAA = 4,
+};
+
+pub const ShadowCascadeMode = enum(i32) {
+    None = 0,
+    TwoCascades = 1,
+    FourCascades = 2,
+};
+
+pub const ShadowResolutionMode = enum(i32) {
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Ultra = 3,
+};
+
+pub const SkinWeightMode = enum(i32) {
+    OneBone = 0,
+    TwoBones = 1,
+    FourBones = 2,
+    Unlimited = 3,
+};
+
+pub const IndexBufferFormat = enum(i32) {
+    UInt16 = 0,
+    UInt32 = 1,
+};
+
+// FIXME: Missing generator for Renderite.Shared.VertexAttributeDescriptor
+// FIXME: Missing generator for Renderite.Shared.SubmeshBufferDescriptor
+// FIXME: Missing generator for Renderite.Shared.BlendshapeBufferDescriptor
+// FIXME: Missing generator for Renderite.Shared.MeshUploadHint
+// FIXME: Missing generator for Renderite.Shared.RenderBoundingBox
+// FIXME: Missing generator for Renderite.Shared.MaterialPropertyUpdate
+pub const ColorProfile = enum(i32) {
+    Linear = 0,
+    sRGB = 1,
+    sRGBAlpha = 2,
+};
+
+pub const TextureFilterMode = enum(i32) {
+    Point = 0,
+    Bilinear = 1,
+    Trilinear = 2,
+    Anisotropic = 3,
+};
+
+pub const TextureWrapMode = enum(i32) {
+    Repeat = 0,
+    Clamp = 1,
+    Mirror = 2,
+    MirrorOnce = 3,
+};
+
+// FIXME: Missing generator for Renderite.Shared.TextureUploadHint
+pub const TextureUpdateResultType = enum(i32) {
+    FormatSet = 0,
+    PropertiesSet = 1,
+    DataUpload = 2,
+};
+
+// FIXME: Missing generator for Renderite.Shared.Texture3DUploadHint
+pub const GaussianVectorFormat = enum(i32) {
+    Float32 = 0,
+    Norm16 = 1,
+    Norm11 = 2,
+    Norm6 = 3,
+};
+
+pub const GaussianRotationFormat = enum(i32) {
+    PackedNorm10 = 0,
+};
+
+pub const GaussianColorFormat = enum(i32) {
+    Float32x4 = 0,
+    Float16x4 = 1,
+    Norm8x4 = 2,
+    BC7 = 3,
+};
+
+pub const GaussianSHFormat = enum(i32) {
+    Float16 = 0,
+    Norm11 = 1,
+    Norm6 = 2,
+    Cluster64k = 3,
+    Cluster32k = 4,
+    Cluster16k = 5,
+    Cluster8k = 6,
+    Cluster4k = 7,
+};
+
+// FIXME: Missing generator for Renderite.Shared.LightData
+pub const VideoAudioTrack = struct {
+    index: i32,
+    channelCount: i32,
+    sampleRate: i32,
+    name: []const u16,
+    languageCode: []const u16,
+
+    pub fn write(self: VideoAudioTrack, ipc: IpcSerializer) !void {}
+    pub fn read(self: VideoAudioTrack, ipc: IpcDeserializer) !VideoAudioTrack {
+        var self: VideoAudioTrack = undefined;
+        return self;
+    }
+};
+
+// FIXME: Missing generator for Renderite.Shared.RenderTransform
+// FIXME: Missing generator for Renderite.Shared.RenderSH2
+pub const ReflectionProbeRenderTask = struct {
+    renderableIndex: i32,
+    renderTaskId: i32,
+    size: i32,
+    hdr: bool,
+    mipOrigins: []const []const i32,
+    resultData: SharedMemoryBufferDescriptor,
+    excludeTransformIds: []const i32,
+
+    pub fn write(self: ReflectionProbeRenderTask, ipc: IpcSerializer) !void {}
+    pub fn read(self: ReflectionProbeRenderTask, ipc: IpcDeserializer) !ReflectionProbeRenderTask {
+        var self: ReflectionProbeRenderTask = undefined;
+        return self;
+    }
+};

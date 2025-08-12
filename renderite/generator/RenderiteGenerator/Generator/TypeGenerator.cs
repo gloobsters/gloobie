@@ -100,7 +100,7 @@ public abstract class TypeGenerator
 
     protected void QueueType(Type type)
     {
-        if (this.Context.GeneratedTypes.Contains(type)) return;
+        if (this.Context.GeneratedTypes.Contains(type) || this.Context.TypeQueue.Contains(type)) return;
 
         if (type.Assembly == this.Context.Assembly)
             this.Context.TypeQueue.Enqueue(type);

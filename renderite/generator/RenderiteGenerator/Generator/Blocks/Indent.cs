@@ -1,4 +1,4 @@
-﻿namespace RenderiteGenerator.Generator;
+﻿namespace RenderiteGenerator.Generator.Blocks;
 
 public class Indent : IDisposable
 {
@@ -9,6 +9,7 @@ public class Indent : IDisposable
     {
         this.Writer = writer;
         this._context = writer.Context;
+        this._context.CurrentIndent += 1;
     }
 
     public virtual void Dispose()
