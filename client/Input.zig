@@ -1,5 +1,79 @@
+const std = @import("std");
+
 const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
+
+const log = std.log.scoped(.input);
+
+const Input = @This();
+
+held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void),
+type_delta: std.ArrayListUnmanaged(u16),
+
+pub fn init(gpa: std.mem.Allocator) !Input {
+    var held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void) = .empty;
+    try held_keys.ensureTotalCapacity(gpa, std.enums.values(renderite.Shared.Key).len);
+    errdefer held_keys.deinit(gpa);
+
+    return .{
+        .held_keys = held_keys,
+        .type_delta = .empty,
+    };
+}
+
+pub fn deinit(self: *Input, gpa: std.mem.Allocator) void {
+    self.held_keys.deinit(gpa);
+    self.type_delta.deinit(gpa);
+}
+
+// Appends the UTF-8 text input into the type delta.
+pub fn handleTextInputUtf8(self: *Input, gpa: std.mem.Allocator, text: []const u8) !void {
+    var iter: std.unicode.Utf8Iterator = .{
+        .i = 0,
+        .bytes = text,
+    };
+
+    while (iter.nextCodepoint()) |codepoint| {
+        if (codepoint < 0x10000) {
+            try self.type_delta.append(gpa, @intCast(codepoint));
+        } else {
+            const high = @as(u16, @intCast((codepoint - 0x10000) >> 10)) + 0xD800;
+            const low = @as(u16, @intCast(codepoint & 0x3FF)) + 0xDC00;
+
+            try self.type_delta.appendSlice(gpa, &.{ @intCast(high), @intCast(low) });
+        }
+    }
+}
+
+/// Handles a key up or down event.
+pub fn handleKeyEvent(self: *Input, event: sdl3.events.Keyboard) void {
+    // Ignore repeat events
+    if (event.repeat) {
+        return;
+    }
+
+    const keycode = event.key orelse return;
+
+    const key = sdlKeycodeToRenderiteKey(keycode) orelse {
+        log.warn("Unhandled keycode {s}!", .{@tagName(keycode)});
+        return;
+    };
+
+    if (event.down) {
+        self.held_keys.putAssumeCapacity(key, {});
+    } else {
+        _ = self.held_keys.swapRemove(key);
+    }
+}
+
+/// Takes the typed delta, and clears the list
+///
+/// NOTE: Calling `handleTextInput` invalidates the returned array!!!
+pub fn takeTypedDelta(self: *Input) []u16 {
+    defer self.type_delta.clearRetainingCapacity();
+
+    return self.type_delta.items;
+}
 
 fn renderiteKeyToSdlKeycode(key: renderite.Shared.Key) ?sdl3.keycode.Keycode {
     return switch (key) {

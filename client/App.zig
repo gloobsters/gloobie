@@ -158,8 +158,7 @@ const GameData = struct {
 
     displays: std.ArrayListUnmanaged(renderite.Shared.DisplayState),
 
-    held_keys: std.ArrayListUnmanaged(renderite.Shared.Key),
-    type_delta: std.ArrayListUnmanaged(u16),
+    input: Input,
 
     pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
         if (self.engine_thread) |engine_thread| {
@@ -170,8 +169,7 @@ const GameData = struct {
 
         self.to_engine_envelope_pool.deinit();
 
-        self.displays.deinit(gpa);
-        self.held_keys.deinit(gpa);
+        self.input.deinit(gpa);
     }
 };
 
@@ -373,8 +371,8 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     errdefer if (maybe_imgui_data) |imgui_data| imgui_data.deinit();
 
     const game_data = create_game_data: {
-        const held_keys: std.ArrayListUnmanaged(renderite.Shared.Key) = try .initCapacity(gpa, std.enums.values(renderite.Shared.Key).len);
-        errdefer gpa.free(held_keys);
+        const input: Input = try .init(gpa);
+        errdefer input.deinit();
 
         var game_data: GameData = .{
             .run_loop = true,
@@ -397,8 +395,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .to_engine_mailbox = .{},
             .to_engine_envelope_pool = .init(gpa),
             .displays = .empty,
-            .held_keys = held_keys,
-            .type_delta = .empty,
+            .input = input,
         };
 
         // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -964,43 +961,18 @@ pub fn frameLoop(self: *App) !void {
                         self.window.focus = false;
                     },
                     .key_down => |key_down| {
-                        if (key_down.window_id == self.window.window.getId() catch unreachable and !key_down.repeat) {
-                            if (key_down.key) |keycode| {
-                                if (Input.sdlKeycodeToRenderiteKey(keycode)) |key| {
-                                    self.game.held_keys.appendAssumeCapacity(key);
-                                }
-                            }
+                        if (key_down.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleKeyEvent(key_down);
                         }
                     },
                     .key_up => |key_up| {
                         if (key_up.window_id == self.window.window.getId() catch unreachable) {
-                            if (key_up.key) |keycode| {
-                                if (Input.sdlKeycodeToRenderiteKey(keycode)) |key| {
-                                    for (self.game.held_keys.items, 0..) |held_key, i| {
-                                        if (held_key == key) {
-                                            _ = self.game.held_keys.swapRemove(i);
-                                        }
-                                    }
-                                }
-                            }
+                            self.game.input.handleKeyEvent(key_up);
                         }
                     },
-                    // convert to UTF-16 and append to the delta
                     .text_input => |text_input| {
-                        var iter: std.unicode.Utf8Iterator = .{
-                            .i = 0,
-                            .bytes = text_input.text,
-                        };
-
-                        while (iter.nextCodepoint()) |codepoint| {
-                            if (codepoint < 0x10000) {
-                                try self.game.type_delta.append(self.gpa, @intCast(codepoint));
-                            } else {
-                                const high = @as(u16, @intCast((codepoint - 0x10000) >> 10)) + 0xD800;
-                                const low = @as(u16, @intCast(codepoint & 0x3FF)) + 0xDC00;
-
-                                try self.game.type_delta.appendSlice(self.gpa, &.{ @intCast(high), @intCast(low) });
-                            }
+                        if (text_input.window_id == self.window.window.getId() catch unreachable) {
+                            try self.game.input.handleTextInputUtf8(self.gpa, text_input.text);
                         }
                     },
                     else => {},
@@ -1062,8 +1034,8 @@ pub fn frameLoop(self: *App) !void {
                             .displays = self.game.displays.items,
                             .gamepads = &.{},
                             .keyboard = .{
-                                .heldKeys = self.game.held_keys.items,
-                                .typeDelta = self.game.type_delta.items,
+                                .heldKeys = self.game.input.held_keys.keys(),
+                                .typeDelta = self.game.input.takeTypedDelta(),
                             },
                             .mouse = null,
                             .touches = &.{},
@@ -1084,11 +1056,6 @@ pub fn frameLoop(self: *App) !void {
                         .renderedReflectionProbes = &.{},
                     },
                 }, std.time.ns_per_s);
-
-                if (self.game.type_delta.items.len > 0) {
-                    log.debug("Sent string {f} to engine", .{std.unicode.fmtUtf16Le(self.game.type_delta.items)});
-                }
-                self.game.type_delta.clearRetainingCapacity();
 
                 log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
 
