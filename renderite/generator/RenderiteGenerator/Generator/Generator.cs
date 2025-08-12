@@ -26,6 +26,7 @@ public class Generator
             AssemblyCecil = AssemblyDefinition.ReadAssembly(options.AssemblyPath),
             Options = options,
             Generator = this,
+            Logger = this._logger,
         };
 
         this._context.Types = this._context.Assembly.GetTypes();
@@ -111,7 +112,7 @@ public class Generator
         if (generator == null)
         {
             this._logger.LogWarning(LogCategory.Generator, $"Missing generator for {type.FullName}");
-            this._writer.Fixme($"Missing generator for {type.FullName}");
+            this._writer.Todo($"Missing generator for {type.FullName}");
             return;
         }
 

@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using Mono.Cecil;
+using NotEnoughLogs;
 using RenderiteGenerator.Options;
 
 namespace RenderiteGenerator.Generator;
@@ -12,6 +13,7 @@ public class GeneratorContext
 
     public GeneratorOptions Options;
     public Generator Generator;
+    public Logger Logger;
     
     public Assembly Assembly;
     public AssemblyDefinition AssemblyCecil;

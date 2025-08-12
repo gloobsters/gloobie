@@ -7,4 +7,6 @@ public enum LogCategory
     Generator,
     Parsing,
     Output,
+    Fixme,
+    Bug
 }

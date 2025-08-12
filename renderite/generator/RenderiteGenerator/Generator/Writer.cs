@@ -1,4 +1,5 @@
 ﻿using RenderiteGenerator.Generator.Blocks;
+using RenderiteGenerator.Logging;
 
 namespace RenderiteGenerator.Generator;
 
@@ -38,8 +39,18 @@ public class Writer : IDisposable
         this._writer.WriteLine(comment);
     }
 
-    public void Fixme(string comment) => this.Comment("FIXME", comment);
-    public void Bug(string comment) => this.Comment("BUG", comment);
+    public void Fixme(string comment)
+    {
+        this.Context.Logger.LogWarning(LogCategory.Fixme, comment);
+        this.Comment("FIXME", comment);
+    }
+
+    public void Bug(string comment)
+    {
+        this.Context.Logger.LogError(LogCategory.Bug, comment);
+        this.Comment("BUG", comment);
+    }
+
     public void Todo(string comment) => this.Comment("TODO", comment);
     public void Note(string comment) => this.Comment("NOTE", comment);
 

@@ -1571,7 +1571,7 @@ pub const TextureFormat = enum(i32) {
     ASTC_12x12 = 133,
 };
 
-// FIXME: Missing generator for Renderite.Shared.RenderableHandle
+// TODO: Missing generator for Renderite.Shared.RenderableHandle
 pub const RenderSpaceUpdate = struct {
     id: i32,
     isActive: bool,
@@ -1733,12 +1733,12 @@ pub const IndexBufferFormat = enum(i32) {
     UInt32 = 1,
 };
 
-// FIXME: Missing generator for Renderite.Shared.VertexAttributeDescriptor
-// FIXME: Missing generator for Renderite.Shared.SubmeshBufferDescriptor
-// FIXME: Missing generator for Renderite.Shared.BlendshapeBufferDescriptor
-// FIXME: Missing generator for Renderite.Shared.MeshUploadHint
-// FIXME: Missing generator for Renderite.Shared.RenderBoundingBox
-// FIXME: Missing generator for Renderite.Shared.MaterialPropertyUpdate
+// TODO: Missing generator for Renderite.Shared.VertexAttributeDescriptor
+// TODO: Missing generator for Renderite.Shared.SubmeshBufferDescriptor
+// TODO: Missing generator for Renderite.Shared.BlendshapeBufferDescriptor
+// TODO: Missing generator for Renderite.Shared.MeshUploadHint
+// TODO: Missing generator for Renderite.Shared.RenderBoundingBox
+// TODO: Missing generator for Renderite.Shared.MaterialPropertyUpdate
 pub const ColorProfile = enum(i32) {
     Linear = 0,
     sRGB = 1,
@@ -1759,14 +1759,14 @@ pub const TextureWrapMode = enum(i32) {
     MirrorOnce = 3,
 };
 
-// FIXME: Missing generator for Renderite.Shared.TextureUploadHint
+// TODO: Missing generator for Renderite.Shared.TextureUploadHint
 pub const TextureUpdateResultType = enum(i32) {
     FormatSet = 0,
     PropertiesSet = 1,
     DataUpload = 2,
 };
 
-// FIXME: Missing generator for Renderite.Shared.Texture3DUploadHint
+// TODO: Missing generator for Renderite.Shared.Texture3DUploadHint
 pub const GaussianVectorFormat = enum(i32) {
     Float32 = 0,
     Norm16 = 1,
@@ -1796,7 +1796,7 @@ pub const GaussianSHFormat = enum(i32) {
     Cluster4k = 7,
 };
 
-// FIXME: Missing generator for Renderite.Shared.LightData
+// TODO: Missing generator for Renderite.Shared.LightData
 pub const VideoAudioTrack = struct {
     index: i32,
     channelCount: i32,
@@ -1822,8 +1822,8 @@ pub const VideoAudioTrack = struct {
     }
 };
 
-// FIXME: Missing generator for Renderite.Shared.RenderTransform
-// FIXME: Missing generator for Renderite.Shared.RenderSH2
+// TODO: Missing generator for Renderite.Shared.RenderTransform
+// TODO: Missing generator for Renderite.Shared.RenderSH2
 pub const ReflectionProbeRenderTask = struct {
     renderableIndex: i32,
     renderTaskId: i32,
