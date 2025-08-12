@@ -678,9 +678,24 @@ pub fn setDataCubemap(
                 const face_mip_starts = data.mipStarts[face_idx];
 
                 for (data.mipMapSizes, 0..) |raw_mipmap_pixel_size, mip_index| {
+                    const destination_width, const destination_height = calculateMipSize(
+                        graphics_data.width,
+                        graphics_data.height,
+                        @intCast(mip_index + start_mip_level),
+                    );
+
+                    if (destination_width != raw_mipmap_pixel_size.x or destination_height != raw_mipmap_pixel_size.y) {
+                        log.warn("FrooxEngine sent a weird texture size again! Got {d}x{d}, expected {d}x{d}", .{
+                            raw_mipmap_pixel_size.x,
+                            raw_mipmap_pixel_size.y,
+                            destination_width,
+                            destination_height,
+                        });
+                    }
+
                     const mipmap_pixel_size = alignSize(
                         graphics_data.texture_format,
-                        .{ @intCast(raw_mipmap_pixel_size.x), @intCast(raw_mipmap_pixel_size.y) },
+                        .{ destination_width, destination_height },
                     );
 
                     const num_pixels = mipmap_pixel_size[0] * mipmap_pixel_size[1];
@@ -698,9 +713,24 @@ pub fn setDataCubemap(
         var read_offset: u32 = 0;
         for (0..6) |face_idx| {
             for (start_mip_level..(start_mip_level + num_mips), data.mipMapSizes) |mip_level, raw_mipmap_pixel_size| {
+                const destination_width, const destination_height = calculateMipSize(
+                    graphics_data.width,
+                    graphics_data.height,
+                    @intCast(mip_level),
+                );
+
+                if (destination_width != raw_mipmap_pixel_size.x or destination_height != raw_mipmap_pixel_size.y) {
+                    log.warn("FrooxEngine sent a weird texture size again! Got {d}x{d}, expected {d}x{d}", .{
+                        raw_mipmap_pixel_size.x,
+                        raw_mipmap_pixel_size.y,
+                        destination_width,
+                        destination_height,
+                    });
+                }
+
                 const mipmap_pixel_size = alignSize(
                     graphics_data.texture_format,
-                    .{ @intCast(raw_mipmap_pixel_size.x), @intCast(raw_mipmap_pixel_size.y) },
+                    .{ destination_width, destination_height },
                 );
 
                 const num_pixels = mipmap_pixel_size[0] * mipmap_pixel_size[1];
@@ -713,8 +743,8 @@ pub fn setDataCubemap(
                     .transfer_buffer = transfer_buffer_entry.transfer_buffer,
                 }, .{
                     .depth = 1,
-                    .width = @intCast(raw_mipmap_pixel_size.x),
-                    .height = @intCast(raw_mipmap_pixel_size.y),
+                    .width = @intCast(destination_width),
+                    .height = @intCast(destination_height),
                     .mip_level = @intCast(mip_level),
                     .layer = @intCast(face_idx),
                     .texture = graphics_data.texture,
