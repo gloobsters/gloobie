@@ -121,7 +121,10 @@ const ImGuiData = struct {
     assets_open: bool,
     loadstate_open: bool,
 
-    pub fn deinit(self: ImGuiData) void {
+    temporary_graphics_bindings: std.ArrayListUnmanaged(gpu.TextureSamplerBinding),
+
+    pub fn deinit(self: *ImGuiData, gpa: std.mem.Allocator) void {
+        self.temporary_graphics_bindings.deinit(gpa);
         imgui.gpu.shutdown();
         imgui.sdl3.shutdown();
         self.context.destroy();
@@ -170,6 +173,7 @@ const GameData = struct {
         self.to_engine_envelope_pool.deinit();
 
         self.input.deinit(gpa);
+        self.displays.deinit(gpa);
     }
 };
 
@@ -331,7 +335,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     log.debug("Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
 
     // TODO: make ImGui an optional build dependency
-    const maybe_imgui_data: ?ImGuiData = create_imgui_data: {
+    var maybe_imgui_data: ?ImGuiData = create_imgui_data: {
         const context = try imgui.Context.create(null);
         errdefer context.destroy();
 
@@ -366,9 +370,10 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .context = context,
             .assets_open = true,
             .loadstate_open = true,
+            .temporary_graphics_bindings = .empty,
         };
     };
-    errdefer if (maybe_imgui_data) |imgui_data| imgui_data.deinit();
+    errdefer if (maybe_imgui_data) |*imgui_data| imgui_data.deinit(gpa);
 
     const game_data = create_game_data: {
         const input: Input = try .init(gpa);
@@ -423,7 +428,7 @@ pub fn deinit(self: *App) void {
 
     self.game.deinit(gpa);
     self.messaging.deinit(gpa);
-    if (self.imgui_data) |imgui_data| imgui_data.deinit();
+    if (self.imgui_data) |*imgui_data| imgui_data.deinit(gpa);
     if (self.xr) |xr| xr.deinit(gpa);
     self.assets.deinit(gpa, self.graphics_data.device);
     self.graphics_data.deinit(gpa);
@@ -712,7 +717,7 @@ pub fn sendLetterToEngine(self: *App, letter: ToEngineLetter) !void {
     try self.game.to_engine_mailbox.send(envelope);
 }
 
-fn imguiFillTextures(self: *App, texture_type: Texture.Type) void {
+fn imguiFillTextures(self: *App, imgui_data: *ImGuiData, texture_type: Texture.Type) void {
     var texture_iter = self.assets.textures.iterator();
     while (texture_iter.next()) |texture_entry| {
         if (texture_entry.value_ptr.properties.type != texture_type) {
@@ -735,15 +740,22 @@ fn imguiFillTextures(self: *App, texture_type: Texture.Type) void {
             imgui.c.igText("Mipmap count: %u", graphics_data.mipmap_count);
 
             if (graphics_data.ready) {
-                const render_scale = 512.0 / @as(f32, @floatFromInt(graphics_data.height));
+                const render_scale = 512.0 / @as(f32, @floatFromInt(if (graphics_data.height > graphics_data.width) graphics_data.height else graphics_data.width));
 
                 const width = render_scale * @as(f32, @floatFromInt(graphics_data.width));
-                _ = width; // autofix
                 const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
-                _ = height; // autofix
 
-                // FIXME: make this `binding` pointer stable somehow!
-                // imgui.image(&graphics_data.binding, width, height);
+                // We can only display 2D textures in ImGui
+                if (texture_type == .Texture2D) {
+                    // Put it into a stable array
+                    imgui_data.temporary_graphics_bindings.appendAssumeCapacity(graphics_data.binding);
+
+                    imgui.image(
+                        &imgui_data.temporary_graphics_bindings.items[imgui_data.temporary_graphics_bindings.items.len - 1],
+                        width,
+                        height,
+                    );
+                }
             }
         } else {
             imgui.c.igText("No graphics data");
@@ -1084,21 +1096,25 @@ pub fn frameLoop(self: *App) !void {
                         self.assets.lock.lockShared();
                         defer self.assets.lock.unlockShared();
 
+                        // ensure there's enough to handle all the textures
+                        imgui_data.temporary_graphics_bindings.clearRetainingCapacity();
+                        try imgui_data.temporary_graphics_bindings.ensureTotalCapacity(self.gpa, self.assets.textures.count());
+
                         {
                             if (imgui.collapsingHeader("Texture 2Ds", 0)) {
-                                self.imguiFillTextures(.Texture2D);
+                                self.imguiFillTextures(imgui_data, .Texture2D);
                             }
                         }
 
                         {
                             if (imgui.collapsingHeader("Texture 3Ds", 0)) {
-                                self.imguiFillTextures(.Texture3D);
+                                self.imguiFillTextures(imgui_data, .Texture3D);
                             }
                         }
 
                         {
                             if (imgui.collapsingHeader("Cubemaps", 0)) {
-                                self.imguiFillTextures(.Cubemap);
+                                self.imguiFillTextures(imgui_data, .Cubemap);
                             }
                         }
 
