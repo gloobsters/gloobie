@@ -112,7 +112,7 @@ fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child 
 
     var child = std.process.Child.init(&.{
         dotnet_path,
-        "Resonite.dll",
+        "Renderite.Host.dll",
         "-shmprefix",
         prefix,
     }, gpa);
