@@ -154,9 +154,20 @@ pub const RendererInitData = struct {
     outputDevice: HeadOutputDevice,
     windowTitle: []const u16,
 
-    pub fn write(self: RendererInitData, ipc: IpcSerializer) !void {}
-    pub fn read(self: RendererInitData, ipc: IpcDeserializer) !RendererInitData {
+    pub fn write(self: RendererInitData, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.sharedMemoryPrefix), self.sharedMemoryPrefix);
+        try ipc.write(@TypeOf(self.mainProcessId), self.mainProcessId);
+        try ipc.write(@TypeOf(self.debugFramePacing), self.debugFramePacing);
+        try ipc.write(@TypeOf(self.outputDevice), self.outputDevice);
+        try ipc.write(@TypeOf(self.windowTitle), self.windowTitle);
+    }
+    pub fn read(ipc: IpcDeserializer) !RendererInitData {
         var self: RendererInitData = undefined;
+        self.sharedMemoryPrefix = try ipc.read(@TypeOf(self.sharedMemoryPrefix));
+        self.mainProcessId = try ipc.read(@TypeOf(self.mainProcessId));
+        self.debugFramePacing = try ipc.read(@TypeOf(self.debugFramePacing));
+        self.outputDevice = try ipc.read(@TypeOf(self.outputDevice));
+        self.windowTitle = try ipc.read(@TypeOf(self.windowTitle));
         return self;
     }
 };
@@ -170,9 +181,24 @@ pub const RendererInitResult = struct {
     isGPUTexturePOTByteAligned: bool,
     supportedTextureFormats: []const TextureFormat,
 
-    pub fn write(self: RendererInitResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: RendererInitResult, ipc: IpcDeserializer) !RendererInitResult {
+    pub fn write(self: RendererInitResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.actualOutputDevice), self.actualOutputDevice);
+        try ipc.write(@TypeOf(self.rendererIdentifier), self.rendererIdentifier);
+        try ipc.write(@TypeOf(self.mainWindowHandlePtr), self.mainWindowHandlePtr);
+        try ipc.write(@TypeOf(self.stereoRenderingMode), self.stereoRenderingMode);
+        try ipc.write(@TypeOf(self.maxTextureSize), self.maxTextureSize);
+        try ipc.write(@TypeOf(self.isGPUTexturePOTByteAligned), self.isGPUTexturePOTByteAligned);
+        try ipc.writeList(@TypeOf(self.supportedTextureFormats), self.supportedTextureFormats);
+    }
+    pub fn read(ipc: IpcDeserializer) !RendererInitResult {
         var self: RendererInitResult = undefined;
+        self.actualOutputDevice = try ipc.read(@TypeOf(self.actualOutputDevice));
+        self.rendererIdentifier = try ipc.read(@TypeOf(self.rendererIdentifier));
+        self.mainWindowHandlePtr = try ipc.read(@TypeOf(self.mainWindowHandlePtr));
+        self.stereoRenderingMode = try ipc.read(@TypeOf(self.stereoRenderingMode));
+        self.maxTextureSize = try ipc.read(@TypeOf(self.maxTextureSize));
+        self.isGPUTexturePOTByteAligned = try ipc.read(@TypeOf(self.isGPUTexturePOTByteAligned));
+        self.supportedTextureFormats = try ipc.readList(@TypeOf(self.supportedTextureFormats));
         return self;
     }
 };
@@ -183,9 +209,18 @@ pub const RendererInitProgressUpdate = struct {
     subPhase: []const u16,
     forceShow: bool,
 
-    pub fn write(self: RendererInitProgressUpdate, ipc: IpcSerializer) !void {}
-    pub fn read(self: RendererInitProgressUpdate, ipc: IpcDeserializer) !RendererInitProgressUpdate {
+    pub fn write(self: RendererInitProgressUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.phaseIndex), self.phaseIndex);
+        try ipc.write(@TypeOf(self.phase), self.phase);
+        try ipc.write(@TypeOf(self.subPhase), self.subPhase);
+        try ipc.write(@TypeOf(self.forceShow), self.forceShow);
+    }
+    pub fn read(ipc: IpcDeserializer) !RendererInitProgressUpdate {
         var self: RendererInitProgressUpdate = undefined;
+        self.phaseIndex = try ipc.read(@TypeOf(self.phaseIndex));
+        self.phase = try ipc.read(@TypeOf(self.phase));
+        self.subPhase = try ipc.read(@TypeOf(self.subPhase));
+        self.forceShow = try ipc.read(@TypeOf(self.forceShow));
         return self;
     }
 };
@@ -201,9 +236,12 @@ pub const KeepAlive = struct {};
 pub const RendererParentWindow = struct {
     windowHandle: i64,
 
-    pub fn write(self: RendererParentWindow, ipc: IpcSerializer) !void {}
-    pub fn read(self: RendererParentWindow, ipc: IpcDeserializer) !RendererParentWindow {
+    pub fn write(self: RendererParentWindow, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.windowHandle), self.windowHandle);
+    }
+    pub fn read(ipc: IpcDeserializer) !RendererParentWindow {
         var self: RendererParentWindow = undefined;
+        self.windowHandle = try ipc.read(@TypeOf(self.windowHandle));
         return self;
     }
 };
@@ -214,9 +252,18 @@ pub const FrameStartData = struct {
     inputs: ?InputState,
     renderedReflectionProbes: []const RenderableHandle,
 
-    pub fn write(self: FrameStartData, ipc: IpcSerializer) !void {}
-    pub fn read(self: FrameStartData, ipc: IpcDeserializer) !FrameStartData {
+    pub fn write(self: FrameStartData, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.lastFrameIndex), self.lastFrameIndex);
+        try ipc.write(@TypeOf(self.performance), self.performance);
+        try ipc.write(@TypeOf(self.inputs), self.inputs);
+        try ipc.writeList(@TypeOf(self.renderedReflectionProbes), self.renderedReflectionProbes);
+    }
+    pub fn read(ipc: IpcDeserializer) !FrameStartData {
         var self: FrameStartData = undefined;
+        self.lastFrameIndex = try ipc.read(@TypeOf(self.lastFrameIndex));
+        self.performance = try ipc.read(@TypeOf(self.performance));
+        self.inputs = try ipc.read(@TypeOf(self.inputs));
+        self.renderedReflectionProbes = try ipc.readList(@TypeOf(self.renderedReflectionProbes));
         return self;
     }
 };
@@ -232,9 +279,28 @@ pub const FrameSubmitData = struct {
     renderSpaces: []const RenderSpaceUpdate,
     renderTasks: []const CameraRenderTask,
 
-    pub fn write(self: FrameSubmitData, ipc: IpcSerializer) !void {}
-    pub fn read(self: FrameSubmitData, ipc: IpcDeserializer) !FrameSubmitData {
+    pub fn write(self: FrameSubmitData, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.frameIndex), self.frameIndex);
+        try ipc.write(@TypeOf(self.debugLog), self.debugLog);
+        try ipc.write(@TypeOf(self.vrActive), self.vrActive);
+        try ipc.write(@TypeOf(self.nearClip), self.nearClip);
+        try ipc.write(@TypeOf(self.farClip), self.farClip);
+        try ipc.write(@TypeOf(self.desktopFOV), self.desktopFOV);
+        try ipc.write(@TypeOf(self.outputState), self.outputState);
+        try ipc.writeList(@TypeOf(self.renderSpaces), self.renderSpaces);
+        try ipc.writeList(@TypeOf(self.renderTasks), self.renderTasks);
+    }
+    pub fn read(ipc: IpcDeserializer) !FrameSubmitData {
         var self: FrameSubmitData = undefined;
+        self.frameIndex = try ipc.read(@TypeOf(self.frameIndex));
+        self.debugLog = try ipc.read(@TypeOf(self.debugLog));
+        self.vrActive = try ipc.read(@TypeOf(self.vrActive));
+        self.nearClip = try ipc.read(@TypeOf(self.nearClip));
+        self.farClip = try ipc.read(@TypeOf(self.farClip));
+        self.desktopFOV = try ipc.read(@TypeOf(self.desktopFOV));
+        self.outputState = try ipc.read(@TypeOf(self.outputState));
+        self.renderSpaces = try ipc.readList(@TypeOf(self.renderSpaces));
+        self.renderTasks = try ipc.readList(@TypeOf(self.renderTasks));
         return self;
     }
 };
@@ -246,9 +312,20 @@ pub const PostProcessingConfig = struct {
     screenSpaceReflections: bool,
     antialiasing: AntiAliasingMethod,
 
-    pub fn write(self: PostProcessingConfig, ipc: IpcSerializer) !void {}
-    pub fn read(self: PostProcessingConfig, ipc: IpcDeserializer) !PostProcessingConfig {
+    pub fn write(self: PostProcessingConfig, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.motionBlurIntensity), self.motionBlurIntensity);
+        try ipc.write(@TypeOf(self.bloomIntensity), self.bloomIntensity);
+        try ipc.write(@TypeOf(self.ambientOcclusionIntensity), self.ambientOcclusionIntensity);
+        try ipc.write(@TypeOf(self.screenSpaceReflections), self.screenSpaceReflections);
+        try ipc.write(@TypeOf(self.antialiasing), self.antialiasing);
+    }
+    pub fn read(ipc: IpcDeserializer) !PostProcessingConfig {
         var self: PostProcessingConfig = undefined;
+        self.motionBlurIntensity = try ipc.read(@TypeOf(self.motionBlurIntensity));
+        self.bloomIntensity = try ipc.read(@TypeOf(self.bloomIntensity));
+        self.ambientOcclusionIntensity = try ipc.read(@TypeOf(self.ambientOcclusionIntensity));
+        self.screenSpaceReflections = try ipc.read(@TypeOf(self.screenSpaceReflections));
+        self.antialiasing = try ipc.read(@TypeOf(self.antialiasing));
         return self;
     }
 };
@@ -260,9 +337,20 @@ pub const QualityConfig = struct {
     shadowDistance: f32,
     skinWeightMode: SkinWeightMode,
 
-    pub fn write(self: QualityConfig, ipc: IpcSerializer) !void {}
-    pub fn read(self: QualityConfig, ipc: IpcDeserializer) !QualityConfig {
+    pub fn write(self: QualityConfig, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.perPixelLight), self.perPixelLight);
+        try ipc.write(@TypeOf(self.shadowCascades), self.shadowCascades);
+        try ipc.write(@TypeOf(self.shadowResolution), self.shadowResolution);
+        try ipc.write(@TypeOf(self.shadowDistance), self.shadowDistance);
+        try ipc.write(@TypeOf(self.skinWeightMode), self.skinWeightMode);
+    }
+    pub fn read(ipc: IpcDeserializer) !QualityConfig {
         var self: QualityConfig = undefined;
+        self.perPixelLight = try ipc.read(@TypeOf(self.perPixelLight));
+        self.shadowCascades = try ipc.read(@TypeOf(self.shadowCascades));
+        self.shadowResolution = try ipc.read(@TypeOf(self.shadowResolution));
+        self.shadowDistance = try ipc.read(@TypeOf(self.shadowDistance));
+        self.skinWeightMode = try ipc.read(@TypeOf(self.skinWeightMode));
         return self;
     }
 };
@@ -271,9 +359,14 @@ pub const ResolutionConfig = struct {
     resolution: math.Vector2i,
     fullscreen: bool,
 
-    pub fn write(self: ResolutionConfig, ipc: IpcSerializer) !void {}
-    pub fn read(self: ResolutionConfig, ipc: IpcDeserializer) !ResolutionConfig {
+    pub fn write(self: ResolutionConfig, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.resolution), self.resolution);
+        try ipc.write(@TypeOf(self.fullscreen), self.fullscreen);
+    }
+    pub fn read(ipc: IpcDeserializer) !ResolutionConfig {
         var self: ResolutionConfig = undefined;
+        self.resolution = try ipc.read(@TypeOf(self.resolution));
+        self.fullscreen = try ipc.read(@TypeOf(self.fullscreen));
         return self;
     }
 };
@@ -283,9 +376,16 @@ pub const DesktopConfig = struct {
     maximumForegroundFramerate: ?i32,
     vSync: bool,
 
-    pub fn write(self: DesktopConfig, ipc: IpcSerializer) !void {}
-    pub fn read(self: DesktopConfig, ipc: IpcDeserializer) !DesktopConfig {
+    pub fn write(self: DesktopConfig, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.maximumBackgroundFramerate), self.maximumBackgroundFramerate);
+        try ipc.write(@TypeOf(self.maximumBackgroundFramerate), self.maximumBackgroundFramerate);
+        try ipc.write(@TypeOf(self.vSync), self.vSync);
+    }
+    pub fn read(ipc: IpcDeserializer) !DesktopConfig {
         var self: DesktopConfig = undefined;
+        self.maximumBackgroundFramerate = try ipc.read(@TypeOf(self.maximumBackgroundFramerate));
+        self.maximumBackgroundFramerate = try ipc.read(@TypeOf(self.maximumBackgroundFramerate));
+        self.vSync = try ipc.read(@TypeOf(self.vSync));
         return self;
     }
 };
@@ -293,9 +393,12 @@ pub const DesktopConfig = struct {
 pub const GaussianSplatConfig = struct {
     sortingMegaOperationsPerCamera: f32,
 
-    pub fn write(self: GaussianSplatConfig, ipc: IpcSerializer) !void {}
-    pub fn read(self: GaussianSplatConfig, ipc: IpcDeserializer) !GaussianSplatConfig {
+    pub fn write(self: GaussianSplatConfig, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.sortingMegaOperationsPerCamera), self.sortingMegaOperationsPerCamera);
+    }
+    pub fn read(ipc: IpcDeserializer) !GaussianSplatConfig {
         var self: GaussianSplatConfig = undefined;
+        self.sortingMegaOperationsPerCamera = try ipc.read(@TypeOf(self.sortingMegaOperationsPerCamera));
         return self;
     }
 };
@@ -314,9 +417,34 @@ pub const MeshUploadData = struct {
     bounds: RenderBoundingBox,
     assetId: i32,
 
-    pub fn write(self: MeshUploadData, ipc: IpcSerializer) !void {}
-    pub fn read(self: MeshUploadData, ipc: IpcDeserializer) !MeshUploadData {
+    pub fn write(self: MeshUploadData, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.highPriority), self.highPriority);
+        try ipc.write(@TypeOf(self.buffer), self.buffer);
+        try ipc.write(@TypeOf(self.vertexCount), self.vertexCount);
+        try ipc.write(@TypeOf(self.boneWeightCount), self.boneWeightCount);
+        try ipc.write(@TypeOf(self.boneCount), self.boneCount);
+        try ipc.write(@TypeOf(self.indexBufferFormat), self.indexBufferFormat);
+        try ipc.writeList(@TypeOf(self.vertexAttributes), self.vertexAttributes);
+        try ipc.writeList(@TypeOf(self.submeshes), self.submeshes);
+        try ipc.writeList(@TypeOf(self.blendshapeBuffers), self.blendshapeBuffers);
+        try ipc.write(@TypeOf(self.uploadHint), self.uploadHint);
+        try ipc.write(@TypeOf(self.bounds), self.bounds);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshUploadData {
         var self: MeshUploadData = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.highPriority = try ipc.read(@TypeOf(self.highPriority));
+        self.buffer = try ipc.read(@TypeOf(self.buffer));
+        self.vertexCount = try ipc.read(@TypeOf(self.vertexCount));
+        self.boneWeightCount = try ipc.read(@TypeOf(self.boneWeightCount));
+        self.boneCount = try ipc.read(@TypeOf(self.boneCount));
+        self.indexBufferFormat = try ipc.read(@TypeOf(self.indexBufferFormat));
+        self.vertexAttributes = try ipc.readList(@TypeOf(self.vertexAttributes));
+        self.submeshes = try ipc.readList(@TypeOf(self.submeshes));
+        self.blendshapeBuffers = try ipc.readList(@TypeOf(self.blendshapeBuffers));
+        self.uploadHint = try ipc.read(@TypeOf(self.uploadHint));
+        self.bounds = try ipc.read(@TypeOf(self.bounds));
         return self;
     }
 };
@@ -324,9 +452,12 @@ pub const MeshUploadData = struct {
 pub const MeshUnload = struct {
     assetId: i32,
 
-    pub fn write(self: MeshUnload, ipc: IpcSerializer) !void {}
-    pub fn read(self: MeshUnload, ipc: IpcDeserializer) !MeshUnload {
+    pub fn write(self: MeshUnload, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshUnload {
         var self: MeshUnload = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -335,9 +466,14 @@ pub const MeshUploadResult = struct {
     instanceChanged: bool,
     assetId: i32,
 
-    pub fn write(self: MeshUploadResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: MeshUploadResult, ipc: IpcDeserializer) !MeshUploadResult {
+    pub fn write(self: MeshUploadResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+    }
+    pub fn read(ipc: IpcDeserializer) !MeshUploadResult {
         var self: MeshUploadResult = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
         return self;
     }
 };
@@ -346,9 +482,14 @@ pub const ShaderUpload = struct {
     file: []const u16,
     assetId: i32,
 
-    pub fn write(self: ShaderUpload, ipc: IpcSerializer) !void {}
-    pub fn read(self: ShaderUpload, ipc: IpcDeserializer) !ShaderUpload {
+    pub fn write(self: ShaderUpload, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.file), self.file);
+    }
+    pub fn read(ipc: IpcDeserializer) !ShaderUpload {
         var self: ShaderUpload = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.file = try ipc.read(@TypeOf(self.file));
         return self;
     }
 };
@@ -356,9 +497,12 @@ pub const ShaderUpload = struct {
 pub const ShaderUnload = struct {
     assetId: i32,
 
-    pub fn write(self: ShaderUnload, ipc: IpcSerializer) !void {}
-    pub fn read(self: ShaderUnload, ipc: IpcDeserializer) !ShaderUnload {
+    pub fn write(self: ShaderUnload, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !ShaderUnload {
         var self: ShaderUnload = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -367,9 +511,14 @@ pub const ShaderUploadResult = struct {
     instanceChanged: bool,
     assetId: i32,
 
-    pub fn write(self: ShaderUploadResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: ShaderUploadResult, ipc: IpcDeserializer) !ShaderUploadResult {
+    pub fn write(self: ShaderUploadResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+    }
+    pub fn read(ipc: IpcDeserializer) !ShaderUploadResult {
         var self: ShaderUploadResult = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
         return self;
     }
 };
@@ -378,9 +527,14 @@ pub const MaterialPropertyIdRequest = struct {
     requestId: i32,
     propertyNames: []const []const u16,
 
-    pub fn write(self: MaterialPropertyIdRequest, ipc: IpcSerializer) !void {}
-    pub fn read(self: MaterialPropertyIdRequest, ipc: IpcDeserializer) !MaterialPropertyIdRequest {
+    pub fn write(self: MaterialPropertyIdRequest, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.requestId), self.requestId);
+        try ipc.writeList(@TypeOf(self.propertyNames), self.propertyNames);
+    }
+    pub fn read(ipc: IpcDeserializer) !MaterialPropertyIdRequest {
         var self: MaterialPropertyIdRequest = undefined;
+        self.requestId = try ipc.read(@TypeOf(self.requestId));
+        self.propertyNames = try ipc.readList(@TypeOf(self.propertyNames));
         return self;
     }
 };
@@ -389,9 +543,14 @@ pub const MaterialPropertyIdResult = struct {
     requestId: i32,
     propertyIDs: []const i32,
 
-    pub fn write(self: MaterialPropertyIdResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: MaterialPropertyIdResult, ipc: IpcDeserializer) !MaterialPropertyIdResult {
+    pub fn write(self: MaterialPropertyIdResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.requestId), self.requestId);
+        try ipc.writeList(@TypeOf(self.propertyIDs), self.propertyIDs);
+    }
+    pub fn read(ipc: IpcDeserializer) !MaterialPropertyIdResult {
         var self: MaterialPropertyIdResult = undefined;
+        self.requestId = try ipc.read(@TypeOf(self.requestId));
+        self.propertyIDs = try ipc.readList(@TypeOf(self.propertyIDs));
         return self;
     }
 };
@@ -408,9 +567,30 @@ pub const MaterialsUpdateBatch = struct {
     matrixBuffers: []const SharedMemoryBufferDescriptor,
     instanceChangedBuffer: SharedMemoryBufferDescriptor,
 
-    pub fn write(self: MaterialsUpdateBatch, ipc: IpcSerializer) !void {}
-    pub fn read(self: MaterialsUpdateBatch, ipc: IpcDeserializer) !MaterialsUpdateBatch {
+    pub fn write(self: MaterialsUpdateBatch, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
+        try ipc.write(@TypeOf(self.materialRemovals), self.materialRemovals);
+        try ipc.write(@TypeOf(self.materialPropertyBlockRemovals), self.materialPropertyBlockRemovals);
+        try ipc.writeList(@TypeOf(self.materialUpdates), self.materialUpdates);
+        try ipc.write(@TypeOf(self.materialUpdateCount), self.materialUpdateCount);
+        try ipc.writeList(@TypeOf(self.intBuffers), self.intBuffers);
+        try ipc.writeList(@TypeOf(self.floatBuffers), self.floatBuffers);
+        try ipc.writeList(@TypeOf(self.float4Buffers), self.float4Buffers);
+        try ipc.writeList(@TypeOf(self.matrixBuffers), self.matrixBuffers);
+        try ipc.write(@TypeOf(self.instanceChangedBuffer), self.instanceChangedBuffer);
+    }
+    pub fn read(ipc: IpcDeserializer) !MaterialsUpdateBatch {
         var self: MaterialsUpdateBatch = undefined;
+        self.updateBatchId = try ipc.read(@TypeOf(self.updateBatchId));
+        self.materialRemovals = try ipc.read(@TypeOf(self.materialRemovals));
+        self.materialPropertyBlockRemovals = try ipc.read(@TypeOf(self.materialPropertyBlockRemovals));
+        self.materialUpdates = try ipc.readList(@TypeOf(self.materialUpdates));
+        self.materialUpdateCount = try ipc.read(@TypeOf(self.materialUpdateCount));
+        self.intBuffers = try ipc.readList(@TypeOf(self.intBuffers));
+        self.floatBuffers = try ipc.readList(@TypeOf(self.floatBuffers));
+        self.float4Buffers = try ipc.readList(@TypeOf(self.float4Buffers));
+        self.matrixBuffers = try ipc.readList(@TypeOf(self.matrixBuffers));
+        self.instanceChangedBuffer = try ipc.read(@TypeOf(self.instanceChangedBuffer));
         return self;
     }
 };
@@ -418,9 +598,12 @@ pub const MaterialsUpdateBatch = struct {
 pub const MaterialsUpdateBatchResult = struct {
     updateBatchId: i32,
 
-    pub fn write(self: MaterialsUpdateBatchResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: MaterialsUpdateBatchResult, ipc: IpcDeserializer) !MaterialsUpdateBatchResult {
+    pub fn write(self: MaterialsUpdateBatchResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.updateBatchId), self.updateBatchId);
+    }
+    pub fn read(ipc: IpcDeserializer) !MaterialsUpdateBatchResult {
         var self: MaterialsUpdateBatchResult = undefined;
+        self.updateBatchId = try ipc.read(@TypeOf(self.updateBatchId));
         return self;
     }
 };
@@ -433,9 +616,22 @@ pub const SetTexture2DFormat = struct {
     profile: ColorProfile,
     assetId: i32,
 
-    pub fn write(self: SetTexture2DFormat, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture2DFormat, ipc: IpcDeserializer) !SetTexture2DFormat {
+    pub fn write(self: SetTexture2DFormat, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.width), self.width);
+        try ipc.write(@TypeOf(self.height), self.height);
+        try ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
+        try ipc.write(@TypeOf(self.format), self.format);
+        try ipc.write(@TypeOf(self.profile), self.profile);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture2DFormat {
         var self: SetTexture2DFormat = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.width = try ipc.read(@TypeOf(self.width));
+        self.height = try ipc.read(@TypeOf(self.height));
+        self.mipmapCount = try ipc.read(@TypeOf(self.mipmapCount));
+        self.format = try ipc.read(@TypeOf(self.format));
+        self.profile = try ipc.read(@TypeOf(self.profile));
         return self;
     }
 };
@@ -450,9 +646,24 @@ pub const SetTexture2DProperties = struct {
     highPriority: bool,
     assetId: i32,
 
-    pub fn write(self: SetTexture2DProperties, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture2DProperties, ipc: IpcDeserializer) !SetTexture2DProperties {
+    pub fn write(self: SetTexture2DProperties, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+        try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+        try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+        try ipc.write(@TypeOf(self.wrapV), self.wrapV);
+        try ipc.write(@TypeOf(self.mipmapBias), self.mipmapBias);
+        try ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture2DProperties {
         var self: SetTexture2DProperties = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+        self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+        self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+        self.wrapV = try ipc.read(@TypeOf(self.wrapV));
+        self.mipmapBias = try ipc.read(@TypeOf(self.mipmapBias));
+        self.applyImmediatelly = try ipc.read(@TypeOf(self.applyImmediatelly));
         return self;
     }
 };
@@ -467,9 +678,26 @@ pub const SetTexture2DData = struct {
     highPriority: bool,
     assetId: i32,
 
-    pub fn write(self: SetTexture2DData, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture2DData, ipc: IpcDeserializer) !SetTexture2DData {
+    pub fn write(self: SetTexture2DData, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.data), self.data);
+        try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
+        try ipc.writeList(@TypeOf(self.mipMapSizes), self.mipMapSizes);
+        try ipc.writeList(@TypeOf(self.mipStarts), self.mipStarts);
+        try ipc.write(@TypeOf(self.flipY), self.flipY);
+        try ipc.write(@TypeOf(self.hint), self.hint);
+        try ipc.write(@TypeOf(self.highPriority), self.highPriority);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture2DData {
         var self: SetTexture2DData = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.data = try ipc.read(@TypeOf(self.data));
+        self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
+        self.mipMapSizes = try ipc.readList(@TypeOf(self.mipMapSizes));
+        self.mipStarts = try ipc.readList(@TypeOf(self.mipStarts));
+        self.flipY = try ipc.read(@TypeOf(self.flipY));
+        self.hint = try ipc.read(@TypeOf(self.hint));
+        self.highPriority = try ipc.read(@TypeOf(self.highPriority));
         return self;
     }
 };
@@ -479,9 +707,16 @@ pub const SetTexture2DResult = struct {
     instanceChanged: bool,
     assetId: i32,
 
-    pub fn write(self: SetTexture2DResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture2DResult, ipc: IpcDeserializer) !SetTexture2DResult {
+    pub fn write(self: SetTexture2DResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.type), self.type);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture2DResult {
         var self: SetTexture2DResult = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.type = try ipc.read(@TypeOf(self.type));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
         return self;
     }
 };
@@ -489,9 +724,12 @@ pub const SetTexture2DResult = struct {
 pub const UnloadTexture2D = struct {
     assetId: i32,
 
-    pub fn write(self: UnloadTexture2D, ipc: IpcSerializer) !void {}
-    pub fn read(self: UnloadTexture2D, ipc: IpcDeserializer) !UnloadTexture2D {
+    pub fn write(self: UnloadTexture2D, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !UnloadTexture2D {
         var self: UnloadTexture2D = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -505,9 +743,24 @@ pub const SetTexture3DFormat = struct {
     profile: ColorProfile,
     assetId: i32,
 
-    pub fn write(self: SetTexture3DFormat, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture3DFormat, ipc: IpcDeserializer) !SetTexture3DFormat {
+    pub fn write(self: SetTexture3DFormat, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.width), self.width);
+        try ipc.write(@TypeOf(self.height), self.height);
+        try ipc.write(@TypeOf(self.depth), self.depth);
+        try ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
+        try ipc.write(@TypeOf(self.format), self.format);
+        try ipc.write(@TypeOf(self.profile), self.profile);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture3DFormat {
         var self: SetTexture3DFormat = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.width = try ipc.read(@TypeOf(self.width));
+        self.height = try ipc.read(@TypeOf(self.height));
+        self.depth = try ipc.read(@TypeOf(self.depth));
+        self.mipmapCount = try ipc.read(@TypeOf(self.mipmapCount));
+        self.format = try ipc.read(@TypeOf(self.format));
+        self.profile = try ipc.read(@TypeOf(self.profile));
         return self;
     }
 };
@@ -522,9 +775,26 @@ pub const SetTexture3DProperties = struct {
     highPriority: bool,
     assetId: i32,
 
-    pub fn write(self: SetTexture3DProperties, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture3DProperties, ipc: IpcDeserializer) !SetTexture3DProperties {
+    pub fn write(self: SetTexture3DProperties, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+        try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+        try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+        try ipc.write(@TypeOf(self.wrapV), self.wrapV);
+        try ipc.write(@TypeOf(self.wrapW), self.wrapW);
+        try ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
+        try ipc.write(@TypeOf(self.highPriority), self.highPriority);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture3DProperties {
         var self: SetTexture3DProperties = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+        self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+        self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+        self.wrapV = try ipc.read(@TypeOf(self.wrapV));
+        self.wrapW = try ipc.read(@TypeOf(self.wrapW));
+        self.applyImmediatelly = try ipc.read(@TypeOf(self.applyImmediatelly));
+        self.highPriority = try ipc.read(@TypeOf(self.highPriority));
         return self;
     }
 };
@@ -535,9 +805,18 @@ pub const SetTexture3DData = struct {
     highPriority: bool,
     assetId: i32,
 
-    pub fn write(self: SetTexture3DData, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture3DData, ipc: IpcDeserializer) !SetTexture3DData {
+    pub fn write(self: SetTexture3DData, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.data), self.data);
+        try ipc.write(@TypeOf(self.hint), self.hint);
+        try ipc.write(@TypeOf(self.highPriority), self.highPriority);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture3DData {
         var self: SetTexture3DData = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.data = try ipc.read(@TypeOf(self.data));
+        self.hint = try ipc.read(@TypeOf(self.hint));
+        self.highPriority = try ipc.read(@TypeOf(self.highPriority));
         return self;
     }
 };
@@ -547,9 +826,16 @@ pub const SetTexture3DResult = struct {
     instanceChanged: bool,
     assetId: i32,
 
-    pub fn write(self: SetTexture3DResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetTexture3DResult, ipc: IpcDeserializer) !SetTexture3DResult {
+    pub fn write(self: SetTexture3DResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.type), self.type);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetTexture3DResult {
         var self: SetTexture3DResult = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.type = try ipc.read(@TypeOf(self.type));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
         return self;
     }
 };
@@ -557,9 +843,12 @@ pub const SetTexture3DResult = struct {
 pub const UnloadTexture3D = struct {
     assetId: i32,
 
-    pub fn write(self: UnloadTexture3D, ipc: IpcSerializer) !void {}
-    pub fn read(self: UnloadTexture3D, ipc: IpcDeserializer) !UnloadTexture3D {
+    pub fn write(self: UnloadTexture3D, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !UnloadTexture3D {
         var self: UnloadTexture3D = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -571,9 +860,20 @@ pub const SetCubemapFormat = struct {
     profile: ColorProfile,
     assetId: i32,
 
-    pub fn write(self: SetCubemapFormat, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetCubemapFormat, ipc: IpcDeserializer) !SetCubemapFormat {
+    pub fn write(self: SetCubemapFormat, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.size), self.size);
+        try ipc.write(@TypeOf(self.mipmapCount), self.mipmapCount);
+        try ipc.write(@TypeOf(self.format), self.format);
+        try ipc.write(@TypeOf(self.profile), self.profile);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetCubemapFormat {
         var self: SetCubemapFormat = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.size = try ipc.read(@TypeOf(self.size));
+        self.mipmapCount = try ipc.read(@TypeOf(self.mipmapCount));
+        self.format = try ipc.read(@TypeOf(self.format));
+        self.profile = try ipc.read(@TypeOf(self.profile));
         return self;
     }
 };
@@ -586,9 +886,22 @@ pub const SetCubemapProperties = struct {
     highPriority: bool,
     assetId: i32,
 
-    pub fn write(self: SetCubemapProperties, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetCubemapProperties, ipc: IpcDeserializer) !SetCubemapProperties {
+    pub fn write(self: SetCubemapProperties, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+        try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+        try ipc.write(@TypeOf(self.mipmapBias), self.mipmapBias);
+        try ipc.write(@TypeOf(self.applyImmediatelly), self.applyImmediatelly);
+        try ipc.write(@TypeOf(self.highPriority), self.highPriority);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetCubemapProperties {
         var self: SetCubemapProperties = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+        self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+        self.mipmapBias = try ipc.read(@TypeOf(self.mipmapBias));
+        self.applyImmediatelly = try ipc.read(@TypeOf(self.applyImmediatelly));
+        self.highPriority = try ipc.read(@TypeOf(self.highPriority));
         return self;
     }
 };
@@ -602,9 +915,24 @@ pub const SetCubemapData = struct {
     highPriority: bool,
     assetId: i32,
 
-    pub fn write(self: SetCubemapData, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetCubemapData, ipc: IpcDeserializer) !SetCubemapData {
+    pub fn write(self: SetCubemapData, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.data), self.data);
+        try ipc.write(@TypeOf(self.startMipLevel), self.startMipLevel);
+        try ipc.writeList(@TypeOf(self.mipMapSizes), self.mipMapSizes);
+        try ipc.writeNestedList(@TypeOf(self.mipStarts), self.mipStarts);
+        try ipc.write(@TypeOf(self.flipY), self.flipY);
+        try ipc.write(@TypeOf(self.highPriority), self.highPriority);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetCubemapData {
         var self: SetCubemapData = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.data = try ipc.read(@TypeOf(self.data));
+        self.startMipLevel = try ipc.read(@TypeOf(self.startMipLevel));
+        self.mipMapSizes = try ipc.readList(@TypeOf(self.mipMapSizes));
+        self.mipStarts = try ipc.readNestedList(@TypeOf(self.mipStarts));
+        self.flipY = try ipc.read(@TypeOf(self.flipY));
+        self.highPriority = try ipc.read(@TypeOf(self.highPriority));
         return self;
     }
 };
@@ -614,9 +942,16 @@ pub const SetCubemapResult = struct {
     instanceChanged: bool,
     assetId: i32,
 
-    pub fn write(self: SetCubemapResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetCubemapResult, ipc: IpcDeserializer) !SetCubemapResult {
+    pub fn write(self: SetCubemapResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.type), self.type);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetCubemapResult {
         var self: SetCubemapResult = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.type = try ipc.read(@TypeOf(self.type));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
         return self;
     }
 };
@@ -624,9 +959,12 @@ pub const SetCubemapResult = struct {
 pub const UnloadCubemap = struct {
     assetId: i32,
 
-    pub fn write(self: UnloadCubemap, ipc: IpcSerializer) !void {}
-    pub fn read(self: UnloadCubemap, ipc: IpcDeserializer) !UnloadCubemap {
+    pub fn write(self: UnloadCubemap, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !UnloadCubemap {
         var self: UnloadCubemap = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -640,9 +978,24 @@ pub const SetRenderTextureFormat = struct {
     wrapV: TextureWrapMode,
     assetId: i32,
 
-    pub fn write(self: SetRenderTextureFormat, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetRenderTextureFormat, ipc: IpcDeserializer) !SetRenderTextureFormat {
+    pub fn write(self: SetRenderTextureFormat, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.size), self.size);
+        try ipc.write(@TypeOf(self.depth), self.depth);
+        try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+        try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+        try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+        try ipc.write(@TypeOf(self.wrapV), self.wrapV);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetRenderTextureFormat {
         var self: SetRenderTextureFormat = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.size = try ipc.read(@TypeOf(self.size));
+        self.depth = try ipc.read(@TypeOf(self.depth));
+        self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+        self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+        self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+        self.wrapV = try ipc.read(@TypeOf(self.wrapV));
         return self;
     }
 };
@@ -651,9 +1004,14 @@ pub const RenderTextureResult = struct {
     instanceChanged: bool,
     assetId: i32,
 
-    pub fn write(self: RenderTextureResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: RenderTextureResult, ipc: IpcDeserializer) !RenderTextureResult {
+    pub fn write(self: RenderTextureResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+    }
+    pub fn read(ipc: IpcDeserializer) !RenderTextureResult {
         var self: RenderTextureResult = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
         return self;
     }
 };
@@ -661,9 +1019,12 @@ pub const RenderTextureResult = struct {
 pub const UnloadRenderTexture = struct {
     assetId: i32,
 
-    pub fn write(self: UnloadRenderTexture, ipc: IpcSerializer) !void {}
-    pub fn read(self: UnloadRenderTexture, ipc: IpcDeserializer) !UnloadRenderTexture {
+    pub fn write(self: UnloadRenderTexture, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !UnloadRenderTexture {
         var self: UnloadRenderTexture = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -672,9 +1033,14 @@ pub const SetDesktopTextureProperties = struct {
     displayIndex: i32,
     assetId: i32,
 
-    pub fn write(self: SetDesktopTextureProperties, ipc: IpcSerializer) !void {}
-    pub fn read(self: SetDesktopTextureProperties, ipc: IpcDeserializer) !SetDesktopTextureProperties {
+    pub fn write(self: SetDesktopTextureProperties, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.displayIndex), self.displayIndex);
+    }
+    pub fn read(ipc: IpcDeserializer) !SetDesktopTextureProperties {
         var self: SetDesktopTextureProperties = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.displayIndex = try ipc.read(@TypeOf(self.displayIndex));
         return self;
     }
 };
@@ -683,9 +1049,14 @@ pub const DesktopTexturePropertiesUpdate = struct {
     size: math.Vector2i,
     assetId: i32,
 
-    pub fn write(self: DesktopTexturePropertiesUpdate, ipc: IpcSerializer) !void {}
-    pub fn read(self: DesktopTexturePropertiesUpdate, ipc: IpcDeserializer) !DesktopTexturePropertiesUpdate {
+    pub fn write(self: DesktopTexturePropertiesUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.size), self.size);
+    }
+    pub fn read(ipc: IpcDeserializer) !DesktopTexturePropertiesUpdate {
         var self: DesktopTexturePropertiesUpdate = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.size = try ipc.read(@TypeOf(self.size));
         return self;
     }
 };
@@ -693,9 +1064,12 @@ pub const DesktopTexturePropertiesUpdate = struct {
 pub const UnloadDesktopTexture = struct {
     assetId: i32,
 
-    pub fn write(self: UnloadDesktopTexture, ipc: IpcSerializer) !void {}
-    pub fn read(self: UnloadDesktopTexture, ipc: IpcDeserializer) !UnloadDesktopTexture {
+    pub fn write(self: UnloadDesktopTexture, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !UnloadDesktopTexture {
         var self: UnloadDesktopTexture = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -711,9 +1085,28 @@ pub const PointRenderBufferUpload = struct {
     buffer: SharedMemoryBufferDescriptor,
     assetId: i32,
 
-    pub fn write(self: PointRenderBufferUpload, ipc: IpcSerializer) !void {}
-    pub fn read(self: PointRenderBufferUpload, ipc: IpcDeserializer) !PointRenderBufferUpload {
+    pub fn write(self: PointRenderBufferUpload, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.buffer), self.buffer);
+        try ipc.write(@TypeOf(self.count), self.count);
+        try ipc.write(@TypeOf(self.positionsOffset), self.positionsOffset);
+        try ipc.write(@TypeOf(self.rotationsOffset), self.rotationsOffset);
+        try ipc.write(@TypeOf(self.sizesOffset), self.sizesOffset);
+        try ipc.write(@TypeOf(self.colorsOffset), self.colorsOffset);
+        try ipc.write(@TypeOf(self.frameIndexesOffset), self.frameIndexesOffset);
+        try ipc.write(@TypeOf(self.frameGridSize), self.frameGridSize);
+    }
+    pub fn read(ipc: IpcDeserializer) !PointRenderBufferUpload {
         var self: PointRenderBufferUpload = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.buffer = try ipc.read(@TypeOf(self.buffer));
+        self.count = try ipc.read(@TypeOf(self.count));
+        self.positionsOffset = try ipc.read(@TypeOf(self.positionsOffset));
+        self.rotationsOffset = try ipc.read(@TypeOf(self.rotationsOffset));
+        self.sizesOffset = try ipc.read(@TypeOf(self.sizesOffset));
+        self.colorsOffset = try ipc.read(@TypeOf(self.colorsOffset));
+        self.frameIndexesOffset = try ipc.read(@TypeOf(self.frameIndexesOffset));
+        self.frameGridSize = try ipc.read(@TypeOf(self.frameGridSize));
         return self;
     }
 };
@@ -721,9 +1114,12 @@ pub const PointRenderBufferUpload = struct {
 pub const PointRenderBufferConsumed = struct {
     assetId: i32,
 
-    pub fn write(self: PointRenderBufferConsumed, ipc: IpcSerializer) !void {}
-    pub fn read(self: PointRenderBufferConsumed, ipc: IpcDeserializer) !PointRenderBufferConsumed {
+    pub fn write(self: PointRenderBufferConsumed, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !PointRenderBufferConsumed {
         var self: PointRenderBufferConsumed = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -731,9 +1127,12 @@ pub const PointRenderBufferConsumed = struct {
 pub const PointRenderBufferUnload = struct {
     assetId: i32,
 
-    pub fn write(self: PointRenderBufferUnload, ipc: IpcSerializer) !void {}
-    pub fn read(self: PointRenderBufferUnload, ipc: IpcDeserializer) !PointRenderBufferUnload {
+    pub fn write(self: PointRenderBufferUnload, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !PointRenderBufferUnload {
         var self: PointRenderBufferUnload = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -748,9 +1147,26 @@ pub const TrailRenderBufferUpload = struct {
     buffer: SharedMemoryBufferDescriptor,
     assetId: i32,
 
-    pub fn write(self: TrailRenderBufferUpload, ipc: IpcSerializer) !void {}
-    pub fn read(self: TrailRenderBufferUpload, ipc: IpcDeserializer) !TrailRenderBufferUpload {
+    pub fn write(self: TrailRenderBufferUpload, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.buffer), self.buffer);
+        try ipc.write(@TypeOf(self.trailsCount), self.trailsCount);
+        try ipc.write(@TypeOf(self.trailPointCount), self.trailPointCount);
+        try ipc.write(@TypeOf(self.trailsOffset), self.trailsOffset);
+        try ipc.write(@TypeOf(self.positionsOffset), self.positionsOffset);
+        try ipc.write(@TypeOf(self.colorsOffset), self.colorsOffset);
+        try ipc.write(@TypeOf(self.sizesOffset), self.sizesOffset);
+    }
+    pub fn read(ipc: IpcDeserializer) !TrailRenderBufferUpload {
         var self: TrailRenderBufferUpload = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.buffer = try ipc.read(@TypeOf(self.buffer));
+        self.trailsCount = try ipc.read(@TypeOf(self.trailsCount));
+        self.trailPointCount = try ipc.read(@TypeOf(self.trailPointCount));
+        self.trailsOffset = try ipc.read(@TypeOf(self.trailsOffset));
+        self.positionsOffset = try ipc.read(@TypeOf(self.positionsOffset));
+        self.colorsOffset = try ipc.read(@TypeOf(self.colorsOffset));
+        self.sizesOffset = try ipc.read(@TypeOf(self.sizesOffset));
         return self;
     }
 };
@@ -758,9 +1174,12 @@ pub const TrailRenderBufferUpload = struct {
 pub const TrailRenderBufferConsumed = struct {
     assetId: i32,
 
-    pub fn write(self: TrailRenderBufferConsumed, ipc: IpcSerializer) !void {}
-    pub fn read(self: TrailRenderBufferConsumed, ipc: IpcDeserializer) !TrailRenderBufferConsumed {
+    pub fn write(self: TrailRenderBufferConsumed, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !TrailRenderBufferConsumed {
         var self: TrailRenderBufferConsumed = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -768,9 +1187,12 @@ pub const TrailRenderBufferConsumed = struct {
 pub const TrailRenderBufferUnload = struct {
     assetId: i32,
 
-    pub fn write(self: TrailRenderBufferUnload, ipc: IpcSerializer) !void {}
-    pub fn read(self: TrailRenderBufferUnload, ipc: IpcDeserializer) !TrailRenderBufferUnload {
+    pub fn write(self: TrailRenderBufferUnload, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !TrailRenderBufferUnload {
         var self: TrailRenderBufferUnload = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -785,9 +1207,26 @@ pub const GaussianSplatUploadRaw = struct {
     colorsBuffer: SharedMemoryBufferDescriptor,
     assetId: i32,
 
-    pub fn write(self: GaussianSplatUploadRaw, ipc: IpcSerializer) !void {}
-    pub fn read(self: GaussianSplatUploadRaw, ipc: IpcDeserializer) !GaussianSplatUploadRaw {
+    pub fn write(self: GaussianSplatUploadRaw, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.splatCount), self.splatCount);
+        try ipc.write(@TypeOf(self.bounds), self.bounds);
+        try ipc.write(@TypeOf(self.positionsBuffer), self.positionsBuffer);
+        try ipc.write(@TypeOf(self.rotationsBuffer), self.rotationsBuffer);
+        try ipc.write(@TypeOf(self.scalesBuffer), self.scalesBuffer);
+        try ipc.write(@TypeOf(self.colorsBuffer), self.colorsBuffer);
+        try ipc.write(@TypeOf(self.alphasBuffer), self.alphasBuffer);
+    }
+    pub fn read(ipc: IpcDeserializer) !GaussianSplatUploadRaw {
         var self: GaussianSplatUploadRaw = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.splatCount = try ipc.read(@TypeOf(self.splatCount));
+        self.bounds = try ipc.read(@TypeOf(self.bounds));
+        self.positionsBuffer = try ipc.read(@TypeOf(self.positionsBuffer));
+        self.rotationsBuffer = try ipc.read(@TypeOf(self.rotationsBuffer));
+        self.scalesBuffer = try ipc.read(@TypeOf(self.scalesBuffer));
+        self.colorsBuffer = try ipc.read(@TypeOf(self.colorsBuffer));
+        self.alphasBuffer = try ipc.read(@TypeOf(self.alphasBuffer));
         return self;
     }
 };
@@ -811,9 +1250,44 @@ pub const GaussianSplatUploadEncoded = struct {
     colorsBuffer: SharedMemoryBufferDescriptor,
     assetId: i32,
 
-    pub fn write(self: GaussianSplatUploadEncoded, ipc: IpcSerializer) !void {}
-    pub fn read(self: GaussianSplatUploadEncoded, ipc: IpcDeserializer) !GaussianSplatUploadEncoded {
+    pub fn write(self: GaussianSplatUploadEncoded, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.splatCount), self.splatCount);
+        try ipc.write(@TypeOf(self.bounds), self.bounds);
+        try ipc.write(@TypeOf(self.positionsBuffer), self.positionsBuffer);
+        try ipc.write(@TypeOf(self.rotationsBuffer), self.rotationsBuffer);
+        try ipc.write(@TypeOf(self.scalesBuffer), self.scalesBuffer);
+        try ipc.write(@TypeOf(self.colorsBuffer), self.colorsBuffer);
+        try ipc.write(@TypeOf(self.positionsFormat), self.positionsFormat);
+        try ipc.write(@TypeOf(self.rotationsFormat), self.rotationsFormat);
+        try ipc.write(@TypeOf(self.scalesFormat), self.scalesFormat);
+        try ipc.write(@TypeOf(self.colorsFormat), self.colorsFormat);
+        try ipc.write(@TypeOf(self.shFormat), self.shFormat);
+        try ipc.write(@TypeOf(self.texture2DtextureAssetId), self.texture2DtextureAssetId);
+        try ipc.write(@TypeOf(self.shIndexesOffset), self.shIndexesOffset);
+        try ipc.write(@TypeOf(self.chunkCount), self.chunkCount);
+        try ipc.write(@TypeOf(self.shBuffer), self.shBuffer);
+        try ipc.write(@TypeOf(self.chunksBuffer), self.chunksBuffer);
+    }
+    pub fn read(ipc: IpcDeserializer) !GaussianSplatUploadEncoded {
         var self: GaussianSplatUploadEncoded = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.splatCount = try ipc.read(@TypeOf(self.splatCount));
+        self.bounds = try ipc.read(@TypeOf(self.bounds));
+        self.positionsBuffer = try ipc.read(@TypeOf(self.positionsBuffer));
+        self.rotationsBuffer = try ipc.read(@TypeOf(self.rotationsBuffer));
+        self.scalesBuffer = try ipc.read(@TypeOf(self.scalesBuffer));
+        self.colorsBuffer = try ipc.read(@TypeOf(self.colorsBuffer));
+        self.positionsFormat = try ipc.read(@TypeOf(self.positionsFormat));
+        self.rotationsFormat = try ipc.read(@TypeOf(self.rotationsFormat));
+        self.scalesFormat = try ipc.read(@TypeOf(self.scalesFormat));
+        self.colorsFormat = try ipc.read(@TypeOf(self.colorsFormat));
+        self.shFormat = try ipc.read(@TypeOf(self.shFormat));
+        self.texture2DtextureAssetId = try ipc.read(@TypeOf(self.texture2DtextureAssetId));
+        self.shIndexesOffset = try ipc.read(@TypeOf(self.shIndexesOffset));
+        self.chunkCount = try ipc.read(@TypeOf(self.chunkCount));
+        self.shBuffer = try ipc.read(@TypeOf(self.shBuffer));
+        self.chunksBuffer = try ipc.read(@TypeOf(self.chunksBuffer));
         return self;
     }
 };
@@ -822,9 +1296,14 @@ pub const GaussianSplatResult = struct {
     instanceChanged: bool,
     assetId: i32,
 
-    pub fn write(self: GaussianSplatResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: GaussianSplatResult, ipc: IpcDeserializer) !GaussianSplatResult {
+    pub fn write(self: GaussianSplatResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+    }
+    pub fn read(ipc: IpcDeserializer) !GaussianSplatResult {
         var self: GaussianSplatResult = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
         return self;
     }
 };
@@ -832,9 +1311,12 @@ pub const GaussianSplatResult = struct {
 pub const UnloadGaussianSplat = struct {
     assetId: i32,
 
-    pub fn write(self: UnloadGaussianSplat, ipc: IpcSerializer) !void {}
-    pub fn read(self: UnloadGaussianSplat, ipc: IpcDeserializer) !UnloadGaussianSplat {
+    pub fn write(self: UnloadGaussianSplat, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !UnloadGaussianSplat {
         var self: UnloadGaussianSplat = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -844,9 +1326,16 @@ pub const LightsBufferRendererSubmission = struct {
     lightsCount: i32,
     lights: SharedMemoryBufferDescriptor,
 
-    pub fn write(self: LightsBufferRendererSubmission, ipc: IpcSerializer) !void {}
-    pub fn read(self: LightsBufferRendererSubmission, ipc: IpcDeserializer) !LightsBufferRendererSubmission {
+    pub fn write(self: LightsBufferRendererSubmission, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.lightsBufferUniqueId), self.lightsBufferUniqueId);
+        try ipc.write(@TypeOf(self.lightsCount), self.lightsCount);
+        try ipc.write(@TypeOf(self.lights), self.lights);
+    }
+    pub fn read(ipc: IpcDeserializer) !LightsBufferRendererSubmission {
         var self: LightsBufferRendererSubmission = undefined;
+        self.lightsBufferUniqueId = try ipc.read(@TypeOf(self.lightsBufferUniqueId));
+        self.lightsCount = try ipc.read(@TypeOf(self.lightsCount));
+        self.lights = try ipc.read(@TypeOf(self.lights));
         return self;
     }
 };
@@ -854,9 +1343,12 @@ pub const LightsBufferRendererSubmission = struct {
 pub const LightsBufferRendererConsumed = struct {
     globalUniqueId: i32,
 
-    pub fn write(self: LightsBufferRendererConsumed, ipc: IpcSerializer) !void {}
-    pub fn read(self: LightsBufferRendererConsumed, ipc: IpcDeserializer) !LightsBufferRendererConsumed {
+    pub fn write(self: LightsBufferRendererConsumed, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.globalUniqueId), self.globalUniqueId);
+    }
+    pub fn read(ipc: IpcDeserializer) !LightsBufferRendererConsumed {
         var self: LightsBufferRendererConsumed = undefined;
+        self.globalUniqueId = try ipc.read(@TypeOf(self.globalUniqueId));
         return self;
     }
 };
@@ -865,9 +1357,14 @@ pub const ReflectionProbeRenderResult = struct {
     renderTaskId: i32,
     success: bool,
 
-    pub fn write(self: ReflectionProbeRenderResult, ipc: IpcSerializer) !void {}
-    pub fn read(self: ReflectionProbeRenderResult, ipc: IpcDeserializer) !ReflectionProbeRenderResult {
+    pub fn write(self: ReflectionProbeRenderResult, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderTaskId), self.renderTaskId);
+        try ipc.write(@TypeOf(self.success), self.success);
+    }
+    pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderResult {
         var self: ReflectionProbeRenderResult = undefined;
+        self.renderTaskId = try ipc.read(@TypeOf(self.renderTaskId));
+        self.success = try ipc.read(@TypeOf(self.success));
         return self;
     }
 };
@@ -880,9 +1377,22 @@ pub const VideoTextureLoad = struct {
     audioSystemSampleRate: i32,
     assetId: i32,
 
-    pub fn write(self: VideoTextureLoad, ipc: IpcSerializer) !void {}
-    pub fn read(self: VideoTextureLoad, ipc: IpcDeserializer) !VideoTextureLoad {
+    pub fn write(self: VideoTextureLoad, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.source), self.source);
+        try ipc.write(@TypeOf(self.overrideEngine), self.overrideEngine);
+        try ipc.write(@TypeOf(self.mimeType), self.mimeType);
+        try ipc.write(@TypeOf(self.isStream), self.isStream);
+        try ipc.write(@TypeOf(self.audioSystemSampleRate), self.audioSystemSampleRate);
+    }
+    pub fn read(ipc: IpcDeserializer) !VideoTextureLoad {
         var self: VideoTextureLoad = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.source = try ipc.read(@TypeOf(self.source));
+        self.overrideEngine = try ipc.read(@TypeOf(self.overrideEngine));
+        self.mimeType = try ipc.read(@TypeOf(self.mimeType));
+        self.isStream = try ipc.read(@TypeOf(self.isStream));
+        self.audioSystemSampleRate = try ipc.read(@TypeOf(self.audioSystemSampleRate));
         return self;
     }
 };
@@ -893,9 +1403,16 @@ pub const VideoTextureUpdate = struct {
     loop: bool,
     assetId: i32,
 
-    pub fn write(self: VideoTextureUpdate, ipc: IpcSerializer) !void {}
-    pub fn read(self: VideoTextureUpdate, ipc: IpcDeserializer) !VideoTextureUpdate {
+    pub fn write(self: VideoTextureUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write8PackedBools(self.play, self.loop, false, false, false, false, false, false);
+    }
+    pub fn read(ipc: IpcDeserializer) !VideoTextureUpdate {
         var self: VideoTextureUpdate = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.play, self.loop, _, _, _, _, _, _ = try ipc.read8PackedBools();
         return self;
     }
 };
@@ -909,9 +1426,24 @@ pub const VideoTextureReady = struct {
     audioTracks: []const VideoAudioTrack,
     assetId: i32,
 
-    pub fn write(self: VideoTextureReady, ipc: IpcSerializer) !void {}
-    pub fn read(self: VideoTextureReady, ipc: IpcDeserializer) !VideoTextureReady {
+    pub fn write(self: VideoTextureReady, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.length), self.length);
+        try ipc.write(@TypeOf(self.size), self.size);
+        try ipc.write(@TypeOf(self.hasAlpha), self.hasAlpha);
+        try ipc.write(@TypeOf(self.playbackEngine), self.playbackEngine);
+        try ipc.write(@TypeOf(self.instanceChanged), self.instanceChanged);
+        try ipc.writeList(@TypeOf(self.audioTracks), self.audioTracks);
+    }
+    pub fn read(ipc: IpcDeserializer) !VideoTextureReady {
         var self: VideoTextureReady = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.length = try ipc.read(@TypeOf(self.length));
+        self.size = try ipc.read(@TypeOf(self.size));
+        self.hasAlpha = try ipc.read(@TypeOf(self.hasAlpha));
+        self.playbackEngine = try ipc.read(@TypeOf(self.playbackEngine));
+        self.instanceChanged = try ipc.read(@TypeOf(self.instanceChanged));
+        self.audioTracks = try ipc.readList(@TypeOf(self.audioTracks));
         return self;
     }
 };
@@ -919,9 +1451,12 @@ pub const VideoTextureReady = struct {
 pub const VideoTextureChanged = struct {
     assetId: i32,
 
-    pub fn write(self: VideoTextureChanged, ipc: IpcSerializer) !void {}
-    pub fn read(self: VideoTextureChanged, ipc: IpcDeserializer) !VideoTextureChanged {
+    pub fn write(self: VideoTextureChanged, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !VideoTextureChanged {
         var self: VideoTextureChanged = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -933,9 +1468,20 @@ pub const VideoTextureProperties = struct {
     wrapV: TextureWrapMode,
     assetId: i32,
 
-    pub fn write(self: VideoTextureProperties, ipc: IpcSerializer) !void {}
-    pub fn read(self: VideoTextureProperties, ipc: IpcDeserializer) !VideoTextureProperties {
+    pub fn write(self: VideoTextureProperties, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.filterMode), self.filterMode);
+        try ipc.write(@TypeOf(self.anisoLevel), self.anisoLevel);
+        try ipc.write(@TypeOf(self.wrapU), self.wrapU);
+        try ipc.write(@TypeOf(self.wrapV), self.wrapV);
+    }
+    pub fn read(ipc: IpcDeserializer) !VideoTextureProperties {
         var self: VideoTextureProperties = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.filterMode = try ipc.read(@TypeOf(self.filterMode));
+        self.anisoLevel = try ipc.read(@TypeOf(self.anisoLevel));
+        self.wrapU = try ipc.read(@TypeOf(self.wrapU));
+        self.wrapV = try ipc.read(@TypeOf(self.wrapV));
         return self;
     }
 };
@@ -946,9 +1492,18 @@ pub const VideoTextureStartAudioTrack = struct {
     queueName: []const u16,
     assetId: i32,
 
-    pub fn write(self: VideoTextureStartAudioTrack, ipc: IpcSerializer) !void {}
-    pub fn read(self: VideoTextureStartAudioTrack, ipc: IpcDeserializer) !VideoTextureStartAudioTrack {
+    pub fn write(self: VideoTextureStartAudioTrack, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+        try ipc.write(@TypeOf(self.audioTrackIndex), self.audioTrackIndex);
+        try ipc.write(@TypeOf(self.queueCapacity), self.queueCapacity);
+        try ipc.write(@TypeOf(self.queueName), self.queueName);
+    }
+    pub fn read(ipc: IpcDeserializer) !VideoTextureStartAudioTrack {
         var self: VideoTextureStartAudioTrack = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
+        self.audioTrackIndex = try ipc.read(@TypeOf(self.audioTrackIndex));
+        self.queueCapacity = try ipc.read(@TypeOf(self.queueCapacity));
+        self.queueName = try ipc.read(@TypeOf(self.queueName));
         return self;
     }
 };
@@ -956,9 +1511,12 @@ pub const VideoTextureStartAudioTrack = struct {
 pub const UnloadVideoTexture = struct {
     assetId: i32,
 
-    pub fn write(self: UnloadVideoTexture, ipc: IpcSerializer) !void {}
-    pub fn read(self: UnloadVideoTexture, ipc: IpcDeserializer) !UnloadVideoTexture {
+    pub fn write(self: UnloadVideoTexture, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.assetId), self.assetId);
+    }
+    pub fn read(ipc: IpcDeserializer) !UnloadVideoTexture {
         var self: UnloadVideoTexture = undefined;
+        self.assetId = try ipc.read(@TypeOf(self.assetId));
         return self;
     }
 };
@@ -1045,9 +1603,68 @@ pub const RenderSpaceUpdate = struct {
     gaussianSplatRenderersUpdate: ?GaussianSplatRenderablesUpdate,
     reflectionProbeRenderTasks: []const ReflectionProbeRenderTask,
 
-    pub fn write(self: RenderSpaceUpdate, ipc: IpcSerializer) !void {}
-    pub fn read(self: RenderSpaceUpdate, ipc: IpcDeserializer) !RenderSpaceUpdate {
+    pub fn write(self: RenderSpaceUpdate, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.id), self.id);
+        try ipc.write(@TypeOf(self.isActive), self.isActive);
+        try ipc.write(@TypeOf(self.isOverlay), self.isOverlay);
+        try ipc.write(@TypeOf(self.isPrivate), self.isPrivate);
+        try ipc.write(@TypeOf(self.rootTransform), self.rootTransform);
+        try ipc.write(@TypeOf(self.viewPositionIsExternal), self.viewPositionIsExternal);
+        try ipc.write(@TypeOf(self.overrideViewPosition), self.overrideViewPosition);
+        try ipc.write(@TypeOf(self.skyboxMaterialAssetId), self.skyboxMaterialAssetId);
+        try ipc.write(@TypeOf(self.ambientLight), self.ambientLight);
+        try ipc.write(@TypeOf(self.overridenViewTransform), self.overridenViewTransform);
+        try ipc.write(@TypeOf(self.transformsUpdate), self.transformsUpdate);
+        try ipc.write(@TypeOf(self.meshRenderersUpdate), self.meshRenderersUpdate);
+        try ipc.write(@TypeOf(self.skinnedMeshRenderersUpdate), self.skinnedMeshRenderersUpdate);
+        try ipc.write(@TypeOf(self.lightsUpdate), self.lightsUpdate);
+        try ipc.write(@TypeOf(self.camerasUpdate), self.camerasUpdate);
+        try ipc.write(@TypeOf(self.cameraPortalsUpdate), self.cameraPortalsUpdate);
+        try ipc.write(@TypeOf(self.reflectionProbesUpdate), self.reflectionProbesUpdate);
+        try ipc.write(@TypeOf(self.reflectionProbeSH2Taks), self.reflectionProbeSH2Taks);
+        try ipc.write(@TypeOf(self.layersUpdate), self.layersUpdate);
+        try ipc.write(@TypeOf(self.billboardBuffersUpdate), self.billboardBuffersUpdate);
+        try ipc.write(@TypeOf(self.meshRenderBuffersUpdate), self.meshRenderBuffersUpdate);
+        try ipc.write(@TypeOf(self.trailRenderersUpdate), self.trailRenderersUpdate);
+        try ipc.write(@TypeOf(self.lightsBufferRenderersUpdate), self.lightsBufferRenderersUpdate);
+        try ipc.write(@TypeOf(self.renderTransformOverridesUpdate), self.renderTransformOverridesUpdate);
+        try ipc.write(@TypeOf(self.renderMaterialOverridesUpdate), self.renderMaterialOverridesUpdate);
+        try ipc.write(@TypeOf(self.blitToDisplaysUpdate), self.blitToDisplaysUpdate);
+        try ipc.write(@TypeOf(self.lodGroupUpdate), self.lodGroupUpdate);
+        try ipc.write(@TypeOf(self.gaussianSplatRenderersUpdate), self.gaussianSplatRenderersUpdate);
+        try ipc.writeList(@TypeOf(self.reflectionProbeRenderTasks), self.reflectionProbeRenderTasks);
+    }
+    pub fn read(ipc: IpcDeserializer) !RenderSpaceUpdate {
         var self: RenderSpaceUpdate = undefined;
+        self.id = try ipc.read(@TypeOf(self.id));
+        self.isActive = try ipc.read(@TypeOf(self.isActive));
+        self.isOverlay = try ipc.read(@TypeOf(self.isOverlay));
+        self.isPrivate = try ipc.read(@TypeOf(self.isPrivate));
+        self.rootTransform = try ipc.read(@TypeOf(self.rootTransform));
+        self.viewPositionIsExternal = try ipc.read(@TypeOf(self.viewPositionIsExternal));
+        self.overrideViewPosition = try ipc.read(@TypeOf(self.overrideViewPosition));
+        self.skyboxMaterialAssetId = try ipc.read(@TypeOf(self.skyboxMaterialAssetId));
+        self.ambientLight = try ipc.read(@TypeOf(self.ambientLight));
+        self.overridenViewTransform = try ipc.read(@TypeOf(self.overridenViewTransform));
+        self.transformsUpdate = try ipc.read(@TypeOf(self.transformsUpdate));
+        self.meshRenderersUpdate = try ipc.read(@TypeOf(self.meshRenderersUpdate));
+        self.skinnedMeshRenderersUpdate = try ipc.read(@TypeOf(self.skinnedMeshRenderersUpdate));
+        self.lightsUpdate = try ipc.read(@TypeOf(self.lightsUpdate));
+        self.camerasUpdate = try ipc.read(@TypeOf(self.camerasUpdate));
+        self.cameraPortalsUpdate = try ipc.read(@TypeOf(self.cameraPortalsUpdate));
+        self.reflectionProbesUpdate = try ipc.read(@TypeOf(self.reflectionProbesUpdate));
+        self.reflectionProbeSH2Taks = try ipc.read(@TypeOf(self.reflectionProbeSH2Taks));
+        self.layersUpdate = try ipc.read(@TypeOf(self.layersUpdate));
+        self.billboardBuffersUpdate = try ipc.read(@TypeOf(self.billboardBuffersUpdate));
+        self.meshRenderBuffersUpdate = try ipc.read(@TypeOf(self.meshRenderBuffersUpdate));
+        self.trailRenderersUpdate = try ipc.read(@TypeOf(self.trailRenderersUpdate));
+        self.lightsBufferRenderersUpdate = try ipc.read(@TypeOf(self.lightsBufferRenderersUpdate));
+        self.renderTransformOverridesUpdate = try ipc.read(@TypeOf(self.renderTransformOverridesUpdate));
+        self.renderMaterialOverridesUpdate = try ipc.read(@TypeOf(self.renderMaterialOverridesUpdate));
+        self.blitToDisplaysUpdate = try ipc.read(@TypeOf(self.blitToDisplaysUpdate));
+        self.lodGroupUpdate = try ipc.read(@TypeOf(self.lodGroupUpdate));
+        self.gaussianSplatRenderersUpdate = try ipc.read(@TypeOf(self.gaussianSplatRenderersUpdate));
+        self.reflectionProbeRenderTasks = try ipc.readList(@TypeOf(self.reflectionProbeRenderTasks));
         return self;
     }
 };
@@ -1061,9 +1678,24 @@ pub const CameraRenderTask = struct {
     onlyRenderList: []const i32,
     excludeRenderList: []const i32,
 
-    pub fn write(self: CameraRenderTask, ipc: IpcSerializer) !void {}
-    pub fn read(self: CameraRenderTask, ipc: IpcDeserializer) !CameraRenderTask {
+    pub fn write(self: CameraRenderTask, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderSpaceId), self.renderSpaceId);
+        try ipc.write(@TypeOf(self.position), self.position);
+        try ipc.write(@TypeOf(self.rotation), self.rotation);
+        try ipc.write(@TypeOf(self.parameters), self.parameters);
+        try ipc.write(@TypeOf(self.resultData), self.resultData);
+        try ipc.writeList(@TypeOf(self.onlyRenderList), self.onlyRenderList);
+        try ipc.writeList(@TypeOf(self.excludeRenderList), self.excludeRenderList);
+    }
+    pub fn read(ipc: IpcDeserializer) !CameraRenderTask {
         var self: CameraRenderTask = undefined;
+        self.renderSpaceId = try ipc.read(@TypeOf(self.renderSpaceId));
+        self.position = try ipc.read(@TypeOf(self.position));
+        self.rotation = try ipc.read(@TypeOf(self.rotation));
+        self.parameters = try ipc.read(@TypeOf(self.parameters));
+        self.resultData = try ipc.read(@TypeOf(self.resultData));
+        self.onlyRenderList = try ipc.readList(@TypeOf(self.onlyRenderList));
+        self.excludeRenderList = try ipc.readList(@TypeOf(self.excludeRenderList));
         return self;
     }
 };
@@ -1172,9 +1804,20 @@ pub const VideoAudioTrack = struct {
     name: []const u16,
     languageCode: []const u16,
 
-    pub fn write(self: VideoAudioTrack, ipc: IpcSerializer) !void {}
-    pub fn read(self: VideoAudioTrack, ipc: IpcDeserializer) !VideoAudioTrack {
+    pub fn write(self: VideoAudioTrack, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.index), self.index);
+        try ipc.write(@TypeOf(self.channelCount), self.channelCount);
+        try ipc.write(@TypeOf(self.sampleRate), self.sampleRate);
+        try ipc.write(@TypeOf(self.name), self.name);
+        try ipc.write(@TypeOf(self.languageCode), self.languageCode);
+    }
+    pub fn read(ipc: IpcDeserializer) !VideoAudioTrack {
         var self: VideoAudioTrack = undefined;
+        self.index = try ipc.read(@TypeOf(self.index));
+        self.channelCount = try ipc.read(@TypeOf(self.channelCount));
+        self.sampleRate = try ipc.read(@TypeOf(self.sampleRate));
+        self.name = try ipc.read(@TypeOf(self.name));
+        self.languageCode = try ipc.read(@TypeOf(self.languageCode));
         return self;
     }
 };
@@ -1190,9 +1833,24 @@ pub const ReflectionProbeRenderTask = struct {
     resultData: SharedMemoryBufferDescriptor,
     excludeTransformIds: []const i32,
 
-    pub fn write(self: ReflectionProbeRenderTask, ipc: IpcSerializer) !void {}
-    pub fn read(self: ReflectionProbeRenderTask, ipc: IpcDeserializer) !ReflectionProbeRenderTask {
+    pub fn write(self: ReflectionProbeRenderTask, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.renderableIndex), self.renderableIndex);
+        try ipc.write(@TypeOf(self.renderTaskId), self.renderTaskId);
+        try ipc.write(@TypeOf(self.size), self.size);
+        try ipc.write(@TypeOf(self.hdr), self.hdr);
+        try ipc.writeNestedList(@TypeOf(self.mipOrigins), self.mipOrigins);
+        try ipc.write(@TypeOf(self.resultData), self.resultData);
+        try ipc.writeList(@TypeOf(self.excludeTransformIds), self.excludeTransformIds);
+    }
+    pub fn read(ipc: IpcDeserializer) !ReflectionProbeRenderTask {
         var self: ReflectionProbeRenderTask = undefined;
+        self.renderableIndex = try ipc.read(@TypeOf(self.renderableIndex));
+        self.renderTaskId = try ipc.read(@TypeOf(self.renderTaskId));
+        self.size = try ipc.read(@TypeOf(self.size));
+        self.hdr = try ipc.read(@TypeOf(self.hdr));
+        self.mipOrigins = try ipc.readNestedList(@TypeOf(self.mipOrigins));
+        self.resultData = try ipc.read(@TypeOf(self.resultData));
+        self.excludeTransformIds = try ipc.readList(@TypeOf(self.excludeTransformIds));
         return self;
     }
 };
