@@ -16,6 +16,7 @@ const xr_t = @import("xr");
 const Assets = @import("Assets.zig");
 const graphics = @import("graphics.zig");
 const Input = @import("Input.zig");
+const RenderSpace = @import("RenderSpace.zig");
 const Texture = @import("Texture.zig");
 
 pub const MessagingHost = renderite.MessagingHost(*App);
@@ -161,6 +162,9 @@ const GameData = struct {
 
     displays: std.ArrayListUnmanaged(renderite.Shared.DisplayState),
 
+    render_spaces_lock: std.Thread.Mutex,
+    render_spaces: std.AutoArrayHashMapUnmanaged(RenderSpace.Id, RenderSpace),
+
     input: Input,
 
     pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
@@ -169,6 +173,11 @@ const GameData = struct {
 
             engine_thread.join();
         }
+
+        for (self.render_spaces.values()) |*render_space| {
+            render_space.deinit();
+        }
+        self.render_spaces.deinit(gpa);
 
         self.to_engine_envelope_pool.deinit();
 
@@ -401,6 +410,8 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .to_engine_envelope_pool = .init(gpa),
             .displays = .empty,
             .input = input,
+            .render_spaces = .empty,
+            .render_spaces_lock = .{},
         };
 
         // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -763,6 +774,61 @@ fn imguiFillTextures(self: *App, imgui_data: *ImGuiData, texture_type: Texture.T
     }
 }
 
+fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceUpdate) !void {
+    self.game.render_spaces_lock.lock();
+    defer self.game.render_spaces_lock.unlock();
+
+    for (self.game.render_spaces.values()) |*render_space| {
+        render_space.clearUpdated();
+    }
+
+    // SAFETY: messaging accessor should always be available by now!
+    const accessor = &self.messaging.accessor.?;
+
+    var active_render_space: RenderSpace.Id = .invalid;
+    for (updates) |update| {
+        const render_space = self.game.render_spaces.getPtr(.from(update.id)) orelse create_render_space: {
+            const render_space: RenderSpace = try .init(self.gpa, update);
+            errdefer render_space.deinit();
+
+            log.debug("Created render space {d}", .{update.id});
+
+            try self.game.render_spaces.putNoClobber(self.gpa, .from(update.id), render_space);
+
+            // SAFETY: we just placed it in, so this should be safe!
+            break :create_render_space self.game.render_spaces.getPtr(.from(update.id)).?;
+        };
+
+        try render_space.handleUpdate(self.gpa, accessor, update);
+
+        if (render_space.properties.active and !render_space.properties.overlay) {
+            if (active_render_space != .invalid) {
+                log.err("Render space {d} is active when render space {d} was already found to be active!", .{ update.id, active_render_space.to() });
+                return error.MultipleActiveRenderSpaces;
+            }
+
+            active_render_space = render_space.id;
+        }
+    }
+
+    {
+        var i: usize = 0;
+        while (i < self.game.render_spaces.count()) {
+            const render_space = &self.game.render_spaces.values()[i];
+
+            if (render_space.updated) {
+                i += 1;
+            } else {
+                log.debug("Render space {d} removed", .{render_space.id.to()});
+                const removed = self.game.render_spaces.swapRemove(render_space.id);
+                std.debug.assert(removed);
+
+                render_space.deinit();
+            }
+        }
+    }
+}
+
 fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
     defer message.arena.deinit();
 
@@ -776,17 +842,7 @@ fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
     self.game.last_frame_index = frame_submit_data.frameIndex;
     log.debug("Frame {d} completion", .{frame_submit_data.frameIndex});
 
-    for (frame_submit_data.renderSpaces) |render_space| {
-        if (render_space.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
-            const sh2_tasks_slice = try self.messaging.accessor.?.getOrCreate(self.gpa, sh2_tasks_descriptor.tasks) orelse continue;
-            defer sh2_tasks_slice.release(&self.messaging.accessor.?);
-
-            const sh2_tasks: []align(1) renderite.Shared.ReflectionProbeSH2Task = @ptrCast(sh2_tasks_slice.data);
-            for (sh2_tasks) |*task| {
-                task.result = .Failed;
-            }
-        }
-    }
+    try self.updateRenderSpaces(frame_submit_data.renderSpaces);
 
     self.game.engine_thread_ready_for_begin_frame.set();
 }
