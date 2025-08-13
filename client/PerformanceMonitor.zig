@@ -5,13 +5,9 @@ const log = std.log.scoped(.perf);
 
 const PerformanceMonitor = @This();
 
-// const F = f32; // too little to fit timestamp
-const F = f64;
-// const F = f128; // no effect
-
 state: renderite.Shared.PerformanceState,
-last_update: F,
-last_frame: F,
+last_update: i128,
+last_frame: i128,
 counter: u32,
 
 pub fn init() PerformanceMonitor {
@@ -43,22 +39,22 @@ pub fn init() PerformanceMonitor {
     };
 }
 
-const TimeBase = 1000.0;
-const TimeBaseInverse = 1.0 / TimeBase;
+const time_base = @as(comptime_float, @floatFromInt(std.time.ns_per_s));
+const time_base_inverse = 1.0 / time_base;
 
-fn timestamp() F {
-    return @floatFromInt(std.time.milliTimestamp());
+fn timestamp() i128 {
+    return std.time.nanoTimestamp();
 }
 
-pub fn frame(self: *PerformanceMonitor) void {
+pub fn beginRenderFrame(self: *PerformanceMonitor) void {
     const now = timestamp();
 
     self.counter += 1;
     self.last_frame = now;
 
-    const total_milliseconds = now - self.last_update;
-    if (total_milliseconds >= (TimeBase / 2.0)) {
-        self.state.fps = @floatCast(@as(F, @floatFromInt(self.counter)) / (total_milliseconds * (TimeBaseInverse)));
+    const total = now - self.last_update;
+    if (total >= (time_base / 2.0)) {
+        self.state.fps = @as(f32, @floatFromInt(self.counter)) / (@as(f32, @floatFromInt(total)) * (time_base_inverse));
         self.counter = 0;
         self.last_update = now;
 
@@ -66,9 +62,9 @@ pub fn frame(self: *PerformanceMonitor) void {
     }
 }
 
-pub fn endFrame(self: *PerformanceMonitor) void {
+pub fn endRenderFrame(self: *PerformanceMonitor) void {
     const now = timestamp();
-    const draw = now - self.last_frame;
-    self.state.renderTime = @floatCast(draw / TimeBase);
-    self.state.immediateFPS = @floatCast(TimeBase / draw);
+    const draw: f32 = @floatFromInt(now - self.last_frame);
+    self.state.renderTime = draw / time_base;
+    self.state.immediateFPS = time_base / draw;
 }

@@ -921,8 +921,8 @@ pub fn frameLoop(self: *App) !void {
 
     while (self.game.run_loop) {
         tracy.frameMark();
-        self.game.perf.frame();
-        defer self.game.perf.endFrame();
+        self.game.perf.beginRenderFrame();
+        defer self.game.perf.endRenderFrame();
 
         {
             const trace = tracy.traceNamed(@src(), "Poll SDL events");
