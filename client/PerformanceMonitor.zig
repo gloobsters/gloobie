@@ -39,7 +39,7 @@ pub fn init() PerformanceMonitor {
     };
 }
 
-const time_base = @as(comptime_float, @floatFromInt(std.time.ns_per_s));
+const time_base: comptime_float = std.time.ns_per_s;
 const time_base_inverse = 1.0 / time_base;
 
 fn timestamp() i128 {
@@ -57,8 +57,6 @@ pub fn beginRenderFrame(self: *PerformanceMonitor) void {
         self.state.fps = @as(f32, @floatFromInt(self.counter)) / (@as(f32, @floatFromInt(total)) * (time_base_inverse));
         self.counter = 0;
         self.last_update = now;
-
-        log.debug("FPS state: {any}", .{self});
     }
 }
 
