@@ -19,6 +19,7 @@ const Input = @import("Input.zig");
 const RenderSpace = @import("RenderSpace.zig");
 const Texture = @import("Texture.zig");
 const ImGuiManager = @import("gui/ImGuiManager.zig");
+const PerformanceMonitor = @import("PerformanceMonitor.zig");
 
 pub const MessagingHost = renderite.MessagingHost(*App);
 const log = std.log.scoped(.app);
@@ -151,6 +152,7 @@ const GameData = struct {
     render_spaces: std.AutoArrayHashMapUnmanaged(RenderSpace.Id, RenderSpace),
 
     input: Input,
+    perf: PerformanceMonitor,
 
     pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
         if (self.engine_thread) |engine_thread| {
@@ -366,6 +368,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .assets_open = true,
             .loadstate_open = true,
             .demo_open = true,
+            .performance_open = true,
             .temporary_graphics_bindings = .empty,
         };
     };
@@ -397,6 +400,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .to_engine_envelope_pool = .init(gpa),
             .displays = .empty,
             .input = input,
+            .perf = PerformanceMonitor.init(),
             .render_spaces = .empty,
             .render_spaces_lock = .{},
         };
@@ -918,6 +922,8 @@ pub fn frameLoop(self: *App) !void {
 
     while (self.game.run_loop) {
         tracy.frameMark();
+        self.game.perf.beginRenderFrame();
+        defer self.game.perf.endRenderFrame();
 
         {
             const trace = tracy.traceNamed(@src(), "Poll SDL events");
@@ -1061,7 +1067,7 @@ pub fn frameLoop(self: *App) !void {
                                 .resolutionSettingsApplied = false,
                             },
                         },
-                        .performance = null,
+                        .performance = self.game.perf.state,
                         .renderedReflectionProbes = &.{},
                     },
                 }, std.time.ns_per_s);

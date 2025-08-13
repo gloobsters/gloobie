@@ -11,6 +11,7 @@ context: imgui.Context,
 
 demo_open: bool,
 assets_open: bool,
+performance_open: bool,
 loadstate_open: bool,
 
 temporary_graphics_bindings: std.ArrayListUnmanaged(gpu.TextureSamplerBinding),
@@ -60,6 +61,14 @@ pub fn start(self: *ImGuiManager) !void {
             if (imgui.collapsingHeader("Render Spaces", 0)) {
                 self.fillRenderSpaces();
             }
+        }
+    }
+
+    {
+        const performance_render = imgui.begin("Performance", &self.performance_open, 0);
+        defer imgui.end();
+        if (performance_render) {
+            self.fillPerformance();
         }
     }
 
@@ -252,4 +261,11 @@ fn fillRenderSpaces(self: *ImGuiManager) void {
             imgui.c.igText("View transform not overridden.");
         }
     }
+}
+
+fn fillPerformance(self: *ImGuiManager) void {
+    const perf = self.app.game.perf.state;
+    // TODO: truncate floats so they are prettier
+    imgui.c.igText("FPS: %f", perf.fps);
+    imgui.c.igText("Render time: %fms", perf.renderTime);
 }
