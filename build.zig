@@ -450,8 +450,15 @@ pub fn build(b: *std.Build) !void {
 
     addPlatformDefines(gloobie_mod, build_options, target);
 
+    // NOTE: Use a special name on Linux to temporarily workaround Resonite looking up by process name on Linux
+    // https://github.com/Yellow-Dog-Man/Resonite-Issues/issues/5222
+    const gloobie_exe_name = switch (target.result.os.tag) {
+        .linux => "Renderite.Gloobie",
+        else => "gloobie",
+    };
+
     const gloobie_exe = b.addExecutable(.{
-        .name = "gloobie",
+        .name = gloobie_exe_name,
         .root_module = gloobie_mod,
         .use_lld = build_options.use_lld,
         .use_llvm = build_options.use_llvm,
