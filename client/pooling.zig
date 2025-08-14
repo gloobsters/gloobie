@@ -8,8 +8,8 @@ pub fn SimpleKey(comptime Child: type) type {
 
         const Self = @This();
 
-        pub fn eql(self: Self, other: Self) bool {
-            return self.value == other.value;
+        pub fn compare(self: Self, other: Self) std.math.Order {
+            return if (self.value == other.value) .eq else .lt;
         }
     };
 }
@@ -21,16 +21,20 @@ pub fn SizedKey(comptime Child: type) type {
 
         const Self = @This();
 
-        pub fn eql(self: Self, other: Self) bool {
-            return self.value == other.value;
-        }
+        pub fn compare(self: Self, other: Self) std.math.Order {
+            if (self.size > other.size) {
+                return .lt; // less than means it won't fit
+            }
 
-        pub fn fits(self: Self, other: Self, smallest_size: usize) bool {
-            return self.size >= other.size and self.size < smallest_size;
-        }
+            if (self.size == other.size) {
+                return .eq; // equals means it's an exact match
+            }
 
-        pub fn exactMatch(self: Self, other: Self) bool {
-            return self.size == other.size;
+            if (self.size < other.size) {
+                return .gt; // greater than means it's a match, but not a perfect match
+            }
+
+            unreachable;
         }
     };
 }
@@ -38,27 +42,25 @@ pub fn SizedKey(comptime Child: type) type {
 pub const StringKey = struct {
     value: []const u8,
 
-    pub fn eql(self: StringKey, other: StringKey) bool {
-        return std.mem.eql(u8, self.value, other.value);
+    pub fn compare(self: StringKey, other: StringKey) std.math.Order {
+        return if (std.mem.eql(u8, self.value, other.value)) .eq else .lt;
     }
 };
 
-pub fn FrameReferencedResourcePool(comptime Context: type, comptime PoolKey: type, comptime Value: type, comptime frames_to_keep_entry: comptime_int) type {
+pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, comptime Value: type, comptime create_callback: anytype, comptime release_callback: anytype, comptime frames_to_keep_entry: comptime_int) type {
     // errors to make this very clear on what to do
     comptime {
-        if (std.meta.activeTag(@typeInfo(PoolKey)) != .@"struct")
+        if (std.meta.activeTag(@typeInfo(Key)) != .@"struct")
             @compileError("Key type must be a struct. There are examples of key types in this source file.");
 
-        if (!@hasDecl(PoolKey, "eql"))
+        if (!@hasDecl(Key, "compare"))
             @compileError("Key type is missing an 'eql' function. There are examples of key types in this source file.");
 
-        if (!@hasField(PoolKey, "value"))
+        if (!@hasField(Key, "value"))
             @compileError("Key type is missing the 'value' field. There are examples of key types in this source file.");
     }
 
     return struct {
-        pub const Key = PoolKey;
-
         pub const Entry = struct {
             frames_since_usage: u32,
             value: Value,
@@ -74,16 +76,11 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime PoolKey: typ
         entries: std.ArrayListUnmanaged(Entry),
         context: Context,
 
-        create_callback: CreateCallback,
-        release_callback: ReleaseCallback,
-
-        pub fn init(context: Context, comptime create_callback: CreateCallback, comptime release_callback: ReleaseCallback) Self {
+        pub fn init(context: Context) Self {
             return .{
                 .lock = .{},
                 .entries = .empty,
                 .context = context,
-                .create_callback = create_callback,
-                .release_callback = release_callback,
             };
         }
 
@@ -97,31 +94,25 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime PoolKey: typ
             var smallest_size: usize = none_found;
 
             for (self.entries.items, 0..) |entry, i| {
-                if (entry.key.eql(key)) {
-                    if (@hasDecl(Key, "fits")) {
-                        if (!entry.key.fits(key, smallest_size))
-                            continue;
+                const comparison = entry.key.compare(key);
 
-                        smallest_size = entry.key.size;
-                    }
+                if (comparison == .lt)
+                    continue;
 
+                if (comparison != .gt) {
                     smallest_index = i;
-
-                    if (@hasDecl(Key, "exactMatch")) {
-                        // we found one that is the smallest possible size, perfect fit!
-                        if (entry.key.exactMatch(key)) {
-                            break;
-                        }
-                    }
+                    if (@hasField(Key, "size"))
+                        smallest_size = entry.key.size;
                 }
+
+                if (comparison == .eq)
+                    break;
             }
 
-            return if (smallest_index == none_found) create_entry: {
-                break :create_entry .{
-                    .key = key,
-                    .frames_since_usage = 0,
-                    .value = self.create_callback(self.context, key),
-                };
+            return if (smallest_index == none_found) .{
+                .key = key,
+                .frames_since_usage = 0,
+                .value = create_callback(self.context, key),
             } else self.entries.swapRemove(smallest_index);
         }
 
@@ -148,7 +139,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime PoolKey: typ
 
                 if (entry.frames_since_usage >= frames_to_keep_entry) {
                     log.debug("Releasing {s} because it's been unused for {d} frames", .{ @typeName(Value), frames_to_keep_entry });
-                    self.release_callback(self.context, entry.value);
+                    release_callback(self.context, entry.value);
                     _ = self.entries.swapRemove(i);
                 } else {
                     // if we *didnt* remove, add 1
@@ -163,7 +154,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime PoolKey: typ
 
             for (self.entries.items) |entry| {
                 log.debug("Releasing {s}", .{@typeName(Value)});
-                self.release_callback(self.context, entry.value);
+                release_callback(self.context, entry.value);
             }
 
             self.entries.deinit(gpa);

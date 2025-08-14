@@ -9,9 +9,16 @@ const pooling = @import("pooling.zig");
 
 const log = std.log.scoped(.graphics);
 
-pub const TransferBufferPool = pooling.FrameReferencedResourcePool(gpu.Device, pooling.SizedKey(gpu.TransferBufferUsage), gpu.TransferBuffer, 120);
+pub const TransferBufferPool = pooling.FrameReferencedResourcePool(
+    gpu.Device,
+    pooling.SizedKey(gpu.TransferBufferUsage),
+    gpu.TransferBuffer,
+    createTransferBuffer,
+    releaseTransferBuffer,
+    120,
+);
 
-fn createTransferBuffer(device: gpu.Device, key: TransferBufferPool.Key) gpu.TransferBuffer {
+fn createTransferBuffer(device: gpu.Device, key: pooling.SizedKey(gpu.TransferBufferUsage)) gpu.TransferBuffer {
     var buffer_name_buf: [64]u8 = undefined;
     // SAFETY: it's big enough
     const buffer_name = std.fmt.bufPrintZ(&buffer_name_buf, "Pooled Transfer Buffer (size {d})", .{key.size}) catch unreachable;
@@ -28,10 +35,6 @@ fn createTransferBuffer(device: gpu.Device, key: TransferBufferPool.Key) gpu.Tra
 
 fn releaseTransferBuffer(device: gpu.Device, buffer: gpu.TransferBuffer) void {
     device.releaseTransferBuffer(buffer);
-}
-
-pub fn initTransferBufferPool(device: gpu.Device) TransferBufferPool {
-    return .init(device, createTransferBuffer, releaseTransferBuffer);
 }
 
 pub fn FenceHandler(comptime ContextType: type, comptime func: anytype, comptime deinit_func: anytype, comptime type_name: [:0]const u8) type {
