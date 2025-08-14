@@ -454,16 +454,16 @@ pub fn setData2d(
 
     const copy_pass = try frame_context.getSharedCopyPass();
 
-    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(total_memory_needed, .upload);
+    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{ .size = total_memory_needed, .value = .upload });
     {
         errdefer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
 
         {
             const transfer_buffer_memory = try frame_context.device.mapTransferBuffer(
-                transfer_buffer_entry.transfer_buffer,
+                transfer_buffer_entry.value,
                 true,
             );
-            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
+            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
 
             var write_ptr = transfer_buffer_memory;
             for (data.mipStarts, data.mipMapSizes) |mip_start_num, mip_pixel_size| {
@@ -502,7 +502,7 @@ pub fn setData2d(
                 .offset = read_offset,
                 .pixels_per_row = aligned_pixel_size[0],
                 .rows_per_layer = aligned_pixel_size[1],
-                .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+                .transfer_buffer = transfer_buffer_entry.value,
             }, .{
                 .depth = 1,
                 .width = destination_width,
@@ -576,16 +576,16 @@ pub fn setData3d(
 
     const copy_pass = try frame_context.getSharedCopyPass();
 
-    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(memory_needed, .upload);
+    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{ .size = memory_needed, .value = .upload });
     {
         errdefer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
 
         {
             const transfer_buffer_memory = try frame_context.device.mapTransferBuffer(
-                transfer_buffer_entry.transfer_buffer,
+                transfer_buffer_entry.value,
                 true,
             );
-            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
+            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
 
             @memcpy(transfer_buffer_memory, data_slice.data[0..memory_needed]);
         }
@@ -596,7 +596,7 @@ pub fn setData3d(
             .offset = 0,
             .pixels_per_row = aligned_pixel_size[0],
             .rows_per_layer = aligned_pixel_size[1],
-            .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+            .transfer_buffer = transfer_buffer_entry.value,
         }, .{
             .texture = graphics_data.texture,
             .width = graphics_data.width,
@@ -661,16 +661,16 @@ pub fn setDataCubemap(
 
     const copy_pass = try frame_context.getSharedCopyPass();
 
-    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(total_memory_needed, .upload);
+    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{ .size = total_memory_needed, .value = .upload });
     {
         errdefer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
 
         {
             const transfer_buffer_memory = try frame_context.device.mapTransferBuffer(
-                transfer_buffer_entry.transfer_buffer,
+                transfer_buffer_entry.value,
                 true,
             );
-            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
+            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
 
             var write_ptr = transfer_buffer_memory;
 
@@ -740,7 +740,7 @@ pub fn setDataCubemap(
                     .offset = read_offset,
                     .pixels_per_row = mipmap_pixel_size[0],
                     .rows_per_layer = mipmap_pixel_size[1],
-                    .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+                    .transfer_buffer = transfer_buffer_entry.value,
                 }, .{
                     .depth = 1,
                     .width = @intCast(destination_width),

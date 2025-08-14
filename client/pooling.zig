@@ -43,25 +43,26 @@ pub const StringKey = struct {
     }
 };
 
-pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, comptime Value: type, comptime frames_to_keep_entry: comptime_int) type {
+pub fn FrameReferencedResourcePool(comptime Context: type, comptime PoolKey: type, comptime Value: type, comptime frames_to_keep_entry: comptime_int) type {
     // errors to make this very clear on what to do
     comptime {
-        if (std.meta.activeTag(@typeInfo(Key)) != .@"struct")
+        if (std.meta.activeTag(@typeInfo(PoolKey)) != .@"struct")
             @compileError("Key type must be a struct. There are examples of key types in this source file.");
 
-        if (!@hasDecl(Key, "eql"))
+        if (!@hasDecl(PoolKey, "eql"))
             @compileError("Key type is missing an 'eql' function. There are examples of key types in this source file.");
 
-        if (!@hasField(Key, "value"))
+        if (!@hasField(PoolKey, "value"))
             @compileError("Key type is missing the 'value' field. There are examples of key types in this source file.");
     }
 
     return struct {
+        pub const Key = PoolKey;
+
         pub const Entry = struct {
             frames_since_usage: u32,
             value: Value,
             key: Key,
-            size: u32,
         };
 
         const Self = @This();
@@ -70,15 +71,16 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
 
         lock: std.Thread.Mutex,
         // FIXME: this should be a doubly linked list for performance sake
-        buffers: std.ArrayListUnmanaged(Entry),
+        entries: std.ArrayListUnmanaged(Entry),
         context: Context,
+
         create_callback: CreateCallback,
         release_callback: ReleaseCallback,
 
-        pub fn init(context: Context, create_callback: CreateCallback, release_callback: ReleaseCallback) Self {
+        pub fn init(context: Context, comptime create_callback: CreateCallback, comptime release_callback: ReleaseCallback) Self {
             return .{
                 .lock = .{},
-                .buffers = .empty,
+                .entries = .empty,
                 .context = context,
                 .create_callback = create_callback,
                 .release_callback = release_callback,
@@ -94,20 +96,20 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             var smallest_index: usize = none_found;
             var smallest_size: usize = none_found;
 
-            for (self.buffers.items, 0..) |entry, i| {
+            for (self.entries.items, 0..) |entry, i| {
                 if (entry.key.eql(key)) {
                     if (@hasDecl(Key, "fits")) {
                         if (!entry.key.fits(key, smallest_size))
                             continue;
 
-                        smallest_size = entry.size;
+                        smallest_size = entry.key.size;
                     }
 
                     smallest_index = i;
 
                     if (@hasDecl(Key, "exactMatch")) {
                         // we found one that is the smallest possible size, perfect fit!
-                        if (entry.exactMatch(key)) {
+                        if (entry.key.exactMatch(key)) {
                             break;
                         }
                     }
@@ -120,7 +122,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
                     .frames_since_usage = 0,
                     .value = self.create_callback(self.context, key),
                 };
-            } else self.buffers.swapRemove(smallest_index);
+            } else self.entries.swapRemove(smallest_index);
         }
 
         pub fn release(self: *Self, gpa: std.mem.Allocator, entry: Entry) std.mem.Allocator.Error!void {
@@ -130,8 +132,8 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             var entry_to_append = entry;
 
             entry_to_append.frames_since_usage = 0;
-            try self.buffers.append(gpa, entry_to_append);
-            log.debug("Released buffer {*} back into pool", .{entry.transfer_buffer.value});
+            try self.entries.append(gpa, entry_to_append);
+            log.debug("Released entry {s} back into pool", .{@typeName(Value)});
         }
 
         pub fn frameTick(self: *Self) void {
@@ -139,15 +141,15 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             defer self.lock.unlock();
 
             var i: usize = 0;
-            while (i < self.buffers.items.len) {
-                const entry = &self.buffers.items[i];
+            while (i < self.entries.items.len) {
+                const entry = &self.entries.items[i];
 
                 entry.frames_since_usage += 1;
 
                 if (entry.frames_since_usage >= frames_to_keep_entry) {
                     log.debug("Releasing {s} because it's been unused for {d} frames", .{ @typeName(Value), frames_to_keep_entry });
                     self.release_callback(self.context, entry.value);
-                    _ = self.buffers.swapRemove(i);
+                    _ = self.entries.swapRemove(i);
                 } else {
                     // if we *didnt* remove, add 1
                     i += 1;
@@ -159,12 +161,12 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             self.lock.lock();
             defer self.lock.unlock();
 
-            for (self.buffers.items) |entry| {
+            for (self.entries.items) |entry| {
                 log.debug("Releasing {s}", .{@typeName(Value)});
                 self.release_callback(self.context, entry.value);
             }
 
-            self.buffers.deinit(gpa);
+            self.entries.deinit(gpa);
         }
     };
 }

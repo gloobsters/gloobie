@@ -295,8 +295,8 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .device = gpu_device,
             .sampler_supported_formats = sampler_supported_formats,
             .cubemap_supported_formats = cubemap_supported_formats,
-            .primary_transfer_buffer_pool = .init(gpu_device),
-            .background_transfer_buffer_pool = .init(gpu_device),
+            .primary_transfer_buffer_pool = graphics.initTransferBufferPool(gpu_device),
+            .background_transfer_buffer_pool = graphics.initTransferBufferPool(gpu_device),
             .fence_manager = .init(gpu_device),
         };
     };

@@ -128,7 +128,7 @@ pub fn setData(
 
     const vertex_buffer_byte_size = mesh_layout.index_buffer_start;
 
-    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(@intCast(data.len), .download);
+    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{ .size = data.len, .value = .download });
     defer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM while releasing transfer buffer pool entry");
 
     const vertex_buffer = create_vertex_buffer: {
@@ -177,8 +177,8 @@ pub fn setData(
     errdefer frame_context.device.releaseBuffer(index_buffer);
 
     {
-        const write_ptr = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.transfer_buffer, true);
-        defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.transfer_buffer);
+        const write_ptr = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.value, true);
+        defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
 
         @memcpy(write_ptr, data);
     }
@@ -187,7 +187,7 @@ pub fn setData(
 
     copy_pass.uploadToBuffer(.{
         .offset = 0,
-        .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+        .transfer_buffer = transfer_buffer_entry.value,
     }, .{
         .buffer = vertex_buffer,
         .offset = 0,
@@ -196,7 +196,7 @@ pub fn setData(
 
     copy_pass.uploadToBuffer(.{
         .offset = mesh_layout.index_buffer_start,
-        .transfer_buffer = transfer_buffer_entry.transfer_buffer,
+        .transfer_buffer = transfer_buffer_entry.value,
     }, .{
         .buffer = index_buffer,
         .offset = 0,
