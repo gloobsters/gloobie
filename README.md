@@ -12,6 +12,28 @@ This project is still in it's early-early stages, so we are not ready to take on
 
 If you're interested in contributing, please get in touch and we'll let you know when we're ready for it, or if there's certain things outside of the core projects that you can help with!
 
+## Building
+
+We target a version of Zig that isn't currently available in a formal release (otherwise known as a master build), since otherwise we would have to rewrite code as Zig isn't a stable language. You can see the version of Zig we used listed at the top of the [`build.zig.zon`](https://github.com/gloobsters/gloobie/blob/mommy/build.zig.zon) file.
+
+We recommend the [`zigup`](https://github.com/marler8997/zigup) tool for downloading Zig master builds. On Arch Linux it's provided via the `zigup-bin` package, but for other operating systems like Windows it's available as a [GitHub Release](https://github.com/marler8997/zigup/releases/latest).
+
+To install the correct version of Zig, you can run it like so:
+
+```
+// using the version of Zig from build.zig.zon...
+zigup fetch [version]
+zigup default [version]
+```
+
+Once installed, you can build the project by running `zig build`. By default, this will build a `Debug` build for your current platform. You can override this with `-Doptimize=` and `-Dtarget=` flags respectively.
+
+## Running
+
+We recommend copying the built output in `zig-out/bin` directly to Resonite's folder, and then running it from there. This will use our custom bootstrapper to launch the game without having to replace the renderer.
+
+You can also replace `Renderer/Renderite.Renderer.exe` with Gloobie and it will work, but this isn't recommended and won't work on Linux.
+
 ## Sub-projects
 
 - `client/`: The main client.
