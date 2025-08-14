@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const build_options = @import("options").build_options;
+
 const log = std.log.scoped(.pooling);
 
 pub fn SimpleKey(comptime Child: type) type {
@@ -121,7 +123,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
 
             entry_to_append.frames_since_usage = 0;
             try self.entries.append(gpa, entry_to_append);
-            log.debug("Released entry {s} back into pool", .{@typeName(Value)});
+            if (build_options.noisy_logging) log.debug("Released entry {s} back into pool", .{@typeName(Value)});
         }
 
         pub fn frameTick(self: *Self) void {
