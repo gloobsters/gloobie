@@ -5,122 +5,37 @@ const gpu = @import("gpu");
 const App = @import("App.zig");
 const Assets = @import("Assets.zig");
 const Texture = @import("Texture.zig");
+const pooling = @import("pooling.zig");
 
 const log = std.log.scoped(.graphics);
 
-pub const TransferBufferPool = struct {
-    // The amount of frames to keep an entry before releasing it
-    const frames_to_keep_entry = 120;
+pub const TransferBufferPool = pooling.FrameReferencedResourcePool(
+    gpu.Device,
+    pooling.SizedKey(gpu.TransferBufferUsage),
+    gpu.TransferBuffer,
+    createTransferBuffer,
+    releaseTransferBuffer,
+    120,
+);
 
-    pub const Entry = struct {
-        frames_since_usage: u32,
-        transfer_buffer: gpu.TransferBuffer,
-        usage: gpu.TransferBufferUsage,
-        size: u32,
-    };
+fn createTransferBuffer(device: gpu.Device, key: pooling.SizedKey(gpu.TransferBufferUsage)) !gpu.TransferBuffer {
+    var buffer_name_buf: [64]u8 = undefined;
+    // SAFETY: it's big enough
+    const buffer_name = std.fmt.bufPrintZ(&buffer_name_buf, "Pooled Transfer Buffer (size {d})", .{key.size}) catch unreachable;
 
-    lock: std.Thread.Mutex,
-    // FIXME: this should be a doubly linked list for performance sake
-    buffers: std.ArrayListUnmanaged(Entry),
-    device: gpu.Device,
+    const transfer_buffer = try device.createTransferBuffer(.{
+        .usage = key.value,
+        .size = @intCast(key.size),
+        .props = .{ .name = buffer_name },
+    });
+    errdefer device.releaseTransferBuffer(transfer_buffer);
 
-    pub fn init(device: gpu.Device) TransferBufferPool {
-        return .{
-            .lock = .{},
-            .buffers = .empty,
-            .device = device,
-        };
-    }
+    return transfer_buffer;
+}
 
-    /// Acquires the smallest possible transfer buffer that fits into.
-    ///
-    /// You must cycle the returned transfer buffer!!!
-    pub fn acquire(self: *TransferBufferPool, size: u32, usage: gpu.TransferBufferUsage) !Entry {
-        self.lock.lock();
-        defer self.lock.unlock();
-
-        const none_found = std.math.maxInt(usize);
-
-        var smallest_index: usize = none_found;
-        var smallest_size: usize = none_found;
-        // find the first buffer which is small enough
-        for (self.buffers.items, 0..) |entry, i| {
-            if (entry.size >= size and entry.size < smallest_size and entry.usage == usage) {
-                smallest_index = i;
-                smallest_size = entry.size;
-
-                // we found one that is the smallest possible size, perfect fit!
-                if (entry.size == size) {
-                    break;
-                }
-            }
-        }
-
-        return if (smallest_index == none_found) create_entry: {
-            var buffer_name_buf: [64]u8 = undefined;
-            // SAFETY: it's big enough
-            const buffer_name = std.fmt.bufPrintZ(&buffer_name_buf, "Pooled Transfer Buffer (size {d})", .{size}) catch unreachable;
-
-            const transfer_buffer = try self.device.createTransferBuffer(.{
-                .usage = usage,
-                .size = size,
-                .props = .{ .name = buffer_name },
-            });
-            errdefer self.device.releaseTransferBuffer(transfer_buffer);
-
-            break :create_entry .{
-                .size = size,
-                .usage = usage,
-                .frames_since_usage = 0,
-                .transfer_buffer = transfer_buffer,
-            };
-        } else self.buffers.swapRemove(smallest_index);
-    }
-
-    pub fn release(self: *TransferBufferPool, gpa: std.mem.Allocator, entry: Entry) std.mem.Allocator.Error!void {
-        self.lock.lock();
-        defer self.lock.unlock();
-
-        var entry_to_append = entry;
-
-        entry_to_append.frames_since_usage = 0;
-        try self.buffers.append(gpa, entry_to_append);
-        log.debug("Released buffer {*} back into pool", .{entry.transfer_buffer.value});
-    }
-
-    pub fn frameTick(self: *TransferBufferPool) void {
-        self.lock.lock();
-        defer self.lock.unlock();
-
-        var i: usize = 0;
-        while (i < self.buffers.items.len) {
-            const entry = &self.buffers.items[i];
-
-            entry.frames_since_usage += 1;
-
-            if (entry.frames_since_usage >= frames_to_keep_entry) {
-                log.debug("Releasing transfer buffer {*} because it's been unused for {d} frames", .{ entry.transfer_buffer.value, frames_to_keep_entry });
-                self.device.releaseTransferBuffer(entry.transfer_buffer);
-                _ = self.buffers.swapRemove(i);
-            } else {
-                // if we *didnt* remove, add 1
-                i += 1;
-            }
-        }
-    }
-
-    pub fn deinit(self: *TransferBufferPool, gpa: std.mem.Allocator) void {
-        self.lock.lock();
-        defer self.lock.unlock();
-
-        for (self.buffers.items) |entry| {
-            log.debug("Releasing transfer buffer {*}", .{entry.transfer_buffer.value});
-            self.device.releaseTransferBuffer(entry.transfer_buffer);
-        }
-
-        self.buffers.deinit(gpa);
-    }
-};
+fn releaseTransferBuffer(device: gpu.Device, buffer: gpu.TransferBuffer) void {
+    device.releaseTransferBuffer(buffer);
+}
 
 pub fn FenceHandler(comptime ContextType: type, comptime func: anytype, comptime deinit_func: anytype, comptime type_name: [:0]const u8) type {
     return struct {

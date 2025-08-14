@@ -41,16 +41,14 @@ const GraphicsData = struct {
     sampler_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
     cubemap_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
 
-    primary_transfer_buffer_pool: graphics.TransferBufferPool,
-    background_transfer_buffer_pool: graphics.TransferBufferPool,
+    transfer_buffer_pool: graphics.TransferBufferPool,
 
     fence_manager: FenceManager,
 
     pub fn deinit(self: *GraphicsData, gpa: std.mem.Allocator) void {
         self.fence_manager.deinit(gpa);
 
-        self.primary_transfer_buffer_pool.deinit(gpa);
-        self.background_transfer_buffer_pool.deinit(gpa);
+        self.transfer_buffer_pool.deinit(gpa);
 
         self.device.deinit();
     }
@@ -295,8 +293,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .device = gpu_device,
             .sampler_supported_formats = sampler_supported_formats,
             .cubemap_supported_formats = cubemap_supported_formats,
-            .primary_transfer_buffer_pool = .init(gpu_device),
-            .background_transfer_buffer_pool = .init(gpu_device),
+            .transfer_buffer_pool = .init(gpu_device),
             .fence_manager = .init(gpu_device),
         };
     };
@@ -679,7 +676,7 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
             // FIXME: push resource uploads onto another thread!
             var frame_context: graphics.FrameContext = .init(
                 self.graphics_data.device,
-                &self.graphics_data.background_transfer_buffer_pool,
+                &self.graphics_data.transfer_buffer_pool,
                 &self.assets,
                 &self.graphics_data.fence_manager,
                 &self.messaging.host,
@@ -1012,7 +1009,7 @@ pub fn frameLoop(self: *App) !void {
 
             var frame_context: graphics.FrameContext = .initMain(
                 self.graphics_data.device,
-                &self.graphics_data.primary_transfer_buffer_pool,
+                &self.graphics_data.transfer_buffer_pool,
                 &self.assets,
                 command_buffer,
                 &self.graphics_data.fence_manager,
@@ -1116,8 +1113,6 @@ pub fn frameLoop(self: *App) !void {
             try command_buffer.submit();
         }
 
-        // tick the buffer pools
-        self.graphics_data.primary_transfer_buffer_pool.frameTick();
-        self.graphics_data.background_transfer_buffer_pool.frameTick();
+        self.graphics_data.transfer_buffer_pool.frameTick();
     }
 }
