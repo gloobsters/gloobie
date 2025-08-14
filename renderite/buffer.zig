@@ -30,6 +30,10 @@ pub const SharedMemoryBufferDescriptor = extern struct {
             .length = try ipc.readInt(i32),
         };
     }
+
+    pub fn compare(self: SharedMemoryBufferDescriptor, other: SharedMemoryBufferDescriptor) std.math.Order {
+        return if (self.buffer_id == other.buffer_id) .eq else .lt;
+    }
 };
 
 comptime {

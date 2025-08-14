@@ -6,20 +6,23 @@ const gpu = @import("gpu");
 const imgui = @import("imgui");
 const mailbox = @import("mailbox");
 const math = @import("math");
-const renderite = @import("renderite");
-const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
-const InitSettings = renderite.InitSettings;
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr_t = @import("xr");
 
 const Assets = @import("Assets.zig");
-const graphics = @import("graphics.zig");
 const ImGuiManager = @import("gui/ImGuiManager.zig");
 const Input = @import("Input.zig");
 const PerformanceMonitor = @import("PerformanceMonitor.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
 const Texture = @import("Texture.zig");
+
+const renderite = @import("renderite");
+const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
+const InitSettings = renderite.InitSettings;
+const Pooling = renderite.Pooling;
+
+const graphics = @import("graphics.zig");
 
 pub const MessagingHost = renderite.MessagingHost(*App);
 const log = std.log.scoped(.app);

@@ -5,20 +5,20 @@ const gpu = @import("gpu");
 const App = @import("App.zig");
 const Assets = @import("Assets.zig");
 const Texture = @import("Texture.zig");
-const pooling = @import("pooling.zig");
+const Pooling = @import("renderite").Pooling;
 
 const log = std.log.scoped(.graphics);
 
-pub const TransferBufferPool = pooling.FrameReferencedResourcePool(
+pub const TransferBufferPool = Pooling.FrameReferencedResourcePool(
     gpu.Device,
-    pooling.SizedKey(gpu.TransferBufferUsage),
+    Pooling.SizedKey(gpu.TransferBufferUsage),
     gpu.TransferBuffer,
     createTransferBuffer,
     releaseTransferBuffer,
     120,
 );
 
-fn createTransferBuffer(device: gpu.Device, key: pooling.SizedKey(gpu.TransferBufferUsage)) !gpu.TransferBuffer {
+fn createTransferBuffer(device: gpu.Device, key: Pooling.SizedKey(gpu.TransferBufferUsage)) !gpu.TransferBuffer {
     var buffer_name_buf: [64]u8 = undefined;
     // SAFETY: it's big enough
     const buffer_name = std.fmt.bufPrintZ(&buffer_name_buf, "Pooled Transfer Buffer (size {d})", .{key.size}) catch unreachable;

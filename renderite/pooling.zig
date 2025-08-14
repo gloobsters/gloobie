@@ -9,6 +9,12 @@ pub fn SimpleKey(comptime Child: type) type {
         const Self = @This();
 
         pub fn compare(self: Self, other: Self) std.math.Order {
+            if (@hasDecl(Child, "compare"))
+                return self.value.compare(other.value);
+
+            if (@hasDecl(Child, "eql"))
+                return if (self.value.eql(other.value)) .eq else .lt;
+
             return if (self.value == other.value) .eq else .lt;
         }
     };
