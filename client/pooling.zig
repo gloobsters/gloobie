@@ -50,14 +50,8 @@ pub const StringKey = struct {
 pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, comptime Value: type, comptime create_val: anytype, comptime release_val: anytype, comptime frames_to_keep_entry: comptime_int) type {
     // errors to make this very clear on what to do
     comptime {
-        if (std.meta.activeTag(@typeInfo(Key)) != .@"struct")
-            @compileError("Key type must be a struct. There are examples of key types in this source file.");
-
         if (!@hasDecl(Key, "compare"))
-            @compileError("Key type is missing an 'eql' function. There are examples of key types in this source file.");
-
-        if (!@hasField(Key, "value"))
-            @compileError("Key type is missing the 'value' field. There are examples of key types in this source file.");
+            @compileError("Key type is missing a 'compare' function. There are examples of key types in this source file.");
     }
 
     return struct {
@@ -88,30 +82,35 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
 
             const none_found = std.math.maxInt(usize);
 
-            var smallest_index: usize = none_found;
-            var smallest_size: usize = none_found;
+            var best_index: usize = none_found;
+            var best_size: usize = none_found;
 
             for (self.entries.items, 0..) |entry, i| {
-                const comparison = entry.key.compare(key);
-
-                if (comparison == .lt)
-                    continue;
-
-                if (comparison != .gt) {
-                    smallest_index = i;
-                    if (@hasField(Key, "size"))
-                        smallest_size = entry.key.size;
+                switch (entry.key.compare(key)) {
+                    .lt => continue,
+                    .gt => {
+                        if (@hasField(Key, "size")) {
+                            // If this is sized, only update the best index if the new entry's size is less than the current best size
+                            if (entry.key.size < best_size) {
+                                best_index = i;
+                                best_size = entry.key.size;
+                            }
+                        } else {
+                            best_index = i;
+                        }
+                    },
+                    .eq => {
+                        best_index = i;
+                        break;
+                    },
                 }
-
-                if (comparison == .eq)
-                    break;
             }
 
-            return if (smallest_index == none_found) .{
+            return if (best_index == none_found) .{
                 .key = key,
                 .frames_since_usage = 0,
                 .value = try create_val(self.context, key),
-            } else self.entries.swapRemove(smallest_index);
+            } else self.entries.swapRemove(best_index);
         }
 
         pub fn release(self: *Self, gpa: std.mem.Allocator, entry: Entry) std.mem.Allocator.Error!void {
