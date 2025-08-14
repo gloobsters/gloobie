@@ -86,7 +86,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             var best_size: usize = none_found;
 
             for (self.entries.items, 0..) |entry, i| {
-                switch (entry.key.compare(key)) {
+                switch (key.compare(entry.key)) {
                     .lt => continue,
                     .gt => {
                         if (@hasField(Key, "size")) {
