@@ -70,7 +70,7 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
     self.properties = loadProperties(update);
 
     if (update.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
-        if (try accessor.getOrCreate(renderite.Shared.ReflectionProbeSH2Task, gpa, sh2_tasks_descriptor.tasks)) |sh2_tasks| {
+        if (try accessor.getOrCreate(renderite.Shared.ReflectionProbeSH2Task, sh2_tasks_descriptor.tasks)) |sh2_tasks| {
             defer accessor.release(gpa, sh2_tasks);
 
             for (sh2_tasks.data) |*task| {
