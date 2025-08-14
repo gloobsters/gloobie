@@ -7,6 +7,8 @@ const serialization = @import("serialization.zig");
 const IpcSerializer = serialization.IpcSerializer;
 const IpcDeserializer = serialization.IpcDeserializer;
 
+const pooling = @import("pooling.zig");
+
 const log = std.log.scoped(.shmem);
 
 pub const SharedMemoryBufferDescriptor = extern struct {
@@ -55,44 +57,18 @@ pub const BufferId = enum(i32) {
 };
 
 pub const SharedMemoryAccessor = struct {
-    const Handle = struct {
-        references: std.atomic.Value(usize),
-        view: MemoryView,
-
-        pub fn deinit(self: Handle) void {
-            // SAFETY: nothing should have a reference on this by the time this is called!
-            std.debug.assert(self.references.raw == 0);
-
-            self.view.deinit();
-        }
-    };
+    const BufferKey = pooling.SimpleKey(SharedMemoryBufferDescriptor);
+    const Pool = pooling.FrameReferencedResourcePool([]const u8, BufferKey, MemoryView, createPoolValue, releasePoolValue, 120);
 
     pub fn Slice(comptime ChildType: type) type {
         return struct {
             buffer: BufferId,
             data: []align(1) ChildType,
-
-            const Self = @This();
-
-            pub fn release(self: Self, accessor: *SharedMemoryAccessor) void {
-                accessor.lock.lock();
-                defer accessor.lock.unlock();
-
-                // SAFETY: buffer should always exist at this point
-                const handle = accessor.handles.getPtr(self.buffer).?;
-
-                const previous_references = handle.references.fetchSub(1, .seq_cst);
-
-                // if the handle used to have 1 reference, and now has zero, we should de-init it.
-                if (previous_references == 1) {
-                    accessor.freeHandleLocked(self.buffer, handle);
-                }
-            }
+            entry: Pool.Entry,
         };
     }
 
-    lock: std.Thread.Mutex,
-    handles: std.AutoHashMapUnmanaged(BufferId, Handle),
+    pool: Pool,
     prefix: []const u8,
 
     pub fn init(gpa: std.mem.Allocator, prefix: []const u8) !SharedMemoryAccessor {
@@ -100,21 +76,16 @@ pub const SharedMemoryAccessor = struct {
         errdefer gpa.free(our_prefix);
 
         return .{
-            .handles = .empty,
             .prefix = our_prefix,
-            .lock = .{},
+            .pool = .init(our_prefix),
         };
     }
 
     pub fn getOrCreate(
         self: *SharedMemoryAccessor,
         comptime ChildType: type,
-        gpa: std.mem.Allocator,
         descriptor: SharedMemoryBufferDescriptor,
     ) !?Slice(ChildType) {
-        self.lock.lock();
-        defer self.lock.unlock();
-
         const buffer_id: BufferId = .from(descriptor.buffer_id);
 
         const offset: usize = @intCast(descriptor.offset);
@@ -123,55 +94,38 @@ pub const SharedMemoryAccessor = struct {
         if (length == 0)
             return null;
 
-        if (self.handles.getPtr(buffer_id)) |handle| {
-            // Increment the references
-            const previous_references = handle.references.fetchAdd(1, .seq_cst);
-            std.debug.assert(previous_references > 0);
-
-            return .{
-                .buffer = buffer_id,
-                .data = @ptrCast(handle.view.data[offset .. offset + length]),
-            };
-        }
-
-        var memory_view_buf: [std.fs.max_path_bytes]u8 = undefined;
-        const memory_view_name = std.fmt.bufPrintZ(&memory_view_buf, "{s}_{X}", .{ self.prefix, descriptor.buffer_id }) catch unreachable;
-
-        log.debug("Initializing shared memory view {s}", .{memory_view_name});
-
-        const view = try MemoryView.init(.{
-            .capacity = @intCast(descriptor.buffer_capacity),
-            .memory_view_name = memory_view_name,
-        });
-
-        const result = try self.handles.getOrPutValue(gpa, buffer_id, .{
-            .view = view,
-            .references = .init(1),
-        });
+        const entry = try self.pool.acquire(.{ .value = descriptor });
 
         return .{
             .buffer = buffer_id,
-            .data = @ptrCast(result.value_ptr.view.data[offset .. offset + length]),
+            .data = @ptrCast(entry.value.data[offset .. offset + length]),
+            .entry = entry,
         };
     }
 
-    fn freeHandleLocked(self: *SharedMemoryAccessor, buffer: BufferId, handle: *Handle) void {
-        handle.deinit();
+    fn createPoolValue(prefix: []const u8, key: BufferKey) !MemoryView {
+        var memory_view_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const memory_view_name = std.fmt.bufPrintZ(&memory_view_buf, "{s}_{X}", .{ prefix, key.value.buffer_id }) catch unreachable;
 
-        const was_present = self.handles.remove(buffer);
-        std.debug.assert(was_present);
+        log.debug("Initializing shared memory view {s}", .{memory_view_name});
 
-        var ctx: std.hash_map.AutoContext(BufferId) = .{};
-        self.handles.rehash(&ctx);
+        return try MemoryView.init(.{
+            .capacity = @intCast(key.value.buffer_capacity),
+            .memory_view_name = memory_view_name,
+        });
+    }
+
+    fn releasePoolValue(prefix: []const u8, view: MemoryView) void {
+        _ = prefix;
+        view.deinit();
+    }
+
+    pub fn release(self: *SharedMemoryAccessor, gpa: std.mem.Allocator, slice: anytype) void {
+        self.pool.release(gpa, slice.entry) catch @panic("OOM while memory view returning to pool");
     }
 
     pub fn deinit(self: *SharedMemoryAccessor, gpa: std.mem.Allocator) void {
-        var iter = self.handles.valueIterator();
-        while (iter.next()) |handle| {
-            handle.deinit();
-        }
-
-        self.handles.deinit(gpa);
+        self.pool.deinit(gpa);
 
         gpa.free(self.prefix);
     }

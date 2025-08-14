@@ -71,7 +71,7 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
 
     if (update.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
         if (try accessor.getOrCreate(renderite.Shared.ReflectionProbeSH2Task, gpa, sh2_tasks_descriptor.tasks)) |sh2_tasks| {
-            defer sh2_tasks.release(accessor);
+            defer accessor.release(gpa, sh2_tasks);
 
             for (sh2_tasks.data) |*task| {
                 task.result = .Failed;

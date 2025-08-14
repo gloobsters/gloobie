@@ -116,7 +116,7 @@ pub fn setData(
 
         return;
     };
-    defer slice.release(accessor);
+    defer accessor.release(gpa, slice);
 
     const data = slice.data;
 

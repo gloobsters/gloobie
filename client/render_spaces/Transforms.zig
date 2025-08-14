@@ -31,8 +31,7 @@ pub fn handleUpdate(
     update: renderite.Shared.TransformsUpdate,
 ) !void {
     if (try accessor.getOrCreate(i32, gpa, update.removals)) |removals| {
-        defer removals.release(accessor);
-
+        defer accessor.release(gpa, removals);
         for (removals.data) |removal| {
             if (removal < 0) {
                 break;
@@ -69,8 +68,7 @@ pub fn handleUpdate(
     }
 
     if (try accessor.getOrCreate(renderite.Shared.TransformParentUpdate, gpa, update.parentUpdates)) |parent_updates| {
-        defer parent_updates.release(accessor);
-
+        defer accessor.release(gpa, parent_updates);
         for (parent_updates.data) |parent_update| {
             if (parent_update.transformId < 0) {
                 break;
@@ -83,8 +81,7 @@ pub fn handleUpdate(
     }
 
     if (try accessor.getOrCreate(renderite.Shared.TransformPoseUpdate, gpa, update.poseUpdates)) |pose_updates| {
-        defer pose_updates.release(accessor);
-
+        defer accessor.release(gpa, pose_updates);
         for (pose_updates.data) |pose_update| {
             if (pose_update.transformId < 0) {
                 break;

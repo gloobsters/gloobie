@@ -424,7 +424,7 @@ pub fn setData2d(
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
     const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
-    defer data_slice.release(accessor);
+    defer accessor.release(gpa, data_slice);
 
     // std.debug.print("Texture2D upload details: {any}\n", .{data});
 
@@ -554,7 +554,7 @@ pub fn setData3d(
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
     const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
-    defer data_slice.release(accessor);
+    defer accessor.release(gpa, data_slice);
 
     // std.debug.print("Texture3D upload details: {any}\n", .{data});
 
@@ -633,7 +633,7 @@ pub fn setDataCubemap(
     accessor: *renderite.SharedMemoryAccessor,
 ) !void {
     const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
-    defer data_slice.release(accessor);
+    defer accessor.release(gpa, data_slice);
 
     // std.debug.print("Cubemap upload details: {any}\n", .{data});
 
