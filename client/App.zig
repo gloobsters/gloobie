@@ -534,6 +534,9 @@ fn handleRendererCommand(
             self.game.load_state.full_init = true;
             log.info("Engine is fully loaded!", .{});
         },
+        .KeepAlive => {
+            // do nothing
+        },
         .SetTexture2DProperties => |set_texture_2d_properties| {
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, frame_context, set_texture_2d_properties);
         },
@@ -761,11 +764,11 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
             if (render_space.updated) {
                 i += 1;
             } else {
+                render_space.deinit(self.gpa);
+
                 log.debug("Render space {d} removed", .{render_space.id.to()});
                 const removed = self.game.render_spaces.swapRemove(render_space.id);
                 std.debug.assert(removed);
-
-                render_space.deinit(self.gpa);
             }
         }
     }
