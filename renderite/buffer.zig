@@ -63,22 +63,29 @@ pub const SharedMemoryAccessor = struct {
         }
     };
 
-    pub const Slice = struct {
-        buffer: BufferId,
-        data: []u8,
+    pub fn Slice(comptime ChildType: type) type {
+        return struct {
+            buffer: BufferId,
+            data: []align(1) ChildType,
 
-        pub fn release(self: Slice, accessor: *SharedMemoryAccessor) void {
-            // SAFETY: buffer should always exist at this point
-            const handle = accessor.handles.getPtr(self.buffer).?;
+            const Self = @This();
 
-            const previous_references = handle.references.fetchSub(1, .seq_cst);
+            pub fn release(self: Self, accessor: *SharedMemoryAccessor) void {
+                accessor.lock.lock();
+                defer accessor.lock.unlock();
 
-            // if the handle used to have 1 reference, and now has zero, we should de-init it.
-            if (previous_references == 1) {
-                accessor.freeHandle(self.buffer, handle);
+                // SAFETY: buffer should always exist at this point
+                const handle = accessor.handles.getPtr(self.buffer).?;
+
+                const previous_references = handle.references.fetchSub(1, .seq_cst);
+
+                // if the handle used to have 1 reference, and now has zero, we should de-init it.
+                if (previous_references == 1) {
+                    accessor.freeHandleLocked(self.buffer, handle);
+                }
             }
-        }
-    };
+        };
+    }
 
     lock: std.Thread.Mutex,
     handles: std.AutoHashMapUnmanaged(BufferId, Handle),
@@ -95,7 +102,12 @@ pub const SharedMemoryAccessor = struct {
         };
     }
 
-    pub fn getOrCreate(self: *SharedMemoryAccessor, gpa: std.mem.Allocator, descriptor: SharedMemoryBufferDescriptor) !?Slice {
+    pub fn getOrCreate(
+        self: *SharedMemoryAccessor,
+        comptime ChildType: type,
+        gpa: std.mem.Allocator,
+        descriptor: SharedMemoryBufferDescriptor,
+    ) !?Slice(ChildType) {
         self.lock.lock();
         defer self.lock.unlock();
 
@@ -114,7 +126,7 @@ pub const SharedMemoryAccessor = struct {
 
             return .{
                 .buffer = buffer_id,
-                .data = handle.view.data[offset .. offset + length],
+                .data = @ptrCast(handle.view.data[offset .. offset + length]),
             };
         }
 
@@ -135,14 +147,11 @@ pub const SharedMemoryAccessor = struct {
 
         return .{
             .buffer = buffer_id,
-            .data = result.value_ptr.view.data[offset .. offset + length],
+            .data = @ptrCast(result.value_ptr.view.data[offset .. offset + length]),
         };
     }
 
-    fn freeHandle(self: *SharedMemoryAccessor, buffer: BufferId, handle: *Handle) void {
-        self.lock.lock();
-        defer self.lock.unlock();
-
+    fn freeHandleLocked(self: *SharedMemoryAccessor, buffer: BufferId, handle: *Handle) void {
         handle.deinit();
 
         const was_present = self.handles.remove(buffer);

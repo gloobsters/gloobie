@@ -97,7 +97,7 @@ pub fn setData(
 ) !void {
     // log.debug("Got mesh upload {any}", .{data_request});
 
-    const slice = try accessor.getOrCreate(gpa, data_request.buffer) orelse {
+    const slice = try accessor.getOrCreate(u8, gpa, data_request.buffer) orelse {
         const vertex_attributes = try convertVertexAttributes(gpa, data_request.vertexAttributes);
         errdefer gpa.free(vertex_attributes);
 

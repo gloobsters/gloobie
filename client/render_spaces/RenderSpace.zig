@@ -2,20 +2,11 @@ const std = @import("std");
 
 const renderite = @import("renderite");
 
+const Transforms = @import("Transforms.zig");
+
 const RenderSpace = @This();
 
-pub const Id = enum(i32) {
-    invalid = std.math.maxInt(i32),
-    _,
-
-    pub fn from(id: i32) Id {
-        return @enumFromInt(id);
-    }
-
-    pub fn to(id: Id) i32 {
-        return @intFromEnum(id);
-    }
-};
+pub const Id = @import("../id.zig").Id(i32, struct {});
 
 pub const Properties = struct {
     active: bool,
@@ -26,9 +17,20 @@ pub const Properties = struct {
     overridden_view_transform: ?renderite.Shared.RenderTransform,
 };
 
+// TODO: make this struct zero-width when ImGui is disabled
+const ImGuiData = struct {
+    render_window: bool,
+
+    pub const default: ImGuiData = .{
+        .render_window = true,
+    };
+};
+
 id: Id,
 properties: Properties,
 updated: bool,
+transforms: Transforms,
+imgui_data: ImGuiData,
 
 pub fn init(gpa: std.mem.Allocator, update: renderite.Shared.RenderSpaceUpdate) !RenderSpace {
     _ = gpa; // autofix
@@ -37,6 +39,8 @@ pub fn init(gpa: std.mem.Allocator, update: renderite.Shared.RenderSpaceUpdate) 
         .id = .from(update.id),
         .properties = loadProperties(update),
         .updated = false,
+        .transforms = .init(),
+        .imgui_data = .default,
     };
 
     return render_space;
@@ -66,18 +70,20 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
     self.properties = loadProperties(update);
 
     if (update.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
-        if (try accessor.getOrCreate(gpa, sh2_tasks_descriptor.tasks)) |sh2_tasks_slice| {
-            defer sh2_tasks_slice.release(accessor);
+        if (try accessor.getOrCreate(renderite.Shared.ReflectionProbeSH2Task, gpa, sh2_tasks_descriptor.tasks)) |sh2_tasks| {
+            defer sh2_tasks.release(accessor);
 
-            // Make all reflection tasks fail
-            const sh2_tasks: []align(1) renderite.Shared.ReflectionProbeSH2Task = @ptrCast(sh2_tasks_slice.data);
-            for (sh2_tasks) |*task| {
+            for (sh2_tasks.data) |*task| {
                 task.result = .Failed;
             }
         }
     }
+
+    if (update.transformsUpdate) |transforms_update| {
+        try self.transforms.handleUpdate(gpa, accessor, transforms_update);
+    }
 }
 
-pub fn deinit(self: RenderSpace) void {
-    _ = self; // autofix
+pub fn deinit(self: *RenderSpace, gpa: std.mem.Allocator) void {
+    self.transforms.deinit(gpa);
 }
