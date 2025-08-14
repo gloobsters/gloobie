@@ -15,8 +15,11 @@ jobs:
           version: 0.15.0-dev.1283+1fcaf90dd
           cache-key: ${{ matrix.target }}_${{ matrix.optimize }}_${{ matrix.os }}
           cache-size-limit: 512 # 512mb
-      - name: Build & Install
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} --summary all install
+      - name: Build & Install with stub XR backend
+        if: matrix.target == 'native'
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} -Dxr_backend=none --summary all install
+      - name: Build & Install with OpenXR backend
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} -Dxr_backend=openxr --summary all install
       - name: Run Tests
         if: matrix.target == 'native'
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} --summary all test
