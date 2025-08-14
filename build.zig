@@ -18,6 +18,7 @@ const Options = struct {
     xr_backend: XrBackend,
 
     safety: bool,
+    noisy_logging: bool,
 
     tracy: struct {
         enable: bool,
@@ -82,6 +83,7 @@ pub fn build(b: *std.Build) !void {
         },
 
         .safety = optimize == .ReleaseSafe or optimize == .Debug,
+        .noisy_logging = b.option(bool, "noisy_logging", "Enable noisy logging in debug builds") orelse false,
 
         .tracy = .{
             .enable = enable_tracy,
@@ -422,6 +424,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
                 .{ .name = "tracy", .module = tracy_mod },
                 .{ .name = "math", .module = math_mod },
+                .{ .name = "options", .module = options_module },
             },
         });
 

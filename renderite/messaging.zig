@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 
 const tracy = @import("tracy");
 const zinterprocess = @import("zinterprocess");
+const build_options = @import("options").build_options;
 
 const InitSettings = @import("InitSettings.zig");
 const serialization = @import("serialization.zig");
@@ -220,7 +221,7 @@ pub fn MessagingHost(comptime Context: type) type {
 
                 const serializer = IpcSerializer.init(&writer);
 
-                log.debug("Sending message {s}", .{@tagName(command)});
+                if (build_options.noisy_logging) log.debug("Sending message {s}", .{@tagName(command)});
                 try serializer.writePolymorphic(shared.RendererCommand, command);
 
                 try self.publisher.enqueue(data[0..writer.end]);

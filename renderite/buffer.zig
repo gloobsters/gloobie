@@ -133,8 +133,6 @@ pub const SharedMemoryAccessor = struct {
         var memory_view_buf: [std.fs.max_path_bytes]u8 = undefined;
         const memory_view_name = std.fmt.bufPrintZ(&memory_view_buf, "{s}_{X}", .{ self.prefix, descriptor.buffer_id }) catch unreachable;
 
-        log.debug("Initializing shared memory view {s}", .{memory_view_name});
-
         const view = try MemoryView.init(.{
             .capacity = @intCast(descriptor.buffer_capacity),
             .memory_view_name = memory_view_name,
