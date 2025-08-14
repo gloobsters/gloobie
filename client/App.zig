@@ -15,11 +15,11 @@ const xr_t = @import("xr");
 
 const Assets = @import("Assets.zig");
 const graphics = @import("graphics.zig");
-const Input = @import("Input.zig");
-const RenderSpace = @import("RenderSpace.zig");
-const Texture = @import("Texture.zig");
 const ImGuiManager = @import("gui/ImGuiManager.zig");
+const Input = @import("Input.zig");
 const PerformanceMonitor = @import("PerformanceMonitor.zig");
+const RenderSpace = @import("render_spaces/RenderSpace.zig");
+const Texture = @import("Texture.zig");
 
 pub const MessagingHost = renderite.MessagingHost(*App);
 const log = std.log.scoped(.app);
@@ -160,7 +160,7 @@ const GameData = struct {
         }
 
         for (self.render_spaces.values()) |*render_space| {
-            render_space.deinit();
+            render_space.deinit(gpa);
         }
         self.render_spaces.deinit(gpa);
 
@@ -730,8 +730,8 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
     var active_render_space: RenderSpace.Id = .invalid;
     for (updates) |update| {
         const render_space = self.game.render_spaces.getPtr(.from(update.id)) orelse create_render_space: {
-            const render_space: RenderSpace = try .init(self.gpa, update);
-            errdefer render_space.deinit();
+            var render_space: RenderSpace = try .init(self.gpa, update);
+            errdefer render_space.deinit(self.gpa);
 
             log.debug("Created render space {d}", .{update.id});
 
@@ -765,7 +765,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
                 const removed = self.game.render_spaces.swapRemove(render_space.id);
                 std.debug.assert(removed);
 
-                render_space.deinit();
+                render_space.deinit(self.gpa);
             }
         }
     }

@@ -1,8 +1,10 @@
 const std = @import("std");
-const imgui = @import("imgui");
+
 const gpu = @import("gpu");
+const imgui = @import("imgui");
 
 const App = @import("../App.zig");
+const RenderSpace = @import("../render_spaces/RenderSpace.zig");
 const Texture = @import("../Texture.zig");
 
 pub const ImGuiManager = @This();
@@ -57,12 +59,10 @@ pub fn start(self: *ImGuiManager) !void {
             if (imgui.collapsingHeader("Meshes", 0)) {
                 self.fillMeshes();
             }
-
-            if (imgui.collapsingHeader("Render Spaces", 0)) {
-                self.fillRenderSpaces();
-            }
         }
     }
+
+    self.fillRenderSpaces();
 
     {
         const performance_render = imgui.begin("Performance", &self.performance_open, 0);
@@ -221,44 +221,82 @@ fn fillRenderSpaces(self: *ImGuiManager) void {
     const render_spaces = self.app.game.render_spaces.values();
 
     for (render_spaces) |*render_space| {
-        defer imgui.separator();
+        var name_buf: [64]u8 = undefined;
+        // SAFETY: it's big enough
+        const name = std.fmt.bufPrintZ(&name_buf, "Render Space {d}", .{render_space.id.to()}) catch unreachable;
 
-        const root_transform = render_space.properties.root_transform;
+        const render_window = imgui.begin(name, &render_space.imgui_data.render_window, 0);
+        defer imgui.end();
 
-        imgui.c.igText("Render Space %d", render_space.id.to());
-        imgui.c.igText("Active: %d", @as(u32, @intFromBool(render_space.properties.active)));
-        imgui.c.igText("Overlay: %d", @as(u32, @intFromBool(render_space.properties.overlay)));
-        imgui.c.igText("Private: %d", @as(u32, @intFromBool(render_space.properties.private)));
-        imgui.c.igText("View Position Is External: %d", @as(u32, @intFromBool(render_space.properties.private)));
+        if (render_window) {
+            self.fillRenderSpace(render_space);
+        }
+    }
+}
+
+fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
+    _ = self; // autofix
+
+    const root_transform = render_space.properties.root_transform;
+
+    imgui.c.igText("Active: %d", @as(u32, @intFromBool(render_space.properties.active)));
+    imgui.c.igText("Overlay: %d", @as(u32, @intFromBool(render_space.properties.overlay)));
+    imgui.c.igText("Private: %d", @as(u32, @intFromBool(render_space.properties.private)));
+    imgui.c.igText("View Position Is External: %d", @as(u32, @intFromBool(render_space.properties.private)));
+    imgui.c.igText(
+        "Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
+        root_transform.position.x,
+        root_transform.position.y,
+        root_transform.position.z,
+        root_transform.scale.x,
+        root_transform.scale.y,
+        root_transform.scale.z,
+        root_transform.rotation.x,
+        root_transform.rotation.y,
+        root_transform.rotation.z,
+        root_transform.rotation.w,
+    );
+    if (render_space.properties.overridden_view_transform) |overridden_root_transform| {
         imgui.c.igText(
-            "Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
-            root_transform.position.x,
-            root_transform.position.y,
-            root_transform.position.z,
-            root_transform.scale.x,
-            root_transform.scale.y,
-            root_transform.scale.z,
-            root_transform.rotation.x,
-            root_transform.rotation.y,
-            root_transform.rotation.z,
-            root_transform.rotation.w,
+            "Overridden Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
+            overridden_root_transform.position.x,
+            overridden_root_transform.position.y,
+            overridden_root_transform.position.z,
+            overridden_root_transform.scale.x,
+            overridden_root_transform.scale.y,
+            overridden_root_transform.scale.z,
+            overridden_root_transform.rotation.x,
+            overridden_root_transform.rotation.y,
+            overridden_root_transform.rotation.z,
+            overridden_root_transform.rotation.w,
         );
-        if (render_space.properties.overridden_view_transform) |overridden_root_transform| {
+    } else {
+        imgui.c.igText("View transform not overridden.");
+    }
+
+    const render_transforms = imgui.collapsingHeader("Transforms", 0);
+
+    if (render_transforms) {
+        for (render_space.transforms.transforms.items, 0..) |*transform, i| {
+            defer imgui.separator();
+
+            imgui.c.igText("Transform %d", @as(i32, @intCast(i)));
+            if (transform.parent != .invalid) {
+                imgui.c.igText("Parent: %d", transform.parent.to());
+            }
             imgui.c.igText(
-                "Overridden Root Transform: %fx%fx%f, %f,%f,%f, %f,%f,%f,%f",
-                overridden_root_transform.position.x,
-                overridden_root_transform.position.y,
-                overridden_root_transform.position.z,
-                overridden_root_transform.scale.x,
-                overridden_root_transform.scale.y,
-                overridden_root_transform.scale.z,
-                overridden_root_transform.rotation.x,
-                overridden_root_transform.rotation.y,
-                overridden_root_transform.rotation.z,
-                overridden_root_transform.rotation.w,
+                "Render Transform: %fx%fx%f, %fx%fx%f, %fx%fx%fx%f",
+                transform.render_transform.position.x,
+                transform.render_transform.position.y,
+                transform.render_transform.position.z,
+                transform.render_transform.scale.x,
+                transform.render_transform.scale.x,
+                transform.render_transform.scale.z,
+                transform.render_transform.rotation.x,
+                transform.render_transform.rotation.y,
+                transform.render_transform.rotation.z,
+                transform.render_transform.rotation.w,
             );
-        } else {
-            imgui.c.igText("View transform not overridden.");
         }
     }
 }

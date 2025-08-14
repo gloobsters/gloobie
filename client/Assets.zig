@@ -11,17 +11,7 @@ const log = std.log.scoped(.assets);
 
 const Assets = @This();
 
-pub const AssetId = enum(i32) {
-    _,
-
-    pub fn from(id: i32) AssetId {
-        return @enumFromInt(id);
-    }
-
-    pub fn to(id: AssetId) i32 {
-        return @intFromEnum(id);
-    }
-};
+pub const AssetId = @import("id.zig").Id(i32, struct {});
 
 pub const TextureHandle = packed struct(u64) {
     id: AssetId,

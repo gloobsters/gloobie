@@ -413,6 +413,8 @@ extern "C"
  */
 #define GPU_HINT_OPENXR_SONAMES "SDL_OPENXR_SONAMES"
 
+#ifdef XR_OPENXR
+
     /**
      * Dynamically load the OpenXR loader. This can be called at any time.
      *
@@ -456,6 +458,8 @@ extern "C"
      *          failure; call SDL_GetError() for more information.
      */
     extern SDL_DECLSPEC PFN_xrGetInstanceProcAddr SDLCALL GPU_OpenXR_GetXrGetInstanceProcAddr(void);
+
+#endif /* XR_OPENXR */
 
     /* Type Declarations */
 

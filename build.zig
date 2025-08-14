@@ -3,8 +3,8 @@ const std = @import("std");
 const compile_commands = @import("build/compile_commands.zig");
 
 const XrBackend = enum {
+    none,
     openxr,
-    openvr,
 };
 
 const Options = struct {
@@ -39,8 +39,8 @@ fn addPlatformDefines(module: anytype, options: Options, target: std.Build.Resol
     }
 
     switch (options.xr_backend) {
+        .none => {},
         .openxr => addMacro(module, "XR_OPENXR", "1"),
-        .openvr => addMacro(module, "XR_OPENVR", "1"),
     }
 
     switch (target.result.os.tag) {
@@ -262,6 +262,7 @@ pub fn build(b: *std.Build) !void {
         });
 
         switch (build_options.xr_backend) {
+            .none => {},
             .openxr => {
                 gpu_mod.addImport("openxr", openxr_mod);
 
@@ -278,7 +279,6 @@ pub fn build(b: *std.Build) !void {
                     .flags = c_flags,
                 });
             },
-            else => |xr_backend| std.debug.panic("TODO: implement backend {s}", .{@tagName(xr_backend)}),
         }
 
         if (build_options.render_backends.vulkan) {
@@ -338,11 +338,11 @@ pub fn build(b: *std.Build) !void {
         }
 
         switch (build_options.xr_backend) {
+            .none => {},
             .openxr => {
                 imgui_mod.addIncludePath(openxr_headers_inc);
                 translate_c.addIncludePath(openxr_headers_inc);
             },
-            else => |xr_backend| std.debug.panic("TODO: xr backend {s}", .{@tagName(xr_backend)}),
         }
 
         imgui_mod.addIncludePath(imgui_inc);
@@ -393,8 +393,8 @@ pub fn build(b: *std.Build) !void {
         });
 
         switch (build_options.xr_backend) {
+            .none => {},
             .openxr => xr_mod.addImport("openxr", openxr_mod),
-            else => |xr_backend| std.debug.panic("TODO: implement backend {s}", .{@tagName(xr_backend)}),
         }
 
         if (build_options.render_backends.vulkan) {

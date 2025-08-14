@@ -4,8 +4,8 @@ const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 
 const impl = switch (build_options.xr_backend) {
+    .none => @import("none/none.zig"),
     .openxr => @import("openxr/openxr.zig"),
-    .openvr => @compileError("todo"),
 };
 
 pub const name = impl.name;

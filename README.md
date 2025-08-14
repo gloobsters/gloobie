@@ -44,7 +44,7 @@ You can also replace `Renderer/Renderite.Renderer.exe` with Gloobie and it will 
   - `gpu/hashtable/`: A simple hash table implementation in C, used by the GPU backends.
 - `xr/`: The VR abstraction layer.
   - `xr/openxr/`: The OpenXR backend. Primary target.
-  - `xr/openvr/`: The OpenVR backend. Secondary target.
+  - `xr/none/`: A stubbed out backend, used for platforms where no XR infrastructure is available or implemented.
 - `openxr/`: The OpenXR wrapper.
 - `renderite/`: Code and types concerning communication with FrooxEngine.
   - `renderite/generator/`: Generates type definitions and (de)serialization code from the Renderite DLL file.
