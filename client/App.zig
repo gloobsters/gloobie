@@ -661,7 +661,7 @@ fn handleMessages(self: *App, frame_context: *graphics.FrameContext) !void {
 }
 
 fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, message: renderite.ParsedCommand) void {
-    log.debug("Got message {s} on queue {s}", .{ @tagName(message.command), @tagName(queue_type) });
+    if (build_options.noisy_logging) log.debug("Got message {s} on queue {s}", .{ @tagName(message.command), @tagName(queue_type) });
 
     switch (queue_type) {
         // messages coming in the primary queue need to be processed ASAP by the main thread
@@ -787,7 +787,7 @@ fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
     }
 
     self.game.last_frame_index = frame_submit_data.frameIndex;
-    log.debug("Frame {d} completion", .{frame_submit_data.frameIndex});
+    if (build_options.noisy_logging) log.debug("Frame {d} completion", .{frame_submit_data.frameIndex});
 
     try self.updateRenderSpaces(frame_submit_data.renderSpaces);
 
@@ -1120,7 +1120,7 @@ pub fn frameLoop(self: *App) !void {
                     },
                 }, std.time.ns_per_s);
 
-                log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
+                if (build_options.noisy_logging) log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
 
                 self.game.engine_thread_ready_for_begin_frame.reset();
             }

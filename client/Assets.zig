@@ -2,6 +2,7 @@ const std = @import("std");
 
 const gpu = @import("gpu");
 const renderite = @import("renderite");
+const build_options = @import("options").build_options;
 
 const graphics = @import("graphics.zig");
 const Mesh = @import("Mesh.zig");
@@ -299,7 +300,7 @@ pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *gra
     const mesh = result.value_ptr;
     if (result.found_existing) {
         try mesh.setData(gpa, frame_context, accessor, mesh_upload_data);
-        log.debug("Updated mesh {d}", .{mesh_upload_data.assetId});
+        if (build_options.noisy_logging) log.debug("Updated mesh {d}", .{mesh_upload_data.assetId});
     } else {
         mesh.* = try .init(gpa, frame_context, accessor, mesh_upload_data);
         log.debug("Created mesh {d}", .{mesh_upload_data.assetId});
