@@ -47,7 +47,7 @@ pub const StringKey = struct {
     }
 };
 
-pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, comptime Value: type, comptime create_callback: anytype, comptime release_callback: anytype, comptime frames_to_keep_entry: comptime_int) type {
+pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, comptime Value: type, comptime create_val: anytype, comptime release_val: anytype, comptime frames_to_keep_entry: comptime_int) type {
     // errors to make this very clear on what to do
     comptime {
         if (std.meta.activeTag(@typeInfo(Key)) != .@"struct")
@@ -68,8 +68,6 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
         };
 
         const Self = @This();
-        pub const CreateCallback = *const fn (ctx: Context, key: Key) Value;
-        pub const ReleaseCallback = *const fn (ctx: Context, value: Value) void;
 
         lock: std.Thread.Mutex,
         // FIXME: this should be a doubly linked list for performance sake
@@ -112,7 +110,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             return if (smallest_index == none_found) .{
                 .key = key,
                 .frames_since_usage = 0,
-                .value = create_callback(self.context, key),
+                .value = try create_val(self.context, key),
             } else self.entries.swapRemove(smallest_index);
         }
 
@@ -139,7 +137,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
 
                 if (entry.frames_since_usage >= frames_to_keep_entry) {
                     log.debug("Releasing {s} because it's been unused for {d} frames", .{ @typeName(Value), frames_to_keep_entry });
-                    release_callback(self.context, entry.value);
+                    release_val(self.context, entry.value);
                     _ = self.entries.swapRemove(i);
                 } else {
                     // if we *didnt* remove, add 1
@@ -154,7 +152,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
 
             for (self.entries.items) |entry| {
                 log.debug("Releasing {s}", .{@typeName(Value)});
-                release_callback(self.context, entry.value);
+                release_val(self.context, entry.value);
             }
 
             self.entries.deinit(gpa);
@@ -162,9 +160,20 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
     };
 }
 
+fn dummyCreateCallback(ctx: u8, key: anytype) !u8 {
+    _ = ctx;
+    _ = key;
+    return 69;
+}
+
+fn dummyReleaseCallback(ctx: u8, val: u8) void {
+    _ = ctx;
+    _ = val;
+}
+
 test {
-    _ = FrameReferencedResourcePool(u8, SimpleKey(u8), u8, 120);
-    _ = FrameReferencedResourcePool(u8, StringKey, u8, 120);
-    _ = FrameReferencedResourcePool(u8, SizedKey(u8), u8, 120);
+    _ = FrameReferencedResourcePool(u8, SimpleKey(u8), u8, dummyCreateCallback, dummyReleaseCallback, 120);
+    _ = FrameReferencedResourcePool(u8, StringKey, u8, dummyCreateCallback, dummyReleaseCallback, 120);
+    _ = FrameReferencedResourcePool(u8, SizedKey(u8), u8, dummyCreateCallback, dummyReleaseCallback, 120);
     std.testing.refAllDecls(@This());
 }

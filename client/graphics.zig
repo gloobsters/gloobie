@@ -18,16 +18,16 @@ pub const TransferBufferPool = pooling.FrameReferencedResourcePool(
     120,
 );
 
-fn createTransferBuffer(device: gpu.Device, key: pooling.SizedKey(gpu.TransferBufferUsage)) gpu.TransferBuffer {
+fn createTransferBuffer(device: gpu.Device, key: pooling.SizedKey(gpu.TransferBufferUsage)) !gpu.TransferBuffer {
     var buffer_name_buf: [64]u8 = undefined;
     // SAFETY: it's big enough
     const buffer_name = std.fmt.bufPrintZ(&buffer_name_buf, "Pooled Transfer Buffer (size {d})", .{key.size}) catch unreachable;
 
-    const transfer_buffer = device.createTransferBuffer(.{
+    const transfer_buffer = try device.createTransferBuffer(.{
         .usage = key.value,
         .size = @intCast(key.size),
         .props = .{ .name = buffer_name },
-    }) catch @panic("Couldn't create transfer buffer"); // TODO: do we want to panic here?
+    });
     errdefer device.releaseTransferBuffer(transfer_buffer);
 
     return transfer_buffer;
