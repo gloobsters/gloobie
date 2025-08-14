@@ -2,7 +2,60 @@ const std = @import("std");
 
 const log = std.log.scoped(.pooling);
 
+pub fn SimpleKey(comptime Child: type) type {
+    return struct {
+        value: Child,
+
+        const Self = @This();
+
+        pub fn eql(self: Self, other: Self) bool {
+            return self.value == other.value;
+        }
+    };
+}
+
+pub fn SizedKey(comptime Child: type) type {
+    return struct {
+        value: Child,
+        size: usize,
+
+        const Self = @This();
+
+        pub fn eql(self: Self, other: Self) bool {
+            return self.value == other.value;
+        }
+
+        pub fn fits(self: Self, other: Self, smallest_size: usize) bool {
+            return self.size >= other.size and self.size < smallest_size;
+        }
+
+        pub fn exactMatch(self: Self, other: Self) bool {
+            return self.size == other.size;
+        }
+    };
+}
+
+pub const StringKey = struct {
+    value: []const u8,
+
+    pub fn eql(self: StringKey, other: StringKey) bool {
+        return std.mem.eql(u8, self.value, other.value);
+    }
+};
+
 pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, comptime Value: type, comptime frames_to_keep_entry: comptime_int) type {
+    // errors to make this very clear on what to do
+    comptime {
+        if (std.meta.activeTag(@typeInfo(Key)) != .@"struct")
+            @compileError("Key type must be a struct. There are examples of key types in this source file.");
+
+        if (!@hasDecl(Key, "eql"))
+            @compileError("Key type is missing an 'eql' function. There are examples of key types in this source file.");
+
+        if (!@hasField(Key, "value"))
+            @compileError("Key type is missing the 'value' field. There are examples of key types in this source file.");
+    }
+
     return struct {
         pub const Entry = struct {
             frames_since_usage: u32,
@@ -32,7 +85,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             };
         }
 
-        pub fn acquire(self: *Self, size: u32, key: Key) !Entry {
+        pub fn acquire(self: *Self, key: Key) !Entry {
             self.lock.lock();
             defer self.lock.unlock();
 
@@ -42,20 +95,27 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             var smallest_size: usize = none_found;
 
             for (self.buffers.items, 0..) |entry, i| {
-                if (entry.size >= size and entry.size < smallest_size and entry.key == key) {
-                    smallest_index = i;
-                    smallest_size = entry.size;
+                if (entry.key.eql(key)) {
+                    if (@hasDecl(Key, "fits")) {
+                        if (!entry.key.fits(key, smallest_size))
+                            continue;
 
-                    // we found one that is the smallest possible size, perfect fit!
-                    if (entry.size == size) {
-                        break;
+                        smallest_size = entry.size;
+                    }
+
+                    smallest_index = i;
+
+                    if (@hasDecl(Key, "exactMatch")) {
+                        // we found one that is the smallest possible size, perfect fit!
+                        if (entry.exactMatch(key)) {
+                            break;
+                        }
                     }
                 }
             }
 
             return if (smallest_index == none_found) create_entry: {
                 break :create_entry .{
-                    .size = size,
                     .key = key,
                     .frames_since_usage = 0,
                     .value = self.create_callback(self.context, key),
@@ -110,6 +170,8 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
 }
 
 test {
-    _ = FrameReferencedResourcePool(u8, u8, u8, 120);
+    _ = FrameReferencedResourcePool(u8, SimpleKey(u8), u8, 120);
+    _ = FrameReferencedResourcePool(u8, StringKey, u8, 120);
+    _ = FrameReferencedResourcePool(u8, SizedKey(u8), u8, 120);
     std.testing.refAllDecls(@This());
 }
