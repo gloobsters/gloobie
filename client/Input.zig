@@ -10,6 +10,12 @@ const Input = @This();
 held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void),
 type_delta: std.ArrayListUnmanaged(u16),
 
+left_click_held: bool,
+middle_click_held: bool,
+right_click_held: bool,
+x1_click_held: bool,
+x2_click_held: bool,
+
 pub fn init(gpa: std.mem.Allocator) !Input {
     var held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void) = .empty;
     try held_keys.ensureTotalCapacity(gpa, std.enums.values(renderite.Shared.Key).len);
@@ -18,6 +24,11 @@ pub fn init(gpa: std.mem.Allocator) !Input {
     return .{
         .held_keys = held_keys,
         .type_delta = .empty,
+        .left_click_held = false,
+        .middle_click_held = false,
+        .right_click_held = false,
+        .x1_click_held = false,
+        .x2_click_held = false,
     };
 }
 
@@ -64,6 +75,24 @@ pub fn handleKeyEvent(self: *Input, event: sdl3.events.Keyboard) void {
     } else {
         _ = self.held_keys.swapRemove(key);
     }
+}
+
+pub fn handleMouseButtonEvent(self: *Input, event: sdl3.events.MouseButton) void {
+    const button_state = switch (event.button) {
+        .left => &self.left_click_held,
+        .middle => &self.middle_click_held,
+        .right => &self.right_click_held,
+        .x1 => &self.x1_click_held,
+        .x2 => &self.x2_click_held,
+        _ => null, // Resonite doesn't handle further buttons.
+    };
+
+    if (button_state == null)
+        return;
+
+    button_state.?.* = event.down;
+
+    log.debug("{any}", .{self.*});
 }
 
 /// Takes the typed delta, and clears the list

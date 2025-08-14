@@ -62,6 +62,7 @@ const WindowData = struct {
 
     fullscreen: bool,
     focus: bool,
+    mouse_active: bool,
 
     pub fn deinit(self: WindowData) void {
         self.window.deinit();
@@ -239,6 +240,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .swapchain_format = undefined,
             .fullscreen = false,
             .focus = false,
+            .mouse_active = false,
         };
     };
     errdefer window_data.deinit();
@@ -909,6 +911,15 @@ fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !voi
             log.debug("Stopping text input", .{});
         }
     }
+
+    // if (sdl3.mouse.visible() != !output_state.lockCursor) {
+    //     log.debug("Cursor visibility: {any}", .{sdl3.mouse.visible()});
+    //     if (output_state.lockCursor) {
+    //         try sdl3.mouse.hide();
+    //     } else {
+    //         try sdl3.mouse.show();
+    //     }
+    // }
 }
 
 pub fn frameLoop(self: *App) !void {
@@ -975,6 +986,12 @@ pub fn frameLoop(self: *App) !void {
                     .window_focus_lost => |window| if (window.id == self.window.window.getId() catch unreachable) {
                         self.window.focus = false;
                     },
+                    .window_mouse_enter => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.mouse_active = true;
+                    },
+                    .window_mouse_leave => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.mouse_active = false;
+                    },
                     .key_down => |key_down| {
                         if (key_down.window_id == self.window.window.getId() catch unreachable) {
                             self.game.input.handleKeyEvent(key_down);
@@ -990,6 +1007,26 @@ pub fn frameLoop(self: *App) !void {
                             try self.game.input.handleTextInputUtf8(self.gpa, text_input.text);
                         }
                     },
+                    .mouse_button_down => |mouse_down| {
+                        if (mouse_down.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseButtonEvent(mouse_down);
+                        }
+                    },
+                    .mouse_button_up => |mouse_up| {
+                        if (mouse_up.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseButtonEvent(mouse_up);
+                        }
+                    },
+                    // .mouse_wheel => |mouse_wheel| {
+                    //     if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
+                    //         self.game.input.handleMouseWheelEvent(mouse_wheel);
+                    //     }
+                    // },
+                    // .mouse_motion => |mouse_motion| {
+                    //     if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
+                    //         self.game.input.handleMouseMotionEvent(mouse_motion);
+                    //     }
+                    // },
                     else => {},
                 }
             }
@@ -1023,7 +1060,7 @@ pub fn frameLoop(self: *App) !void {
             self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
                 if (err == error.Timeout) {
                     begin_new_frame = false;
-                    log.debug("Engine running really slow, no new frame :(", .{});
+                    log.debug("FrooxEngine running really slow, no new frame :(", .{});
                 } else {
                     return err;
                 }
@@ -1052,7 +1089,18 @@ pub fn frameLoop(self: *App) !void {
                                 .heldKeys = self.game.input.held_keys.keys(),
                                 .typeDelta = self.game.input.takeTypedDelta(),
                             },
-                            .mouse = null,
+                            .mouse = .{
+                                .leftButtonState = self.game.input.left_click_held,
+                                .middleButtonState = self.game.input.middle_click_held,
+                                .rightButtonState = self.game.input.right_click_held,
+                                .button4State = self.game.input.x1_click_held,
+                                .button5State = self.game.input.x2_click_held,
+                                .desktopPosition = .zero,
+                                .directDelta = .zero,
+                                .isActive = self.window.mouse_active,
+                                .scrollWheelDelta = .zero,
+                                .windowPosition = .zero,
+                            },
                             .touches = &.{},
                             .vr = null,
                             .window = .{
