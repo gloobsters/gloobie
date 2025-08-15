@@ -2,11 +2,15 @@ const std = @import("std");
 
 const renderite = @import("renderite");
 
+const MeshRendererManager = @import("mesh_renderer_manager.zig").MeshRendererManager;
+const RendererManager = @import("renderer_manager.zig").RendererManager;
 const Transforms = @import("Transforms.zig");
 
 const RenderSpace = @This();
 
 pub const Id = @import("../id.zig").Id(i32, struct {});
+
+const log = @import("logger").Scoped(.render_space);
 
 pub const Properties = struct {
     active: bool,
@@ -26,21 +30,21 @@ const ImGuiData = struct {
     };
 };
 
+imgui_data: ImGuiData,
 id: Id,
 properties: Properties,
 updated: bool,
 transforms: Transforms,
-imgui_data: ImGuiData,
+mesh_renderer_manager: MeshRendererManager,
 
-pub fn init(gpa: std.mem.Allocator, update: renderite.Shared.RenderSpaceUpdate) !RenderSpace {
-    _ = gpa; // autofix
-
+pub fn init(update: renderite.Shared.RenderSpaceUpdate) !RenderSpace {
     const render_space: RenderSpace = .{
         .id = .from(update.id),
         .properties = loadProperties(update),
         .updated = false,
         .transforms = .init(),
         .imgui_data = .default,
+        .mesh_renderer_manager = .init(),
     };
 
     return render_space;
@@ -82,8 +86,13 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
     if (update.transformsUpdate) |transforms_update| {
         try self.transforms.handleUpdate(gpa, accessor, transforms_update);
     }
+
+    if (update.meshRenderersUpdate) |mesh_renderer_update| {
+        try self.mesh_renderer_manager.handleUpdate(gpa, accessor, self, mesh_renderer_update);
+    }
 }
 
 pub fn deinit(self: *RenderSpace, gpa: std.mem.Allocator) void {
     self.transforms.deinit(gpa);
+    self.mesh_renderer_manager.deinit(gpa);
 }

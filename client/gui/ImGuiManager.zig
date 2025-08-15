@@ -274,9 +274,7 @@ fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
         imgui.c.igText("View transform not overridden.");
     }
 
-    const render_transforms = imgui.collapsingHeader("Transforms", 0);
-
-    if (render_transforms) {
+    if (imgui.collapsingHeader("Transforms", 0)) {
         for (render_space.transforms.transforms.items, 0..) |*transform, i| {
             defer imgui.separator();
 
@@ -297,6 +295,15 @@ fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
                 transform.render_transform.rotation.z,
                 transform.render_transform.rotation.w,
             );
+        }
+    }
+
+    if (imgui.collapsingHeader("Mesh Renderers", 0)) {
+        for (render_space.mesh_renderer_manager.contents.items, 0..) |*mesh_renderer, i| {
+            defer imgui.separator();
+
+            imgui.c.igText("Mesh Renderer %d", @as(i32, @intCast(i)));
+            imgui.c.igText("Transform %d", mesh_renderer.transform.to());
         }
     }
 }

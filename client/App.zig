@@ -733,7 +733,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
     var active_render_space: RenderSpace.Id = .invalid;
     for (updates) |update| {
         const render_space = self.game.render_spaces.getPtr(.from(update.id)) orelse create_render_space: {
-            var render_space: RenderSpace = try .init(self.gpa, update);
+            var render_space: RenderSpace = try .init(update);
             errdefer render_space.deinit(self.gpa);
 
             log.debug(@src(), "Created render space {d}", .{update.id});

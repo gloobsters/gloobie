@@ -21,6 +21,7 @@ pub const Scope = enum(u8) {
     messaging,
     xr,
     openxr,
+    render_space,
 };
 
 const scopes = std.enums.values(Scope);
@@ -98,13 +99,13 @@ pub fn defaultLogFn(
     const scope_part = level_str ++ " (" ++ scope_str ++ ")";
 
     const file_pad_len = 35;
-    const scope_pad_len = 18;
+    const scope_pad_len = 15;
 
     stderr.print(
         color_part ++
             padStringComptime(file_part, file_pad_len) ++
             " " ++
-            padStringComptime(scope_part, scope_pad_len - (if (file_part.len > file_pad_len) (file_part.len - file_pad_len) else 0)) ++
+            padStringComptime(scope_part, scope_pad_len) ++
             ": " ++
             format ++
             "\n",
