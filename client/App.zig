@@ -613,6 +613,24 @@ fn handleRendererCommand(
         .FrameSubmitData => {
             std.debug.panic("This should be handled by the other thread!", .{});
         },
+        .MaterialPropertyIdRequest => |material_property_id_request| {
+            const property_ids = try frame_context.arena.alloc(i32, material_property_id_request.propertyNames.len);
+            defer frame_context.arena.free(property_ids);
+
+            // TODO: handle this properly, when we can
+            for (material_property_id_request.propertyNames, property_ids) |property_name, *property_id| {
+                log.trace(@src(), "Material property name: {f}", .{std.unicode.fmtUtf16Le(property_name)});
+
+                property_id.* = 0;
+            }
+
+            try self.messaging.host.primary.sendTimeout(.{
+                .MaterialPropertyIdResult = .{
+                    .requestId = material_property_id_request.requestId,
+                    .propertyIDs = property_ids,
+                },
+            }, std.time.ns_per_s * 10);
+        },
         else => {
             log.warn(@src(), "Unhandled command type {s}", .{@tagName(command)});
         },
@@ -675,12 +693,16 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
         },
         .background => {
             // FIXME: push resource uploads onto another thread!
+            var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
+            defer arena_impl.deinit();
+
             var frame_context: graphics.FrameContext = .init(
                 self.graphics_data.device,
                 &self.graphics_data.transfer_buffer_pool,
                 &self.assets,
                 &self.graphics_data.fence_manager,
                 &self.messaging.host,
+                arena_impl.allocator(),
             );
             defer frame_context.end(self.gpa) catch |err| std.debug.panic("Failed to end frame context: {s}", .{@errorName(err)});
 
@@ -923,10 +945,16 @@ pub fn frameLoop(self: *App) !void {
         log.err(@src(), "Failed to update displays, got err {s}", .{@errorName(err)});
     };
 
+    var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
+    defer arena_impl.deinit();
+
     while (self.game.run_loop) {
         tracy.frameMark();
         self.game.perf.beginRenderFrame();
         defer self.game.perf.endRenderFrame();
+
+        // keep 10mb in the arena
+        defer _ = arena_impl.reset(.{ .retain_with_limit = 10 * 1000 * 1000 });
 
         {
             const trace = tracy.traceNamed(@src(), "Poll SDL events");
@@ -1051,6 +1079,7 @@ pub fn frameLoop(self: *App) !void {
                 command_buffer,
                 &self.graphics_data.fence_manager,
                 &self.messaging.host,
+                arena_impl.allocator(),
             );
 
             var begin_new_frame = true;

@@ -170,6 +170,7 @@ pub const FrameContext = struct {
     main_thread: bool,
     fence_manager: *App.FenceManager,
     messaging_host: *App.MessagingHost,
+    arena: std.mem.Allocator,
 
     pub fn initMain(
         device: gpu.Device,
@@ -178,6 +179,7 @@ pub const FrameContext = struct {
         command_buffer: gpu.CommandBuffer,
         fence_manager: *App.FenceManager,
         messaging_host: *App.MessagingHost,
+        arena: std.mem.Allocator,
     ) FrameContext {
         return .{
             .device = device,
@@ -189,6 +191,7 @@ pub const FrameContext = struct {
             .main_thread = true,
             .fence_manager = fence_manager,
             .messaging_host = messaging_host,
+            .arena = arena,
         };
     }
 
@@ -198,6 +201,7 @@ pub const FrameContext = struct {
         assets: *Assets,
         fence_manager: *App.FenceManager,
         messaging_host: *App.MessagingHost,
+        arena: std.mem.Allocator,
     ) FrameContext {
         return .{
             .device = device,
@@ -209,6 +213,7 @@ pub const FrameContext = struct {
             .main_thread = false,
             .fence_manager = fence_manager,
             .messaging_host = messaging_host,
+            .arena = arena,
         };
     }
 
