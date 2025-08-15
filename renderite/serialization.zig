@@ -2,6 +2,7 @@ const std = @import("std");
 const Reader = std.io.Reader;
 const Writer = std.io.Writer;
 const builtin = @import("builtin");
+
 const buffer = @import("buffer.zig");
 const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;
 
@@ -55,6 +56,10 @@ pub const IpcDeserializer = struct {
                 }
             },
             else => {},
+        }
+
+        if (BaseType == []const u16) {
+            return try self.readStringList(self.gpa);
         }
 
         return try self.readValueList(BaseType, self.gpa);
@@ -152,6 +157,30 @@ pub const IpcDeserializer = struct {
         return try self.reader.readSliceEndianAlloc(gpa, T, @intCast(len), endian);
     }
 
+    pub fn readStringList(self: IpcDeserializer, gpa: std.mem.Allocator) ![][]const u16 {
+        const len = try self.reader.takeInt(i32, endian);
+        if (len <= 0)
+            return &.{};
+
+        const strings = try gpa.alloc([]const u16, @intCast(len));
+        var written: usize = 0;
+        errdefer {
+            for (strings[0..written]) |string| {
+                gpa.free(string);
+            }
+
+            gpa.free(strings);
+        }
+
+        for (strings) |*string| {
+            string.* = try self.readString(gpa);
+
+            written += 1;
+        }
+
+        return strings;
+    }
+
     pub fn readNestedList(self: IpcDeserializer, comptime T: type) !T {
         const len = try self.reader.takeInt(i32, endian);
         if (len == 0)
@@ -174,14 +203,6 @@ pub const IpcDeserializer = struct {
         }
 
         return list;
-    }
-
-    pub fn writeNestedList(self: IpcSerializer, comptime T: type, list: T) !void {
-        try self.writer.writeInt(i32, @intCast(list.len), endian);
-        const ChildType = std.meta.Child(std.meta.Child(list));
-        for (list) |value| {
-            try self.writeValueList(ChildType, value);
-        }
     }
 };
 
@@ -220,6 +241,10 @@ pub const IpcSerializer = struct {
                 }
             },
             else => {},
+        }
+
+        if (BaseType == []const u16) {
+            return self.writeStringList(value);
         }
 
         try self.writeValueList(BaseType, value);
@@ -312,6 +337,13 @@ pub const IpcSerializer = struct {
         const ChildType = std.meta.Child(std.meta.Child(T));
         for (list) |value| {
             try self.writeValueList(ChildType, value);
+        }
+    }
+
+    pub fn writeStringList(self: IpcSerializer, strings: []const []const u16) !void {
+        try self.writer.writeInt(i32, @intCast(strings.len), endian);
+        for (strings) |string| {
+            try self.writeString(string);
         }
     }
 };
