@@ -361,6 +361,9 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
         log.info("Initialized ImGui GPU backend", .{});
 
+        var io = context.getIo();
+        io.ConfigFlags = io.ConfigFlags | imgui.c.ImGuiConfigFlags_NoMouseCursorChange;
+
         break :create_imgui_data .{
             .context = context,
             .app = app,
@@ -473,6 +476,7 @@ fn handleRendererCommand(
             log.debug("Setting window title to {s}", .{title});
 
             try self.window.window.setTitle(title);
+            try self.window.window.raise();
 
             self.game.head_output_device = renderer_init_data.outputDevice;
             self.game.main_process_pid = renderer_init_data.mainProcessId;
@@ -912,14 +916,15 @@ fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !voi
         }
     }
 
-    // if (sdl3.mouse.visible() != !output_state.lockCursor) {
-    //     log.debug("Cursor visibility: {any}", .{sdl3.mouse.visible()});
-    //     if (output_state.lockCursor) {
-    //         try sdl3.mouse.hide();
-    //     } else {
-    //         try sdl3.mouse.show();
-    //     }
-    // }
+    if (sdl3.mouse.visible() != !output_state.lockCursor) {
+        if (output_state.lockCursor) {
+            log.debug("Hiding cursor", .{});
+            try sdl3.mouse.hide();
+        } else {
+            log.debug("Showing cursor", .{});
+            try sdl3.mouse.show();
+        }
+    }
 }
 
 pub fn frameLoop(self: *App) !void {

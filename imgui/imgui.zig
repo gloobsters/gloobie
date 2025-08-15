@@ -30,6 +30,10 @@ pub const Context = struct {
     pub fn setCurrent(self: Context) void {
         return c.igSetCurrentContext(self.value);
     }
+
+    pub fn getIo(self: Context) *Io {
+        return c.igGetIO_ContextPtr(self.value);
+    }
 };
 
 pub fn init() void {
