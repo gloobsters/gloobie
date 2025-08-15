@@ -20,10 +20,10 @@ We recommend the [`zigup`](https://github.com/marler8997/zigup) tool for downloa
 
 To install the correct version of Zig, you can run it like so:
 
-```
-// using the version of Zig from build.zig.zon...
-zigup fetch [version]
-zigup default [version]
+```sh
+# using the version of Zig from build.zig.zon...
+$ zigup fetch [version]
+$ zigup default [version]
 ```
 
 Once installed, you can build the project by running `zig build`. By default, this will build a `Debug` build for your current platform. You can override this with `-Doptimize=` and `-Dtarget=` flags respectively.
