@@ -11,6 +11,11 @@ pub const ImGuiManager = @This();
 
 context: imgui.Context,
 
+wants_mouse: bool,
+wants_keyboard: bool,
+
+open: bool,
+
 demo_open: bool,
 assets_open: bool,
 performance_open: bool,
@@ -20,6 +25,21 @@ temporary_graphics_bindings: std.ArrayListUnmanaged(gpu.TextureSamplerBinding),
 
 app: *App,
 
+pub fn init(context: imgui.Context, app: *App) ImGuiManager {
+    return .{
+        .context = context,
+        .app = app,
+        .wants_mouse = false,
+        .wants_keyboard = false,
+        .open = true,
+        .assets_open = true,
+        .loadstate_open = true,
+        .demo_open = true,
+        .performance_open = true,
+        .temporary_graphics_bindings = .empty,
+    };
+}
+
 pub fn deinit(self: *ImGuiManager, gpa: std.mem.Allocator) void {
     self.temporary_graphics_bindings.deinit(gpa);
     imgui.gpu.shutdown();
@@ -28,6 +48,13 @@ pub fn deinit(self: *ImGuiManager, gpa: std.mem.Allocator) void {
 }
 
 pub fn start(self: *ImGuiManager) !void {
+    if (!self.open)
+        return error.ImGuiClosed;
+
+    const io = self.context.getIo();
+    self.wants_mouse = io.WantCaptureMouse;
+    self.wants_keyboard = io.WantCaptureKeyboard;
+
     // imgui new frame
     imgui.gpu.newFrame();
     imgui.sdl3.newFrame();

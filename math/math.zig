@@ -63,6 +63,13 @@ pub const Vector2f = extern struct {
     pub fn from(xr: c.XrVector2f) Vector2f {
         return @bitCast(xr);
     }
+
+    pub fn add(self: Vector2f, other: Vector2f) Vector2f {
+        return .{
+            .x = self.x + other.x,
+            .y = self.y + other.y,
+        };
+    }
 };
 
 pub const Vector2i = extern struct {

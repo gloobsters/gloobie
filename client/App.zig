@@ -60,6 +60,7 @@ const WindowData = struct {
 
     fullscreen: bool,
     focus: bool,
+    mouse_active: bool,
 
     pub fn deinit(self: WindowData) void {
         self.window.deinit();
@@ -237,6 +238,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .swapchain_format = undefined,
             .fullscreen = false,
             .focus = false,
+            .mouse_active = false,
         };
     };
     errdefer window_data.deinit();
@@ -359,15 +361,10 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
         log.info(@src(), "Initialized ImGui GPU backend", .{});
 
-        break :create_imgui_data .{
-            .context = context,
-            .app = app,
-            .assets_open = true,
-            .loadstate_open = true,
-            .demo_open = true,
-            .performance_open = true,
-            .temporary_graphics_bindings = .empty,
-        };
+        var io = context.getIo();
+        io.ConfigFlags = io.ConfigFlags | imgui.c.ImGuiConfigFlags_NoMouseCursorChange;
+
+        break :create_imgui_data .init(context, app);
     };
     errdefer if (maybe_imgui_data) |*imgui_data| imgui_data.deinit(gpa);
 
@@ -471,6 +468,7 @@ fn handleRendererCommand(
             log.debug(@src(), "Setting window title to {s}", .{title});
 
             try self.window.window.setTitle(title);
+            try self.window.window.raise();
 
             self.game.head_output_device = renderer_init_data.outputDevice;
             self.game.main_process_pid = renderer_init_data.mainProcessId;
@@ -909,6 +907,11 @@ fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !voi
             log.debug(@src(), "Stopping text input", .{});
         }
     }
+
+    const imgui_open = if (self.imgui_data) |imgui_data| imgui_data.open else false;
+    const locking_cursor = output_state.lockCursor and !imgui_open;
+
+    try sdl3.mouse.setWindowRelativeMode(self.window.window, locking_cursor);
 }
 
 pub fn frameLoop(self: *App) !void {
@@ -975,9 +978,20 @@ pub fn frameLoop(self: *App) !void {
                     .window_focus_lost => |window| if (window.id == self.window.window.getId() catch unreachable) {
                         self.window.focus = false;
                     },
-                    .key_down => |key_down| {
-                        if (key_down.window_id == self.window.window.getId() catch unreachable) {
-                            self.game.input.handleKeyEvent(key_down);
+                    .window_mouse_enter => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.mouse_active = true;
+                    },
+                    .window_mouse_leave => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                        self.window.mouse_active = false;
+                    },
+                    .key_down => |key_down| if (key_down.window_id == self.window.window.getId() catch unreachable) {
+                        self.game.input.handleKeyEvent(key_down);
+
+                        const key = key_down.key orelse return;
+                        var imgui_data = &(self.imgui_data orelse return);
+
+                        if (key_down.mod.altDown() and !key_down.mod.shiftDown() and !key_down.mod.controlDown() and key == .func3) {
+                            imgui_data.open = !imgui_data.open;
                         }
                     },
                     .key_up => |key_up| {
@@ -988,6 +1002,26 @@ pub fn frameLoop(self: *App) !void {
                     .text_input => |text_input| {
                         if (text_input.window_id == self.window.window.getId() catch unreachable) {
                             try self.game.input.handleTextInputUtf8(self.gpa, text_input.text);
+                        }
+                    },
+                    .mouse_button_down => |mouse_down| {
+                        if (mouse_down.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseButtonEvent(mouse_down);
+                        }
+                    },
+                    .mouse_button_up => |mouse_up| {
+                        if (mouse_up.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseButtonEvent(mouse_up);
+                        }
+                    },
+                    // .mouse_wheel => |mouse_wheel| {
+                    //     if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
+                    //         self.game.input.handleMouseWheelEvent(mouse_wheel);
+                    //     }
+                    // },
+                    .mouse_motion => |mouse_motion| {
+                        if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseMotionEvent(mouse_motion);
                         }
                     },
                     else => {},
@@ -1023,7 +1057,7 @@ pub fn frameLoop(self: *App) !void {
             self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
                 if (err == error.Timeout) {
                     begin_new_frame = false;
-                    log.trace(@src(), "Engine running really slow, no new frame :(", .{});
+                    log.trace(@src(), "FrooxEngine running really slow, no new frame :(", .{});
                 } else {
                     return err;
                 }
@@ -1052,7 +1086,18 @@ pub fn frameLoop(self: *App) !void {
                                 .heldKeys = self.game.input.held_keys.keys(),
                                 .typeDelta = self.game.input.takeTypedDelta(),
                             },
-                            .mouse = null,
+                            .mouse = .{
+                                .leftButtonState = self.game.input.left_click_held,
+                                .middleButtonState = self.game.input.middle_click_held,
+                                .rightButtonState = self.game.input.right_click_held,
+                                .button4State = self.game.input.x1_click_held,
+                                .button5State = self.game.input.x2_click_held,
+                                .desktopPosition = self.game.input.mouse_desktop_pos,
+                                .directDelta = self.game.input.takeMouseDelta(),
+                                .isActive = self.window.mouse_active,
+                                .scrollWheelDelta = .zero,
+                                .windowPosition = self.game.input.mouse_window_pos,
+                            },
                             .touches = &.{},
                             .vr = null,
                             .window = .{
@@ -1087,14 +1132,15 @@ pub fn frameLoop(self: *App) !void {
                 const trace = tracy.traceNamed(@src(), "ImGui start frame");
                 defer trace.end();
 
-                try imgui_data.start();
+                if (imgui_data.open)
+                    try imgui_data.start();
             }
 
             if (maybe_swapchain_texture) |swapchain_texture| {
                 const render_trace = tracy.traceNamed(@src(), "Render Frame");
                 defer render_trace.end();
 
-                const imgui_draw_data = if (self.imgui_data != null) ImGuiManager.getDrawData(command_buffer) else null;
+                const imgui_draw_data = if (self.imgui_data != null and self.imgui_data.?.open) ImGuiManager.getDrawData(command_buffer) else null;
 
                 const render_pass = command_buffer.beginRenderPass(&.{.{
                     .texture = swapchain_texture,
