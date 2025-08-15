@@ -1,8 +1,8 @@
 const std = @import("std");
 
+const math = @import("math");
 const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
-const math = @import("math");
 
 const log = @import("logger").Scoped(.input);
 
@@ -400,7 +400,9 @@ pub fn sdlKeycodeToRenderiteKey(key: sdl3.keycode.Keycode) ?renderite.Shared.Key
         // .right_apple => .RightApple,
         // .left_apple => .LeftApple,
         .left_meta => .LeftWindows,
+        .left_gui => .LeftWindows,
         .right_meta => .RightWindows,
+        .right_gui => .RightWindows,
         .multi_key_compose => .AltGr,
         .help => .Help,
         .print_screen => .Print,
