@@ -20,6 +20,8 @@ right_click_held: bool,
 x1_click_held: bool,
 x2_click_held: bool,
 
+dropped_files: std.ArrayListUnmanaged([]const u16),
+
 pub fn init(gpa: std.mem.Allocator) !Input {
     var held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void) = .empty;
     try held_keys.ensureTotalCapacity(gpa, std.enums.values(renderite.Shared.Key).len);
@@ -36,12 +38,14 @@ pub fn init(gpa: std.mem.Allocator) !Input {
         .right_click_held = false,
         .x1_click_held = false,
         .x2_click_held = false,
+        .dropped_files = .empty,
     };
 }
 
 pub fn deinit(self: *Input, gpa: std.mem.Allocator) void {
     self.held_keys.deinit(gpa);
     self.type_delta.deinit(gpa);
+    self.dropped_files.deinit(gpa);
 }
 
 // Appends the UTF-8 text input into the type delta.
@@ -109,6 +113,13 @@ pub fn handleMouseMotionEvent(self: *Input, event: sdl3.events.MouseMotion) void
     self.mouse_desktop_pos = self.mouse_window_pos;
 }
 
+pub fn handleDroppedFile(self: *Input, gpa: std.mem.Allocator, event: sdl3.events.DropFile) !void {
+    const file = try std.unicode.utf8ToUtf16LeAlloc(gpa, event.file_name);
+    errdefer gpa.free(file);
+
+    try self.dropped_files.append(gpa, file);
+}
+
 /// Takes the typed delta, and clears the list
 ///
 /// NOTE: Calling `handleTextInput` invalidates the returned array!!!
@@ -121,6 +132,19 @@ pub fn takeTypedDelta(self: *Input) []u16 {
 pub fn takeMouseDelta(self: *Input) math.Vector2f {
     defer self.mouse_delta = .zero;
     return self.mouse_delta;
+}
+
+pub fn takeDroppedFiles(self: *Input, gpa: std.mem.Allocator) !?renderite.Shared.DragAndDropEvent {
+    if (self.dropped_files.items.len == 0)
+        return null;
+
+    const arr = try gpa.dupe([]const u16, self.dropped_files.items);
+    self.dropped_files.clearRetainingCapacity();
+
+    return .{
+        .paths = arr,
+        .dropPoint = .zero,
+    };
 }
 
 fn renderiteKeyToSdlKeycode(key: renderite.Shared.Key) ?sdl3.keycode.Keycode {

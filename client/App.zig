@@ -1052,6 +1052,12 @@ pub fn frameLoop(self: *App) !void {
                             self.game.input.handleMouseMotionEvent(mouse_motion);
                         }
                     },
+                    .drop_file => |file| {
+                        try self.game.input.handleDroppedFile(self.gpa, file);
+                    },
+                    .drop_text => |text| {
+                        try self.game.input.handleTextInputUtf8(self.gpa, text.text);
+                    },
                     else => {},
                 }
             }
@@ -1105,6 +1111,14 @@ pub fn frameLoop(self: *App) !void {
 
             // send a frame start if the engine thread is waiting for us to do so
             if (self.game.load_state.full_init and begin_new_frame) {
+                const dropped_files = try self.game.input.takeDroppedFiles(self.gpa);
+                defer if (dropped_files) |files| {
+                    for (files.paths) |file| {
+                        self.gpa.free(file);
+                    }
+                    self.gpa.free(files.paths);
+                };
+
                 try self.messaging.host.primary.sendTimeout(.{
                     .FrameStartData = .{
                         .lastFrameIndex = self.game.last_frame_index,
@@ -1132,7 +1146,7 @@ pub fn frameLoop(self: *App) !void {
                             .window = .{
                                 .isFullscreen = self.window.fullscreen,
                                 .isWindowFocused = self.window.focus,
-                                .dragAndDropEvent = null,
+                                .dragAndDropEvent = dropped_files,
                                 // TODO: should this be window size or swapchain size?
                                 .windowResolution = .{
                                     .x = @intCast(swapchain_width),
