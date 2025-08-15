@@ -7,7 +7,7 @@ const serialization = @import("serialization.zig");
 const IpcSerializer = serialization.IpcSerializer;
 const IpcDeserializer = serialization.IpcDeserializer;
 
-const log = std.log.scoped(.shmem);
+const log = @import("logger").Scoped(.shmem);
 
 pub const SharedMemoryBufferDescriptor = extern struct {
     buffer_id: i32,

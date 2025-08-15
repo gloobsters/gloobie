@@ -2,7 +2,7 @@ const std = @import("std");
 
 const build_options = @import("options").build_options;
 
-const log = std.log.scoped(.pooling);
+const log = @import("logger").Scoped(.pooling);
 
 pub fn SimpleKey(comptime Child: type) type {
     return struct {
@@ -123,7 +123,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
 
             entry_to_append.frames_since_usage = 0;
             try self.entries.append(gpa, entry_to_append);
-            if (build_options.noisy_logging) log.debug("Released entry {s} back into pool", .{@typeName(Value)});
+            log.trace(@src(), "Released entry {s} back into pool", .{@typeName(Value)});
         }
 
         pub fn frameTick(self: *Self) void {
@@ -137,7 +137,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
                 entry.frames_since_usage += 1;
 
                 if (entry.frames_since_usage >= frames_to_keep_entry) {
-                    log.debug("Releasing {s} because it's been unused for {d} frames", .{ @typeName(Value), frames_to_keep_entry });
+                    log.debug(@src(), "Releasing {s} because it's been unused for {d} frames", .{ @typeName(Value), frames_to_keep_entry });
                     release_val(self.context, entry.value);
                     _ = self.entries.swapRemove(i);
                 } else {
@@ -152,7 +152,7 @@ pub fn FrameReferencedResourcePool(comptime Context: type, comptime Key: type, c
             defer self.lock.unlock();
 
             for (self.entries.items) |entry| {
-                log.debug("Releasing {s}", .{@typeName(Value)});
+                log.trace(@src(), "Releasing {s}", .{@typeName(Value)});
                 release_val(self.context, entry.value);
             }
 

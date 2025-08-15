@@ -22,7 +22,7 @@ const RenderSpace = @import("render_spaces/RenderSpace.zig");
 const Texture = @import("Texture.zig");
 
 pub const MessagingHost = renderite.MessagingHost(*App);
-const log = std.log.scoped(.app);
+const log = @import("logger").Scoped(.app);
 
 const App = @This();
 
@@ -113,7 +113,7 @@ const MessagingData = struct {
 
         self.to_render_envelope_pool.deinit();
 
-        log.debug("messaging data deinit", .{});
+        log.trace(@src(), "messaging data deinit", .{});
     }
 };
 
@@ -188,7 +188,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
     const messaging_data: MessagingData = create_messaging_data: {
         const host = MessagingHost.init(settings.queue_name.constSlice(), settings.queue_length, messagingCallback, app) catch |err| debug_queue: {
-            log.warn("Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
+            log.warn(@src(), "Failed to initialize messaging manager from command line arguments: {s}, setting up dummy queue", .{@errorName(err)});
             break :debug_queue try MessagingHost.init("gloopie", 8388608, messagingCallback, app);
         };
         errdefer host.deinit();
@@ -205,16 +205,16 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
     const xr_data: ?XrData = create_xr_data: {
         const xr_backend: ?*xr_t.Backend = xr_t.init(gpa) catch |err| backend_create_fail: {
-            log.err("Got error {s} when trying to initialize XR backend.", .{@errorName(err)});
+            log.err(@src(), "Got error {s} when trying to initialize XR backend.", .{@errorName(err)});
 
             break :backend_create_fail null;
         };
         errdefer if (xr_backend) |backend| backend.deinit(gpa);
 
         if (xr_backend) |_| {
-            log.info("Initialized XR backend {s}", .{xr_t.name});
+            log.info(@src(), "Initialized XR backend {s}", .{xr_t.name});
         } else {
-            log.warn("Failed to initialize XR backend {s}, will be starting in desktop-only mode. Restart will be required to begin a VR session.", .{xr_t.name});
+            log.warn(@src(), "Failed to initialize XR backend {s}, will be starting in desktop-only mode. Restart will be required to begin a VR session.", .{xr_t.name});
         }
 
         break :create_xr_data if (xr_backend) |backend| .{ .backend = backend } else null;
@@ -267,9 +267,9 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
                 .{ .sampler = true },
             )) {
                 sampler_supported_formats.insert(renderite_format);
-                log.debug("GPU supports {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
+                log.debug(@src(), "GPU supports {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             } else {
-                log.debug("GPU does not support {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
+                log.debug(@src(), "GPU does not support {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             }
 
             if (gpu_device.textureSupportsFormat(
@@ -282,14 +282,14 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
                 .{ .sampler = true },
             )) {
                 cubemap_supported_formats.insert(renderite_format);
-                log.debug("GPU supports {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
+                log.debug(@src(), "GPU supports {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             } else {
-                log.debug("GPU does not support {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
+                log.debug(@src(), "GPU does not support {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
             }
         }
 
         // SAFETY: this call never fails if we pass a valid GPU device handle, which we should always have
-        log.info("Acquired OpenXR GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
+        log.info(@src(), "Acquired OpenXR GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
 
         break :create_graphics_data .{
             .device = gpu_device,
@@ -311,7 +311,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     };
 
     if (!graphics_data.device.windowSupportsSwapchainComposition(window_data.window, composition_mode)) {
-        log.err("Window does not support the composition mode ({s}) we want. Cannot continue.", .{@tagName(composition_mode)});
+        log.err(@src(), "Window does not support the composition mode ({s}) we want. Cannot continue.", .{@tagName(composition_mode)});
         return error.UnsupportCompositionMode;
     }
 
@@ -322,12 +322,12 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             break;
         }
     } else {
-        log.err("Window supports none of our wanted present modes. VR performance may be impacted strongly.", .{});
+        log.err(@src(), "Window supports none of our wanted present modes. VR performance may be impacted strongly.", .{});
     }
 
     window_data.swapchain_format = graphics_data.device.getSwapchainTextureFormat(window_data.window);
 
-    log.debug("Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
+    log.debug(@src(), "Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
 
     // TODO: make ImGui an optional build dependency
     var maybe_imgui_data: ?ImGuiManager = create_imgui_data: {
@@ -350,7 +350,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         try imgui.sdl3.initForOther(window_data.window);
         errdefer imgui.sdl3.shutdown();
 
-        log.info("Initialized ImGui SDL3 backend", .{});
+        log.info(@src(), "Initialized ImGui SDL3 backend", .{});
 
         try imgui.gpu.init(.{
             .color_target_format = window_data.swapchain_format,
@@ -359,7 +359,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         });
         errdefer imgui.gpu.shutdown();
 
-        log.info("Initialized ImGui GPU backend", .{});
+        log.info(@src(), "Initialized ImGui GPU backend", .{});
 
         var io = context.getIo();
         io.ConfigFlags = io.ConfigFlags | imgui.c.ImGuiConfigFlags_NoMouseCursorChange;
@@ -437,7 +437,7 @@ fn beginExit(self: *App) void {
     if (self.game.load_state.full_init) {
         self.game.exiting = true;
         self.messaging.host.primary.sendTimeout(.{ .RendererShutdownRequest = .{} }, std.time.ns_per_s) catch {
-            log.warn("Failed to send shutdown request, exiting without waiting for engine", .{});
+            log.warn(@src(), "Failed to send shutdown request, exiting without waiting for engine", .{});
             self.game.run_loop = false;
         };
     } else {
@@ -465,7 +465,7 @@ fn handleRendererCommand(
             var title_buf: [128]u8 = undefined;
             const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
 
-            log.debug("Setting window title to {s}", .{title});
+            log.debug(@src(), "Setting window title to {s}", .{title});
 
             try self.window.window.setTitle(title);
             try self.window.window.raise();
@@ -473,8 +473,8 @@ fn handleRendererCommand(
             self.game.head_output_device = renderer_init_data.outputDevice;
             self.game.main_process_pid = renderer_init_data.mainProcessId;
 
-            log.debug("Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
-            log.debug("Main process PID {d}", .{renderer_init_data.mainProcessId});
+            log.debug(@src(), "Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
+            log.debug(@src(), "Main process PID {d}", .{renderer_init_data.mainProcessId});
 
             const formats = comptime std.enums.values(renderite.Shared.TextureFormat);
 
@@ -485,7 +485,7 @@ fn handleRendererCommand(
             var i: usize = 0;
             for (formats) |format| {
                 if (supported_formats.contains(format)) {
-                    log.debug("Sending format {s} as supported", .{@tagName(format)});
+                    log.trace(@src(), "Sending format {s} as supported", .{@tagName(format)});
                     supported_formats_buf[i] = format;
                     i += 1;
                 }
@@ -496,7 +496,7 @@ fn handleRendererCommand(
             shmem_prefix.len = try std.unicode.utf16LeToUtf8(&shmem_prefix.buffer, renderer_init_data.sharedMemoryPrefix);
             self.messaging.accessor = try SharedMemoryAccessor.init(self.gpa, self.messaging.shmem_prefix.constSlice());
 
-            log.debug("Set shmem prefix to {s} (len {d})", .{ shmem_prefix.constSlice(), shmem_prefix.len });
+            log.debug(@src(), "Set shmem prefix to {s} (len {d})", .{ shmem_prefix.constSlice(), shmem_prefix.len });
 
             try self.messaging.host.primary.sendTimeout(.{
                 .RendererInitResult = .{
@@ -508,7 +508,7 @@ fn handleRendererCommand(
                     .maxTextureSize = 16384, // TODO: determine this from GPU code
                     .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
                 },
-            }, std.time.ns_per_s);
+            }, std.time.ns_per_s * 10);
 
             self.game.load_state.init = true;
         },
@@ -525,12 +525,12 @@ fn handleRendererCommand(
             phase.sub_phase_name.buffer[phase.sub_phase_name.len] = 0;
         },
         .RendererShutdown => |_| {
-            log.debug("Engine is requesting that we shut down, beginning exit", .{});
+            log.info(@src(), "Engine is requesting that we shut down, beginning exit", .{});
             self.game.run_loop = false;
         },
         .RendererInitFinalizeData => |_| {
             self.game.load_state.full_init = true;
-            log.info("Engine is fully loaded!", .{});
+            log.info(@src(), "Engine is fully loaded!", .{});
         },
         .KeepAlive => {
             // do nothing
@@ -614,7 +614,7 @@ fn handleRendererCommand(
             std.debug.panic("This should be handled by the other thread!", .{});
         },
         else => {
-            log.warn("Unhandled command type {s}", .{@tagName(command)});
+            log.warn(@src(), "Unhandled command type {s}", .{@tagName(command)});
         },
     }
 }
@@ -657,7 +657,7 @@ fn handleMessages(self: *App, frame_context: *graphics.FrameContext) !void {
 }
 
 fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, message: renderite.ParsedCommand) void {
-    if (build_options.noisy_logging) log.debug("Got message {s} on queue {s}", .{ @tagName(message.command), @tagName(queue_type) });
+    log.trace(@src(), "Got message {s} on queue {s}", .{ @tagName(message.command), @tagName(queue_type) });
 
     switch (queue_type) {
         // messages coming in the primary queue need to be processed ASAP by the main thread
@@ -734,7 +734,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
             var render_space: RenderSpace = try .init(self.gpa, update);
             errdefer render_space.deinit(self.gpa);
 
-            log.debug("Created render space {d}", .{update.id});
+            log.debug(@src(), "Created render space {d}", .{update.id});
 
             try self.game.render_spaces.putNoClobber(self.gpa, .from(update.id), render_space);
 
@@ -746,7 +746,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
 
         if (render_space.properties.active and !render_space.properties.overlay) {
             if (active_render_space != .invalid) {
-                log.err("Render space {d} is active when render space {d} was already found to be active!", .{ update.id, active_render_space.to() });
+                log.err(@src(), "Render space {d} is active when render space {d} was already found to be active!", .{ update.id, active_render_space.to() });
                 return error.MultipleActiveRenderSpaces;
             }
 
@@ -764,7 +764,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
             } else {
                 render_space.deinit(self.gpa);
 
-                log.debug("Render space {d} removed", .{render_space.id.to()});
+                log.debug(@src(), "Render space {d} removed", .{render_space.id.to()});
                 const removed = self.game.render_spaces.swapRemove(render_space.id);
                 std.debug.assert(removed);
             }
@@ -783,7 +783,7 @@ fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
     }
 
     self.game.last_frame_index = frame_submit_data.frameIndex;
-    if (build_options.noisy_logging) log.debug("Frame {d} completion", .{frame_submit_data.frameIndex});
+    log.trace(@src(), "Frame {d} completion", .{frame_submit_data.frameIndex});
 
     try self.updateRenderSpaces(frame_submit_data.renderSpaces);
 
@@ -797,7 +797,7 @@ fn engineLoop(self: *App) !void {
         const message = self.game.to_engine_mailbox.receive(std.time.ns_per_s * 1) catch |err| {
             // Timeouts are nonfatal.
             if (err == error.Timeout) {
-                log.debug("Engine wait timeout", .{});
+                log.trace(@src(), "Engine wait timeout", .{});
                 continue;
             }
 
@@ -887,7 +887,7 @@ fn updateDisplays(self: *App) !void {
         };
         try self.game.displays.append(self.gpa, renderite_display);
 
-        log.debug("Got display {d} with size {d}x{d}", .{ index, display_mode.width, display_mode.height });
+        log.debug(@src(), "Got display {d} with size {d}x{d}", .{ index, display_mode.width, display_mode.height });
     }
 }
 
@@ -901,10 +901,10 @@ fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !voi
     if (sdl3.keyboard.textInputActive(self.window.window) != output_state.keyboardInputActive) {
         if (output_state.keyboardInputActive) {
             try sdl3.keyboard.startTextInput(self.window.window);
-            log.debug("Starting text input", .{});
+            log.debug(@src(), "Starting text input", .{});
         } else {
             try sdl3.keyboard.stopTextInput(self.window.window);
-            log.debug("Stopping text input", .{});
+            log.debug(@src(), "Stopping text input", .{});
         }
     }
 
@@ -920,7 +920,7 @@ pub fn frameLoop(self: *App) !void {
     try self.messaging.host.start(self.gpa);
 
     self.updateDisplays() catch |err| {
-        log.err("Failed to update displays, got err {s}", .{@errorName(err)});
+        log.err(@src(), "Failed to update displays, got err {s}", .{@errorName(err)});
     };
 
     while (self.game.run_loop) {
@@ -963,7 +963,7 @@ pub fn frameLoop(self: *App) !void {
                     .display_removed,
                     => {
                         self.updateDisplays() catch |err| {
-                            log.err("Failed to update displays, got err {s}", .{@errorName(err)});
+                            log.err(@src(), "Failed to update displays, got err {s}", .{@errorName(err)});
                         };
                     },
                     .window_enter_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
@@ -1057,7 +1057,7 @@ pub fn frameLoop(self: *App) !void {
             self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
                 if (err == error.Timeout) {
                     begin_new_frame = false;
-                    log.debug("FrooxEngine running really slow, no new frame :(", .{});
+                    log.trace(@src(), "FrooxEngine running really slow, no new frame :(", .{});
                 } else {
                     return err;
                 }
@@ -1117,7 +1117,7 @@ pub fn frameLoop(self: *App) !void {
                     },
                 }, std.time.ns_per_s);
 
-                if (build_options.noisy_logging) log.debug("Sent frame {d} start", .{self.game.last_frame_index + 1});
+                log.trace(@src(), "Sent frame {d} start", .{self.game.last_frame_index + 1});
 
                 self.game.engine_thread_ready_for_begin_frame.reset();
             }

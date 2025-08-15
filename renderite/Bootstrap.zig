@@ -1,11 +1,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 const zinterprocess = @import("zinterprocess");
 const Queue = zinterprocess.Queue;
 
 const InitSettings = @import("InitSettings.zig");
 
-const log = std.log.scoped(.Bootstrap);
+const log = @import("logger").Scoped(.bootstrap);
 
 const Bootstrap = @This();
 
@@ -16,7 +17,7 @@ init_settings: InitSettings,
 
 pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
     if (args.len > 1 and std.mem.eql(u8, args[1], "-QueueName")) {
-        log.info("Launched from renderer, starting up!", .{});
+        log.info(@src(), "Launched from renderer, starting up!", .{});
         // If the renderer is launching us directly, we need no special logic.
         return .{
             .queue_in = null,
@@ -25,7 +26,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
             .init_settings = try InitSettings.init(args),
         };
     } else {
-        log.info("Bootstrapping Resonite...", .{});
+        log.info(@src(), "Bootstrapping Resonite...", .{});
         var prefix: [16]u8 = undefined;
         try initPrefix(&prefix);
 
@@ -58,13 +59,13 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
         var msg_buf: [32]u8 = undefined;
         const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{pid});
 
-        log.debug("Sending init message: {s}", .{msg});
+        log.trace(@src(), "Sending init message: {s}", .{msg});
         try queue_out.enqueue(msg);
 
-        log.info("Waiting for Resonite to say hello...", .{});
+        log.info(@src(), "Waiting for Resonite to say hello...", .{});
         const message = try queue_in.dequeue(gpa);
         defer gpa.free(message);
-        log.debug("Received queue message! '{s}'", .{message});
+        log.trace(@src(), "Received queue message! '{s}'", .{message});
 
         var iterator = std.mem.splitAny(u8, message, " ");
         const max_part = 4;
@@ -80,7 +81,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !Bootstrap {
 
         const init_settings = try InitSettings.init(parts[0..max_part]);
 
-        log.info("Resonite launched, Starting up!", .{});
+        log.info(@src(), "Resonite launched, Starting up!", .{});
 
         const bootstrap: Bootstrap = .{
             .queue_in = queue_in,
@@ -108,7 +109,7 @@ fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child 
         else => "dotnet-runtime/dotnet",
     };
 
-    log.debug("Starting Resonite with dotnet at '{s}', using shmem prefix '{s}'", .{ dotnet_path, prefix });
+    log.debug(@src(), "Starting Resonite with dotnet at '{s}', using shmem prefix '{s}'", .{ dotnet_path, prefix });
 
     var child = std.process.Child.init(&.{
         dotnet_path,
@@ -118,7 +119,7 @@ fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child 
     }, gpa);
 
     try child.spawn();
-    log.debug("Process spawned. PID {any}", .{child.id});
+    log.trace(@src(), "Process spawned. PID {any}", .{child.id});
     try child.waitForSpawn();
 
     return child;
@@ -132,7 +133,7 @@ pub fn deinit(self: *Bootstrap, gpa: std.mem.Allocator) void {
             if (err == error.AlreadyTerminated)
                 return;
 
-            log.warn("Failed to kill Resonite: {any}", .{err});
+            log.warn(@src(), "Failed to kill Resonite: {any}", .{err});
             return;
         };
     }

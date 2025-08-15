@@ -5,7 +5,7 @@ const gpu = @import("gpu");
 const openxr = @import("openxr");
 const sdl3 = @import("sdl3");
 
-const log = std.log.scoped(.xr_openxr);
+const log = @import("logger").Scoped(.openxr);
 
 pub const name = "OpenXR";
 
@@ -104,7 +104,7 @@ pub fn handleEvents(self: *Backend) HandleEventsError!void {
             .event_data_session_state_changed => {
                 const session_state_changed = event.session_state_changed;
 
-                log.info("Session state has changed to {s}, was {s}", .{ @tagName(session_state_changed.state), @tagName(self.session_state) });
+                log.info(@src(), "Session state has changed to {s}, was {s}", .{ @tagName(session_state_changed.state), @tagName(self.session_state) });
                 self.session_state = session_state_changed.state;
             },
             else => {},

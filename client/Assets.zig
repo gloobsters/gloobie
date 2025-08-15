@@ -1,14 +1,14 @@
 const std = @import("std");
 
+const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const renderite = @import("renderite");
-const build_options = @import("options").build_options;
 
 const graphics = @import("graphics.zig");
 const Mesh = @import("Mesh.zig");
 const Texture = @import("Texture.zig");
 
-const log = std.log.scoped(.assets);
+const log = @import("logger").Scoped(.assets);
 
 const Assets = @This();
 
@@ -36,7 +36,7 @@ fn textureReadyHandler(context: TextureReadyFenceHandlerContext) !void {
         // SAFETY: texture should have graphics data right now!
         texture.graphics_data.?.ready = true;
 
-        log.debug("{s} {d} is now ready!", .{ @tagName(texture_info.type), texture_info.id.to() });
+        log.debug(@src(), "{s} {d} is now ready!", .{ @tagName(texture_info.type), texture_info.id.to() });
     }
 }
 
@@ -99,10 +99,10 @@ pub fn setTexture2dPropertiesOrCreate(
     const texture = result.value_ptr;
     if (result.found_existing) {
         try texture.setProperties2d(frame_context, properties);
-        log.debug("Updated properties of Texture 2D {d}", .{properties.assetId});
+        log.trace(@src(), "Updated properties of Texture 2D {d}", .{properties.assetId});
     } else {
         texture.* = try .create2d(frame_context, properties);
-        log.debug("Created Texture 2D with ID {d}", .{properties.assetId});
+        log.debug(@src(), "Created Texture 2D with ID {d}", .{properties.assetId});
     }
 }
 
@@ -122,7 +122,7 @@ pub fn setTexture2dFormat(
 
     try texture.setFormat2d(gpa, frame_context, format);
 
-    log.debug("Updated Texture ({d}) format to {s} ({s}), size {d}x{d}", .{
+    log.trace(@src(), "Updated Texture ({d}) format to {s} ({s}), size {d}x{d}", .{
         format.assetId,
         @tagName(format.format),
         @tagName(format.profile),
@@ -163,10 +163,10 @@ pub fn setTexture3dPropertiesOrCreate(
     const texture = result.value_ptr;
     if (result.found_existing) {
         try texture.setProperties3d(frame_context, properties);
-        log.debug("Updated properties of Texture 2D {d}", .{properties.assetId});
+        log.trace(@src(), "Updated properties of Texture 2D {d}", .{properties.assetId});
     } else {
         texture.* = try .create3d(frame_context, properties);
-        log.debug("Created Texture 2D with ID {d}", .{properties.assetId});
+        log.debug(@src(), "Created Texture 2D with ID {d}", .{properties.assetId});
     }
 }
 
@@ -186,7 +186,7 @@ pub fn setTexture3dFormat(
 
     try texture.setFormat3d(gpa, frame_context, format);
 
-    log.debug("Updated Texture ({d}) format to {s} ({s}), size {d}x{d}x{d}", .{
+    log.trace(@src(), "Updated Texture ({d}) format to {s} ({s}), size {d}x{d}x{d}", .{
         format.assetId,
         @tagName(format.format),
         @tagName(format.profile),
@@ -228,10 +228,10 @@ pub fn setCubemapPropertiesOrCreate(
     const texture = result.value_ptr;
     if (result.found_existing) {
         try texture.setPropertiesCubemap(frame_context, properties);
-        log.debug("Updated properties of Cubemap {d}", .{properties.assetId});
+        log.trace(@src(), "Updated properties of Cubemap {d}", .{properties.assetId});
     } else {
         texture.* = try .createCubemap(frame_context, properties);
-        log.debug("Created Cubemap with ID {d}", .{properties.assetId});
+        log.debug(@src(), "Created Cubemap with ID {d}", .{properties.assetId});
     }
 }
 
@@ -251,7 +251,7 @@ pub fn setCubemapFormat(
 
     try texture.setFormatCubemap(gpa, frame_context, format);
 
-    log.debug("Updated Cubemap ({d}) format to {s} ({s}), size {d}", .{
+    log.trace(@src(), "Updated Cubemap ({d}) format to {s} ({s}), size {d}", .{
         format.assetId,
         @tagName(format.format),
         @tagName(format.profile),
@@ -279,11 +279,11 @@ pub fn unloadTexture(self: *Assets, texture_handle: TextureHandle, gpa: std.mem.
     defer self.lock.unlock();
 
     const texture = self.textures.get(texture_handle) orelse {
-        log.warn("Tried to unload missing texture {d}", .{texture_handle.id});
+        log.warn(@src(), "Tried to unload missing texture {d}", .{texture_handle.id});
         return;
     };
 
-    log.debug("Unloading {s} ({d}) of type {s}", .{ @tagName(texture_handle.type), texture_handle.id.to(), @tagName(texture.properties.type) });
+    log.debug(@src(), "Unloading {s} ({d}) of type {s}", .{ @tagName(texture_handle.type), texture_handle.id.to(), @tagName(texture.properties.type) });
 
     texture.deinit(gpa, device);
 
@@ -300,10 +300,10 @@ pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *gra
     const mesh = result.value_ptr;
     if (result.found_existing) {
         try mesh.setData(gpa, frame_context, accessor, mesh_upload_data);
-        if (build_options.noisy_logging) log.debug("Updated mesh {d}", .{mesh_upload_data.assetId});
+        log.trace(@src(), "Updated mesh {d}", .{mesh_upload_data.assetId});
     } else {
         mesh.* = try .init(gpa, frame_context, accessor, mesh_upload_data);
-        log.debug("Created mesh {d}", .{mesh_upload_data.assetId});
+        log.debug(@src(), "Created mesh {d}", .{mesh_upload_data.assetId});
     }
 }
 
@@ -312,7 +312,7 @@ pub fn unloadMesh(self: *Assets, asset_id: AssetId, gpa: std.mem.Allocator, devi
     defer self.lock.unlock();
 
     const mesh = self.meshes.getPtr(asset_id) orelse {
-        log.warn("Tried to unload missing mesh {d}", .{asset_id});
+        log.warn(@src(), "Tried to unload missing mesh {d}", .{asset_id});
         return;
     };
 

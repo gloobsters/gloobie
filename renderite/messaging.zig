@@ -3,7 +3,6 @@ const builtin = @import("builtin");
 
 const tracy = @import("tracy");
 const zinterprocess = @import("zinterprocess");
-const build_options = @import("options").build_options;
 
 const InitSettings = @import("InitSettings.zig");
 const serialization = @import("serialization.zig");
@@ -11,7 +10,7 @@ const IpcDeserializer = serialization.IpcDeserializer;
 const IpcSerializer = serialization.IpcSerializer;
 const shared = @import("shared.zig");
 
-const log = std.log.scoped(.messaging);
+const log = @import("logger").Scoped(.messaging);
 
 pub const ParsedCommand = struct {
     arena: std.heap.ArenaAllocator,
@@ -109,7 +108,7 @@ pub fn MessagingHost(comptime Context: type) type {
                 var name_s_buf: [std.fs.max_path_bytes]u8 = undefined;
                 const name_s = try std.fmt.bufPrint(&name_s_buf, "{s}S", .{queue_name});
 
-                log.debug("Inititalizing QueueManager with names {s} and {s} (size {d})", .{ name_a, name_s, capacity });
+                log.trace(@src(), "Inititalizing QueueManager with names {s} and {s} (size {d})", .{ name_a, name_s, capacity });
 
                 const publisher = try zinterprocess.Queue.init(.{
                     .capacity = capacity,
@@ -146,11 +145,11 @@ pub fn MessagingHost(comptime Context: type) type {
 
                 // wait for thread to exit
                 if (self.thread) |thread| {
-                    log.debug("Waiting for exit...", .{});
+                    log.trace(@src(), "Waiting for exit...", .{});
                     thread.join();
                 }
 
-                log.debug("deinitting queues", .{});
+                log.trace(@src(), "deinitting queues", .{});
                 self.publisher.deinit();
                 self.subscriber.deinit();
             }
@@ -163,7 +162,7 @@ pub fn MessagingHost(comptime Context: type) type {
 
                 var contents_allocator_impl: std.heap.ThreadSafeAllocator = .{ .child_allocator = gpa };
 
-                // log.debug("Starting receiver loop", .{});
+                // log.trace(@src(), "Starting receiver loop", .{});
                 while (self.run) {
                     tracy.frameMarkNamed("Receiver Loop");
 
@@ -180,7 +179,7 @@ pub fn MessagingHost(comptime Context: type) type {
                         if (builtin.mode == .Debug) {
                             std.debug.panic(err_format, .{err});
                         } else {
-                            log.err(err_format, .{err});
+                            log.err(@src(), err_format, .{err});
                         }
                     };
                 }
@@ -221,7 +220,7 @@ pub fn MessagingHost(comptime Context: type) type {
 
                 const serializer = IpcSerializer.init(&writer);
 
-                if (build_options.noisy_logging) log.debug("Sending message {s}", .{@tagName(command)});
+                log.trace(@src(), "Sending message {s}", .{@tagName(command)});
                 try serializer.writePolymorphic(shared.RendererCommand, command);
 
                 try self.publisher.enqueue(data[0..writer.end]);
@@ -234,7 +233,7 @@ pub fn MessagingHost(comptime Context: type) type {
                     self.send(command) catch |err| {
                         // if the queue is full and we're before the end timeout, just continue, else return the error
                         if (err == error.QueueFull and std.time.nanoTimestamp() < end_ns) {
-                            log.err("Sending message {s} timed out after {d} nanoseconds", .{ @tagName(command), timeout_ns });
+                            log.err(@src(), "Sending message {s} timed out after {d} nanoseconds", .{ @tagName(command), timeout_ns });
                             // SAFETY: we really don't care if this fails
                             std.Thread.yield() catch {};
                             continue;
