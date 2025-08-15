@@ -991,16 +991,14 @@ pub fn frameLoop(self: *App) !void {
                     .window_mouse_leave => |window| if (window.id == self.window.window.getId() catch unreachable) {
                         self.window.mouse_active = false;
                     },
-                    .key_down => |key_down| {
-                        if (key_down.window_id == self.window.window.getId() catch unreachable) {
-                            self.game.input.handleKeyEvent(key_down);
-                            if (key_down.key) |key| {
-                                if (self.imgui_data) |*imgui_data| {
-                                    if (key_down.mod.altDown() and !key_down.mod.shiftDown() and !key_down.mod.controlDown() and key == .func3) {
-                                        imgui_data.open = !imgui_data.open;
-                                    }
-                                }
-                            }
+                    .key_down => |key_down| if (key_down.window_id == self.window.window.getId() catch unreachable) {
+                        self.game.input.handleKeyEvent(key_down);
+
+                        const key = key_down.key orelse return;
+                        var imgui_data = &(self.imgui_data orelse return);
+
+                        if (key_down.mod.altDown() and !key_down.mod.shiftDown() and !key_down.mod.controlDown() and key == .func3) {
+                            imgui_data.open = !imgui_data.open;
                         }
                     },
                     .key_up => |key_up| {

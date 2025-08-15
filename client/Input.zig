@@ -91,8 +91,6 @@ pub fn handleMouseButtonEvent(self: *Input, event: sdl3.events.MouseButton) void
         return;
 
     button_state.?.* = event.down;
-
-    log.debug("{any}", .{self.*});
 }
 
 /// Takes the typed delta, and clears the list
