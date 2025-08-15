@@ -909,16 +909,9 @@ fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !voi
     }
 
     const imgui_open = if (self.imgui_data) |imgui_data| imgui_data.open else false;
+    const locking_cursor = output_state.lockCursor and !imgui_open;
 
-    if (sdl3.mouse.visible() != (!output_state.lockCursor or imgui_open)) {
-        if (output_state.lockCursor and !imgui_open) {
-            log.debug("Hiding cursor", .{});
-            try sdl3.mouse.hide();
-        } else {
-            log.debug("Showing cursor", .{});
-            try sdl3.mouse.show();
-        }
-    }
+    try sdl3.mouse.setWindowRelativeMode(self.window.window, locking_cursor);
 }
 
 pub fn frameLoop(self: *App) !void {
@@ -1026,11 +1019,11 @@ pub fn frameLoop(self: *App) !void {
                     //         self.game.input.handleMouseWheelEvent(mouse_wheel);
                     //     }
                     // },
-                    // .mouse_motion => |mouse_motion| {
-                    //     if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
-                    //         self.game.input.handleMouseMotionEvent(mouse_motion);
-                    //     }
-                    // },
+                    .mouse_motion => |mouse_motion| {
+                        if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseMotionEvent(mouse_motion);
+                        }
+                    },
                     else => {},
                 }
             }
@@ -1099,11 +1092,11 @@ pub fn frameLoop(self: *App) !void {
                                 .rightButtonState = self.game.input.right_click_held,
                                 .button4State = self.game.input.x1_click_held,
                                 .button5State = self.game.input.x2_click_held,
-                                .desktopPosition = .zero,
-                                .directDelta = .zero,
+                                .desktopPosition = self.game.input.mouse_desktop_pos,
+                                .directDelta = self.game.input.takeMouseDelta(),
                                 .isActive = self.window.mouse_active,
                                 .scrollWheelDelta = .zero,
-                                .windowPosition = .zero,
+                                .windowPosition = self.game.input.mouse_window_pos,
                             },
                             .touches = &.{},
                             .vr = null,

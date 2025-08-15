@@ -2,6 +2,7 @@ const std = @import("std");
 
 const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
+const math = @import("math");
 
 const log = std.log.scoped(.input);
 
@@ -10,6 +11,9 @@ const Input = @This();
 held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void),
 type_delta: std.ArrayListUnmanaged(u16),
 
+mouse_delta: math.Vector2f,
+mouse_window_pos: math.Vector2f,
+mouse_desktop_pos: math.Vector2f,
 left_click_held: bool,
 middle_click_held: bool,
 right_click_held: bool,
@@ -24,6 +28,9 @@ pub fn init(gpa: std.mem.Allocator) !Input {
     return .{
         .held_keys = held_keys,
         .type_delta = .empty,
+        .mouse_delta = .zero,
+        .mouse_window_pos = .zero,
+        .mouse_desktop_pos = .zero,
         .left_click_held = false,
         .middle_click_held = false,
         .right_click_held = false,
@@ -93,6 +100,15 @@ pub fn handleMouseButtonEvent(self: *Input, event: sdl3.events.MouseButton) void
     button_state.?.* = event.down;
 }
 
+pub fn handleMouseMotionEvent(self: *Input, event: sdl3.events.MouseMotion) void {
+    // Y is inverted for some reason???
+    const delta: math.Vector2f = .{ .x = event.x_rel, .y = -event.y_rel };
+    self.mouse_delta = self.mouse_delta.add(delta);
+
+    self.mouse_window_pos = .{ .x = event.x, .y = event.y };
+    self.mouse_desktop_pos = self.mouse_window_pos;
+}
+
 /// Takes the typed delta, and clears the list
 ///
 /// NOTE: Calling `handleTextInput` invalidates the returned array!!!
@@ -100,6 +116,11 @@ pub fn takeTypedDelta(self: *Input) []u16 {
     defer self.type_delta.clearRetainingCapacity();
 
     return self.type_delta.items;
+}
+
+pub fn takeMouseDelta(self: *Input) math.Vector2f {
+    defer self.mouse_delta = .zero;
+    return self.mouse_delta;
 }
 
 fn renderiteKeyToSdlKeycode(key: renderite.Shared.Key) ?sdl3.keycode.Keycode {
