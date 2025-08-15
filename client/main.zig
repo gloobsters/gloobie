@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
+const logger = @import("logger");
 const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
@@ -11,7 +12,7 @@ const zinterprocess = @import("zinterprocess");
 
 const App = @import("App.zig");
 
-const log = std.log.scoped(.main);
+const log = logger.Scoped(.main);
 
 comptime {
     _ = @import("tests.zig");
@@ -19,15 +20,15 @@ comptime {
 
 pub fn main() !void {
     start() catch |err| {
-        log.err("Got error: {s} running, latest SDL error: {?s}\n", .{ @errorName(err), sdl3.errors.get() });
+        log.err(@src(), "Got error: {s} running, latest SDL error: {?s}\n", .{ @errorName(err), sdl3.errors.get() });
 
         return err;
     };
-    log.info("Gloobie exiting...", .{});
+    log.info(@src(), "Gloobie exiting...", .{});
 }
 
 fn sdl3ErrorCallback(err: ?[:0]const u8) void {
-    log.err("Got SDL error {?s}", .{err});
+    log.err(@src(), "Got SDL error {?s}", .{err});
 }
 
 fn start() !void {
@@ -38,6 +39,19 @@ fn start() !void {
 
     var tracy_allocator = tracy.tracyAllocator("General Purpose Allocator", if (build_options.safety) debug_alloc_impl.allocator() else std.heap.smp_allocator);
     const gpa = tracy_allocator.allocator();
+
+    var env_vars = try std.process.getEnvMap(gpa);
+    defer env_vars.deinit();
+
+    var default_log_level: logger.Level = if (build_options.safety) .debug else .info;
+    if (env_vars.get("glb_log_level")) |log_level_str| {
+        if (std.meta.stringToEnum(logger.Level, log_level_str)) |log_level| {
+            default_log_level = log_level;
+        }
+    }
+
+    try logger.init(env_vars, default_log_level);
+    defer logger.deinit();
 
     sdl3.errors.error_callback = sdl3ErrorCallback;
 
@@ -78,7 +92,7 @@ fn start() !void {
     defer app.deinit();
 
     app.frameLoop() catch |err| {
-        log.err("Got error {s} in frame loop", .{@errorName(err)});
+        log.err(@src(), "Got error {s} in frame loop", .{@errorName(err)});
 
         return err;
     };
@@ -91,7 +105,7 @@ pub fn panic(
 ) noreturn {
     _ = trace;
 
-    log.err("Latest SDL error: {?s}\n", .{sdl3.errors.get()});
+    log.err(@src(), "Latest SDL error: {?s}\n", .{sdl3.errors.get()});
 
     std.debug.FullPanic(std.debug.defaultPanic).call(msg, ret_addr);
 }

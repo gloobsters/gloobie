@@ -4,10 +4,10 @@ const gpu = @import("gpu");
 
 const App = @import("App.zig");
 const Assets = @import("Assets.zig");
-const Texture = @import("Texture.zig");
 const pooling = @import("pooling.zig");
+const Texture = @import("Texture.zig");
 
-const log = std.log.scoped(.graphics);
+const log = @import("logger").Scoped(.graphics);
 
 pub const TransferBufferPool = pooling.FrameReferencedResourcePool(
     gpu.Device,

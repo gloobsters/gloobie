@@ -1,7 +1,9 @@
 const std = @import("std");
+const time_base: comptime_float = std.time.ns_per_s;
+
 const renderite = @import("renderite");
 
-const log = std.log.scoped(.perf);
+const log = @import("logger").Scoped(.perf);
 
 const PerformanceMonitor = @This();
 
@@ -39,7 +41,6 @@ pub fn init() PerformanceMonitor {
     };
 }
 
-const time_base: comptime_float = std.time.ns_per_s;
 const time_base_inverse = 1.0 / time_base;
 
 fn timestamp() i128 {

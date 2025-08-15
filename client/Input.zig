@@ -3,7 +3,7 @@ const std = @import("std");
 const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
 
-const log = std.log.scoped(.input);
+const log = @import("logger").Scoped(.input);
 
 const Input = @This();
 
@@ -55,7 +55,7 @@ pub fn handleKeyEvent(self: *Input, event: sdl3.events.Keyboard) void {
     const keycode = event.key orelse return;
 
     const key = sdlKeycodeToRenderiteKey(keycode) orelse {
-        log.warn("Unhandled keycode {s}!", .{@tagName(keycode)});
+        log.warn(@src(), "Unhandled keycode {s}!", .{@tagName(keycode)});
         return;
     };
 

@@ -53,3 +53,4 @@ You can also replace `Renderer/Renderite.Renderer.exe` with Gloobie and it will 
 - `math/`: An xr_linear based math library, with lots of extra routines sprinkled in. Taken from vrshit.
 - `build/`: Misc build scripts.
 - `tracy/`: Zig + Tracy integration
+- `logger/`: A basic logging system for our needs

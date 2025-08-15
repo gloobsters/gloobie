@@ -5,7 +5,7 @@ const renderite = @import("renderite");
 
 const graphics = @import("graphics.zig");
 
-const log = std.log.scoped(.mesh);
+const log = @import("logger").Scoped(.mesh);
 
 const Mesh = @This();
 
@@ -95,7 +95,7 @@ pub fn setData(
     accessor: *renderite.SharedMemoryAccessor,
     data_request: renderite.Shared.MeshUploadData,
 ) !void {
-    // log.debug("Got mesh upload {any}", .{data_request});
+    // log.debug(@src(), "Got mesh upload {any}", .{data_request});
 
     const slice = try accessor.getOrCreate(u8, gpa, data_request.buffer) orelse {
         const vertex_attributes = try convertVertexAttributes(gpa, data_request.vertexAttributes);
@@ -216,7 +216,7 @@ pub fn setData(
             .assetId = data_request.assetId,
             .instanceChanged = true,
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 
     self.* = .{
         .vertex_buffer = vertex_buffer,

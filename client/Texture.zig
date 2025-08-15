@@ -6,7 +6,7 @@ pub const Type = renderite.Shared.TextureType;
 
 const graphics = @import("graphics.zig");
 
-const log = std.log.scoped(.texture);
+const log = @import("logger").Scoped(.texture);
 
 const Texture = @This();
 
@@ -110,7 +110,7 @@ pub fn setProperties2d(
                 .DataUpload = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setProperties3d(
@@ -138,7 +138,7 @@ pub fn setProperties3d(
                 .FormatSet = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setPropertiesCubemap(
@@ -166,7 +166,7 @@ pub fn setPropertiesCubemap(
                 .PropertiesSet = true,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetTexture2DFormat) !void {
@@ -211,7 +211,7 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
     const sampler = try frame_context.device.createSampler(sampler_parameters);
     errdefer frame_context.device.releaseSampler(sampler);
 
-    log.debug("Created GPU texture for Texture {d}", .{renderite_format.assetId});
+    log.trace(@src(), "Created GPU texture for Texture {d}", .{renderite_format.assetId});
 
     const data_available: []bool = try gpa.alloc(bool, @intCast(renderite_format.mipmapCount));
     errdefer gpa.free(data_available);
@@ -245,7 +245,7 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
                 .PropertiesSet = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetTexture3DFormat) !void {
@@ -292,7 +292,7 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
     const sampler = try frame_context.device.createSampler(sampler_parameters);
     errdefer frame_context.device.releaseSampler(sampler);
 
-    log.debug("Created GPU texture for Texture {d}", .{renderite_format.assetId});
+    log.trace(@src(), "Created GPU texture for Texture {d}", .{renderite_format.assetId});
 
     const data_available: []bool = try gpa.alloc(bool, @intCast(renderite_format.mipmapCount));
     errdefer gpa.free(data_available);
@@ -327,7 +327,7 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
                 .PropertiesSet = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetCubemapFormat) !void {
@@ -336,7 +336,7 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
     }
 
     const texture_format = renderiteFormatToGpuFormat(renderite_format.format, renderite_format.profile) orelse {
-        log.err("Got invalid cubemap format {s}/{s} from FrooxEngine!", .{
+        log.err(@src(), "Got invalid cubemap format {s}/{s} from FrooxEngine!", .{
             @tagName(renderite_format.format),
             @tagName(renderite_format.profile),
         });
@@ -375,7 +375,7 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
     const sampler = try frame_context.device.createSampler(sampler_parameters);
     errdefer frame_context.device.releaseSampler(sampler);
 
-    log.debug("Created GPU texture for Cubemap {d}", .{renderite_format.assetId});
+    log.trace(@src(), "Created GPU texture for Cubemap {d}", .{renderite_format.assetId});
 
     const data_available: []bool = try gpa.alloc(
         bool,
@@ -413,7 +413,7 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
                 .PropertiesSet = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setData2d(
@@ -429,7 +429,7 @@ pub fn setData2d(
     // std.debug.print("Texture2D upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
-        log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
+        log.err(@src(), "Texture isn't init and has no graphics data! did we miss a set format command?", .{});
 
         return error.TextureMissingGraphicsData;
     }
@@ -443,7 +443,7 @@ pub fn setData2d(
     const num_mips: u32 = @intCast(data.mipMapSizes.len);
 
     if (num_mips == 0) {
-        log.warn("FE sent a texture upload with no mips!", .{});
+        log.warn(@src(), "FE sent a texture upload with no mips!", .{});
         return;
     }
 
@@ -489,7 +489,7 @@ pub fn setData2d(
             const destination_width, const destination_height = calculateMipSize(graphics_data.width, graphics_data.height, @intCast(mip_level));
 
             if (destination_width != mip_pixel_size.x or destination_height != mip_pixel_size.y) {
-                log.warn("Got mipmap with weird extents! This is likely a FE bug! See #56. Real extents: {d}x{d}, gotten extents: {d}x{d}", .{
+                log.warn(@src(), "Got mipmap with weird extents! This is likely a FE bug! See #56. Real extents: {d}x{d}, gotten extents: {d}x{d}", .{
                     destination_width,
                     destination_height,
                     mip_pixel_size.x,
@@ -543,7 +543,7 @@ pub fn setData2d(
                 .PropertiesSet = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setData3d(
@@ -559,7 +559,7 @@ pub fn setData3d(
     // std.debug.print("Texture3D upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
-        log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
+        log.err(@src(), "Texture isn't init and has no graphics data! did we miss a set format command?", .{});
 
         return error.TextureMissingGraphicsData;
     }
@@ -622,7 +622,7 @@ pub fn setData3d(
                 .PropertiesSet = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn setDataCubemap(
@@ -638,7 +638,7 @@ pub fn setDataCubemap(
     // std.debug.print("Cubemap upload details: {any}\n", .{data});
 
     if (self.graphics_data == null) {
-        log.err("Texture isn't init and has no graphics data! did we miss a set format command?", .{});
+        log.err(@src(), "Texture isn't init and has no graphics data! did we miss a set format command?", .{});
 
         return error.TextureMissingGraphicsData;
     }
@@ -685,7 +685,7 @@ pub fn setDataCubemap(
                     );
 
                     if (destination_width != raw_mipmap_pixel_size.x or destination_height != raw_mipmap_pixel_size.y) {
-                        log.warn("FrooxEngine sent a weird texture size again! Got {d}x{d}, expected {d}x{d}", .{
+                        log.warn(@src(), "FrooxEngine sent a weird texture size again! Got {d}x{d}, expected {d}x{d}", .{
                             raw_mipmap_pixel_size.x,
                             raw_mipmap_pixel_size.y,
                             destination_width,
@@ -720,7 +720,7 @@ pub fn setDataCubemap(
                 );
 
                 if (destination_width != raw_mipmap_pixel_size.x or destination_height != raw_mipmap_pixel_size.y) {
-                    log.warn("FrooxEngine sent a weird texture size again! Got {d}x{d}, expected {d}x{d}", .{
+                    log.warn(@src(), "FrooxEngine sent a weird texture size again! Got {d}x{d}, expected {d}x{d}", .{
                         raw_mipmap_pixel_size.x,
                         raw_mipmap_pixel_size.y,
                         destination_width,
@@ -783,7 +783,7 @@ pub fn setDataCubemap(
                 .PropertiesSet = false,
             },
         },
-    }, std.time.ns_per_s);
+    }, std.time.ns_per_s * 10);
 }
 
 pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {

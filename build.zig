@@ -17,8 +17,9 @@ const Options = struct {
 
     xr_backend: XrBackend,
 
+    maximum_log_level: LogLevel,
+
     safety: bool,
-    noisy_logging: bool,
 
     tracy: struct {
         enable: bool,
@@ -26,6 +27,14 @@ const Options = struct {
         enable_callstack: bool,
         callstack_depth: usize,
     },
+};
+
+pub const LogLevel = enum(u8) {
+    err = 0,
+    warn,
+    info,
+    debug,
+    trace,
 };
 
 fn addPlatformDefines(module: anytype, options: Options, target: std.Build.ResolvedTarget) void {
@@ -83,7 +92,11 @@ pub fn build(b: *std.Build) !void {
         },
 
         .safety = optimize == .ReleaseSafe or optimize == .Debug,
-        .noisy_logging = b.option(bool, "noisy_logging", "Enable noisy logging in debug builds") orelse false,
+        .maximum_log_level = b.option(LogLevel, "max_log_level", "The maximum log level to compile into the executable") orelse
+            if (optimize == .Debug or optimize == .ReleaseSafe)
+                .trace
+            else
+                .debug,
 
         .tracy = .{
             .enable = enable_tracy,
@@ -131,6 +144,23 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     }).module("mailbox");
+
+    const logger_mod = create_logger_mod: {
+        const logger_root = b.path("logger");
+
+        const logger_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = logger_root.path(b, "logger.zig"),
+
+            .imports = &.{
+                .{ .name = "options", .module = options_module },
+            },
+        });
+
+        break :create_logger_mod logger_mod;
+    };
 
     const tracy_mod = create_tracy_mod: {
         const tracy_root = b.path("tracy/");
@@ -391,6 +421,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "sdl3", .module = sdl3_mod },
                 .{ .name = "gpu", .module = gpu_mod },
                 .{ .name = "options", .module = options_module },
+                .{ .name = "logger", .module = logger_mod },
             },
         });
 
@@ -424,7 +455,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
                 .{ .name = "tracy", .module = tracy_mod },
                 .{ .name = "math", .module = math_mod },
-                .{ .name = "options", .module = options_module },
+                .{ .name = "logger", .module = logger_mod },
             },
         });
 
@@ -448,6 +479,7 @@ pub fn build(b: *std.Build) !void {
             .{ .name = "math", .module = math_mod },
             .{ .name = "mailbox", .module = mailbox_mod },
             .{ .name = "tracy", .module = tracy_mod },
+            .{ .name = "logger", .module = logger_mod },
         },
     });
 
