@@ -364,15 +364,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         var io = context.getIo();
         io.ConfigFlags = io.ConfigFlags | imgui.c.ImGuiConfigFlags_NoMouseCursorChange;
 
-        break :create_imgui_data .{
-            .context = context,
-            .app = app,
-            .assets_open = true,
-            .loadstate_open = true,
-            .demo_open = true,
-            .performance_open = true,
-            .temporary_graphics_bindings = .empty,
-        };
+        break :create_imgui_data .init(context, app);
     };
     errdefer if (maybe_imgui_data) |*imgui_data| imgui_data.deinit(gpa);
 
@@ -916,8 +908,10 @@ fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !voi
         }
     }
 
-    if (sdl3.mouse.visible() != !output_state.lockCursor) {
-        if (output_state.lockCursor) {
+    const imgui_open = if (self.imgui_data) |imgui_data| imgui_data.open else false;
+
+    if (sdl3.mouse.visible() != (!output_state.lockCursor or imgui_open)) {
+        if (output_state.lockCursor and !imgui_open) {
             log.debug("Hiding cursor", .{});
             try sdl3.mouse.hide();
         } else {
@@ -1000,6 +994,13 @@ pub fn frameLoop(self: *App) !void {
                     .key_down => |key_down| {
                         if (key_down.window_id == self.window.window.getId() catch unreachable) {
                             self.game.input.handleKeyEvent(key_down);
+                            if (key_down.key) |key| {
+                                if (self.imgui_data) |*imgui_data| {
+                                    if (key_down.mod.altDown() and !key_down.mod.shiftDown() and !key_down.mod.controlDown() and key == .func3) {
+                                        imgui_data.open = !imgui_data.open;
+                                    }
+                                }
+                            }
                         }
                     },
                     .key_up => |key_up| {
@@ -1140,14 +1141,15 @@ pub fn frameLoop(self: *App) !void {
                 const trace = tracy.traceNamed(@src(), "ImGui start frame");
                 defer trace.end();
 
-                try imgui_data.start();
+                if (imgui_data.open)
+                    try imgui_data.start();
             }
 
             if (maybe_swapchain_texture) |swapchain_texture| {
                 const render_trace = tracy.traceNamed(@src(), "Render Frame");
                 defer render_trace.end();
 
-                const imgui_draw_data = if (self.imgui_data != null) ImGuiManager.getDrawData(command_buffer) else null;
+                const imgui_draw_data = if (self.imgui_data != null and self.imgui_data.?.open) ImGuiManager.getDrawData(command_buffer) else null;
 
                 const render_pass = command_buffer.beginRenderPass(&.{.{
                     .texture = swapchain_texture,
