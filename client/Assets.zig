@@ -86,7 +86,7 @@ pub fn setTexture2dPropertiesOrCreate(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    properties: renderite.Shared.SetTexture2DProperties,
+    properties: renderite.shared.SetTexture2DProperties,
 ) !void {
     self.lock.lock();
     defer self.lock.unlock();
@@ -110,7 +110,7 @@ pub fn setTexture2dFormat(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    format: renderite.Shared.SetTexture2DFormat,
+    format: renderite.shared.SetTexture2DFormat,
 ) !void {
     self.lock.lock();
     defer self.lock.unlock();
@@ -135,8 +135,8 @@ pub fn setTexture2dData(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    data: renderite.Shared.SetTexture2DData,
-    accessor: *renderite.SharedMemoryAccessor,
+    data: renderite.shared.SetTexture2DData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const texture = self.textures.getPtr(.{
         .id = .from(data.assetId),
@@ -150,7 +150,7 @@ pub fn setTexture3dPropertiesOrCreate(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    properties: renderite.Shared.SetTexture3DProperties,
+    properties: renderite.shared.SetTexture3DProperties,
 ) !void {
     self.lock.lock();
     defer self.lock.unlock();
@@ -174,7 +174,7 @@ pub fn setTexture3dFormat(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    format: renderite.Shared.SetTexture3DFormat,
+    format: renderite.shared.SetTexture3DFormat,
 ) !void {
     self.lock.lock();
     defer self.lock.unlock();
@@ -200,8 +200,8 @@ pub fn setTexture3dData(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    data: renderite.Shared.SetTexture3DData,
-    accessor: *renderite.SharedMemoryAccessor,
+    data: renderite.shared.SetTexture3DData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const texture = self.textures.getPtr(.{
         .id = .from(data.assetId),
@@ -215,7 +215,7 @@ pub fn setCubemapPropertiesOrCreate(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    properties: renderite.Shared.SetCubemapProperties,
+    properties: renderite.shared.SetCubemapProperties,
 ) !void {
     self.lock.lock();
     defer self.lock.unlock();
@@ -239,7 +239,7 @@ pub fn setCubemapFormat(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    format: renderite.Shared.SetCubemapFormat,
+    format: renderite.shared.SetCubemapFormat,
 ) !void {
     self.lock.lock();
     defer self.lock.unlock();
@@ -263,8 +263,8 @@ pub fn setCubemapData(
     self: *Assets,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    data: renderite.Shared.SetCubemapData,
-    accessor: *renderite.SharedMemoryAccessor,
+    data: renderite.shared.SetCubemapData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const texture = self.textures.getPtr(.{
         .id = .from(data.assetId),
@@ -291,7 +291,7 @@ pub fn unloadTexture(self: *Assets, texture_handle: TextureHandle, gpa: std.mem.
     std.debug.assert(removed);
 }
 
-pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, accessor: *renderite.SharedMemoryAccessor, mesh_upload_data: renderite.Shared.MeshUploadData) !void {
+pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, accessor: *renderite.buffer.SharedMemoryAccessor, mesh_upload_data: renderite.shared.MeshUploadData) !void {
     self.lock.lock();
     defer self.lock.unlock();
 

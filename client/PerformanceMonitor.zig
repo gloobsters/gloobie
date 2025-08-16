@@ -7,7 +7,7 @@ const log = @import("logger").Scoped(.perf);
 
 const PerformanceMonitor = @This();
 
-state: renderite.Shared.PerformanceState,
+state: renderite.shared.PerformanceState,
 last_update: i128,
 last_frame: i128,
 counter: u32,

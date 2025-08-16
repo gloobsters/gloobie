@@ -8,7 +8,7 @@ const log = @import("logger").Scoped(.input);
 
 const Input = @This();
 
-held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void),
+held_keys: std.AutoArrayHashMapUnmanaged(renderite.shared.Key, void),
 type_delta: std.ArrayListUnmanaged(u16),
 
 mouse_delta: math.Vector2f,
@@ -24,8 +24,8 @@ x2_click_held: bool,
 dropped_files: std.ArrayListUnmanaged([]const u16),
 
 pub fn init(gpa: std.mem.Allocator) !Input {
-    var held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void) = .empty;
-    try held_keys.ensureTotalCapacity(gpa, std.enums.values(renderite.Shared.Key).len);
+    var held_keys: std.AutoArrayHashMapUnmanaged(renderite.shared.Key, void) = .empty;
+    try held_keys.ensureTotalCapacity(gpa, std.enums.values(renderite.shared.Key).len);
     errdefer held_keys.deinit(gpa);
 
     return .{
@@ -147,7 +147,7 @@ pub fn takeScrollDelta(self: *Input) math.Vector2f {
     return self.scroll_delta;
 }
 
-pub fn takeDroppedFiles(self: *Input, gpa: std.mem.Allocator) !?renderite.Shared.DragAndDropEvent {
+pub fn takeDroppedFiles(self: *Input, gpa: std.mem.Allocator) !?renderite.shared.DragAndDropEvent {
     if (self.dropped_files.items.len == 0)
         return null;
 
@@ -160,7 +160,7 @@ pub fn takeDroppedFiles(self: *Input, gpa: std.mem.Allocator) !?renderite.Shared
     };
 }
 
-fn renderiteKeyToSdlKeycode(key: renderite.Shared.Key) ?sdl3.keycode.Keycode {
+fn renderiteKeyToSdlKeycode(key: renderite.shared.Key) ?sdl3.keycode.Keycode {
     return switch (key) {
         .None => null,
         .Backspace => .backspace,
@@ -306,7 +306,7 @@ fn renderiteKeyToSdlKeycode(key: renderite.Shared.Key) ?sdl3.keycode.Keycode {
     };
 }
 
-pub fn sdlKeycodeToRenderiteKey(key: sdl3.keycode.Keycode) ?renderite.Shared.Key {
+pub fn sdlKeycodeToRenderiteKey(key: sdl3.keycode.Keycode) ?renderite.shared.Key {
     return switch (key) {
         .backspace => .Backspace,
         .tab => .Tab,

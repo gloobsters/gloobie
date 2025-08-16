@@ -7,7 +7,7 @@ const imgui = @import("imgui");
 const mailbox = @import("mailbox");
 const math = @import("math");
 const renderite = @import("renderite");
-const SharedMemoryAccessor = renderite.SharedMemoryAccessor;
+const SharedMemoryAccessor = renderite.buffer.SharedMemoryAccessor;
 const InitSettings = renderite.InitSettings;
 const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
@@ -21,7 +21,7 @@ const PerformanceMonitor = @import("PerformanceMonitor.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
 const Texture = @import("Texture.zig");
 
-pub const MessagingHost = renderite.MessagingHost(*App);
+pub const MessagingHost = renderite.messaging.Host(*App);
 const log = @import("logger").Scoped(.app);
 
 const App = @This();
@@ -38,8 +38,8 @@ pub const FenceManager = graphics.FenceManager(&.{Assets.TextureReadyFenceHandle
 
 const GraphicsData = struct {
     device: gpu.Device,
-    sampler_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
-    cubemap_supported_formats: std.enums.EnumSet(renderite.Shared.TextureFormat),
+    sampler_supported_formats: std.enums.EnumSet(renderite.shared.TextureFormat),
+    cubemap_supported_formats: std.enums.EnumSet(renderite.shared.TextureFormat),
 
     transfer_buffer_pool: graphics.TransferBufferPool,
 
@@ -71,16 +71,16 @@ pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
 
 pub const ToRenderLetter = union(enum) {
     renderer_command: struct {
-        command: renderite.ParsedCommand,
+        command: renderite.messaging.ParsedCommand,
         queue_type: MessagingHost.QueueManager.Type,
     },
-    handle_output_state: renderite.Shared.OutputState,
+    handle_output_state: renderite.shared.OutputState,
 };
 
 pub const ToEngineMailbox = mailbox.MailBox(ToEngineLetter);
 
 pub const ToEngineLetter = union(enum) {
-    renderer_command: renderite.ParsedCommand,
+    renderer_command: renderite.messaging.ParsedCommand,
 };
 
 const MessagingData = struct {
@@ -135,7 +135,7 @@ const LoadState = struct {
 const GameData = struct {
     run_loop: bool,
     exiting: bool,
-    head_output_device: renderite.Shared.HeadOutputDevice,
+    head_output_device: renderite.shared.HeadOutputDevice,
     main_process_pid: ?i32,
     load_state: LoadState,
     last_frame_index: i32,
@@ -145,7 +145,7 @@ const GameData = struct {
     to_engine_mailbox: ToEngineMailbox,
     to_engine_envelope_pool: std.heap.MemoryPool(ToEngineMailbox.Envelope),
 
-    displays: std.ArrayListUnmanaged(renderite.Shared.DisplayState),
+    displays: std.ArrayListUnmanaged(renderite.shared.DisplayState),
 
     render_spaces_lock: std.Thread.Mutex,
     render_spaces: std.AutoArrayHashMapUnmanaged(RenderSpace.Id, RenderSpace),
@@ -251,9 +251,9 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         });
         errdefer if (xr_data == null) gpu_device.deinit();
 
-        var sampler_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
-        var cubemap_supported_formats: std.EnumSet(renderite.Shared.TextureFormat) = .initEmpty();
-        for (std.enums.values(renderite.Shared.TextureFormat)) |renderite_format| {
+        var sampler_supported_formats: std.EnumSet(renderite.shared.TextureFormat) = .initEmpty();
+        var cubemap_supported_formats: std.EnumSet(renderite.shared.TextureFormat) = .initEmpty();
+        for (std.enums.values(renderite.shared.TextureFormat)) |renderite_format| {
             const srgb_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .sRGB) orelse continue;
             const linear_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .Linear) orelse continue;
 
@@ -447,7 +447,7 @@ fn beginExit(self: *App) void {
 
 fn handleRendererCommand(
     self: *App,
-    renderer_command: renderite.ParsedCommand,
+    renderer_command: renderite.messaging.ParsedCommand,
     frame_context: *graphics.FrameContext,
     queue_type: MessagingHost.QueueManager.Type,
 ) !void {
@@ -476,12 +476,12 @@ fn handleRendererCommand(
             log.debug(@src(), "Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
             log.debug(@src(), "Main process PID {d}", .{renderer_init_data.mainProcessId});
 
-            const formats = comptime std.enums.values(renderite.Shared.TextureFormat);
+            const formats = comptime std.enums.values(renderite.shared.TextureFormat);
 
             const supported_formats = self.graphics_data.sampler_supported_formats.unionWith(self.graphics_data.cubemap_supported_formats);
             const supported_formats_len = supported_formats.count();
 
-            var supported_formats_buf: [formats.len]renderite.Shared.TextureFormat = undefined;
+            var supported_formats_buf: [formats.len]renderite.shared.TextureFormat = undefined;
             var i: usize = 0;
             for (formats) |format| {
                 if (supported_formats.contains(format)) {
@@ -685,7 +685,7 @@ fn handleMessages(self: *App, frame_context: *graphics.FrameContext) !void {
     }
 }
 
-fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, message: renderite.ParsedCommand) void {
+fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, message: renderite.messaging.ParsedCommand) void {
     log.trace(@src(), "Got message {s} on queue {s}", .{ @tagName(message.command), @tagName(queue_type) });
 
     switch (queue_type) {
@@ -750,7 +750,7 @@ pub fn sendLetterToEngine(self: *App, letter: ToEngineLetter) !void {
     try self.game.to_engine_mailbox.send(envelope);
 }
 
-fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceUpdate) !void {
+fn updateRenderSpaces(self: *App, updates: []const renderite.shared.RenderSpaceUpdate) !void {
     self.game.render_spaces_lock.lock();
     defer self.game.render_spaces_lock.unlock();
 
@@ -805,7 +805,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.Shared.RenderSpaceU
     }
 }
 
-fn engineHandleMessage(self: *App, message: renderite.ParsedCommand) !void {
+fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !void {
     defer message.arena.deinit();
 
     // SAFETY: only this message should be sent to the engine thread
@@ -880,7 +880,7 @@ fn updateDisplays(self: *App) !void {
         const natural_orientation: sdl3.video.DisplayOrientation = display.getNaturalOrientation() orelse .landscape;
         const current_orientation: sdl3.video.DisplayOrientation = display.getCurrentOrientation() orelse .landscape;
 
-        const renderite_orientation: renderite.Shared.RectOrientation = switch (natural_orientation) {
+        const renderite_orientation: renderite.shared.RectOrientation = switch (natural_orientation) {
             .landscape => switch (current_orientation) {
                 .landscape => .Default,
                 .landscape_flipped => .UpsideDown180,
@@ -909,7 +909,7 @@ fn updateDisplays(self: *App) !void {
 
         const display_mode = try display.getDesktopMode();
 
-        const renderite_display: renderite.Shared.DisplayState = .{
+        const renderite_display: renderite.shared.DisplayState = .{
             .offset = .{ .x = bounds.x, .y = bounds.y },
             .displayIndex = @intCast(index),
             .dpi = .{ .x = dpi, .y = dpi },
@@ -930,7 +930,7 @@ fn updateWindowState(self: *App) !void {
     };
 }
 
-fn applyOutputState(self: *App, output_state: renderite.Shared.OutputState) !void {
+fn applyOutputState(self: *App, output_state: renderite.shared.OutputState) !void {
     if (sdl3.keyboard.textInputActive(self.window.window) != output_state.keyboardInputActive) {
         if (output_state.keyboardInputActive) {
             try sdl3.keyboard.startTextInput(self.window.window);

@@ -19,12 +19,12 @@ const MeshRenderer = struct {
 fn finishUpdates(
     self: anytype,
     gpa: std.mem.Allocator,
-    accessor: *renderite.SharedMemoryAccessor,
-    update: renderite.Shared.MeshRenderablesUpdate,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
+    update: renderite.shared.MeshRenderablesUpdate,
 ) !void {
     _ = self;
 
-    const mesh_renderer_states = try accessor.getOrCreate(renderite.Shared.MeshRendererState, gpa, update.meshStates) orelse return;
+    const mesh_renderer_states = try accessor.getOrCreate(renderite.shared.MeshRendererState, gpa, update.meshStates) orelse return;
     defer mesh_renderer_states.release(accessor);
 
     const maybe_material_and_property_blocks = try accessor.getOrCreate(i32, gpa, update.meshMaterialsAndPropertyBlocks);
@@ -37,4 +37,4 @@ fn finishUpdates(
     }
 }
 
-pub const MeshRendererManager = @import("renderer_manager.zig").RendererManager(MeshRenderer, renderite.Shared.MeshRenderablesUpdate, finishUpdates);
+pub const MeshRendererManager = @import("renderer_manager.zig").RendererManager(MeshRenderer, renderite.shared.MeshRenderablesUpdate, finishUpdates);

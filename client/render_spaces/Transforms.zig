@@ -9,7 +9,7 @@ pub const Transform = struct {
 
     parent: Id,
 
-    render_transform: renderite.Shared.RenderTransform,
+    render_transform: renderite.shared.RenderTransform,
 };
 
 transforms: std.ArrayListUnmanaged(Transform),
@@ -27,8 +27,8 @@ pub fn deinit(self: *Transforms, gpa: std.mem.Allocator) void {
 pub fn handleUpdate(
     self: *Transforms,
     gpa: std.mem.Allocator,
-    accessor: *renderite.SharedMemoryAccessor,
-    update: renderite.Shared.TransformsUpdate,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
+    update: renderite.shared.TransformsUpdate,
 ) !void {
     if (try accessor.getOrCreate(i32, gpa, update.removals)) |removals| {
         defer removals.release(accessor);
@@ -68,7 +68,7 @@ pub fn handleUpdate(
         }
     }
 
-    if (try accessor.getOrCreate(renderite.Shared.TransformParentUpdate, gpa, update.parentUpdates)) |parent_updates| {
+    if (try accessor.getOrCreate(renderite.shared.TransformParentUpdate, gpa, update.parentUpdates)) |parent_updates| {
         defer parent_updates.release(accessor);
 
         for (parent_updates.data) |parent_update| {
@@ -82,7 +82,7 @@ pub fn handleUpdate(
         }
     }
 
-    if (try accessor.getOrCreate(renderite.Shared.TransformPoseUpdate, gpa, update.poseUpdates)) |pose_updates| {
+    if (try accessor.getOrCreate(renderite.shared.TransformPoseUpdate, gpa, update.poseUpdates)) |pose_updates| {
         defer pose_updates.release(accessor);
 
         for (pose_updates.data) |pose_update| {

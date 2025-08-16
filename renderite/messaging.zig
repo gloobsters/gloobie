@@ -17,7 +17,7 @@ pub const ParsedCommand = struct {
     command: shared.RendererCommand,
 };
 
-pub fn MessagingHost(comptime Context: type) type {
+pub fn Host(comptime Context: type) type {
     return struct {
         pub const Callback = *const fn (ctx: Context, queue_type: QueueManager.Type, command: ParsedCommand) void;
 

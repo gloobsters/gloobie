@@ -16,9 +16,9 @@ pub const Properties = struct {
     active: bool,
     overlay: bool,
     private: bool,
-    root_transform: renderite.Shared.RenderTransform,
+    root_transform: renderite.shared.RenderTransform,
     view_position_is_external: bool,
-    overridden_view_transform: ?renderite.Shared.RenderTransform,
+    overridden_view_transform: ?renderite.shared.RenderTransform,
 };
 
 // TODO: make this struct zero-width when ImGui is disabled
@@ -37,7 +37,7 @@ updated: bool,
 transforms: Transforms,
 mesh_renderer_manager: MeshRendererManager,
 
-pub fn init(update: renderite.Shared.RenderSpaceUpdate) !RenderSpace {
+pub fn init(update: renderite.shared.RenderSpaceUpdate) !RenderSpace {
     const render_space: RenderSpace = .{
         .id = .from(update.id),
         .properties = loadProperties(update),
@@ -54,7 +54,7 @@ pub fn clearUpdated(self: *RenderSpace) void {
     self.updated = false;
 }
 
-fn loadProperties(update: renderite.Shared.RenderSpaceUpdate) Properties {
+fn loadProperties(update: renderite.shared.RenderSpaceUpdate) Properties {
     return .{
         .active = update.isActive,
         .overlay = update.isOverlay,
@@ -68,13 +68,13 @@ fn loadProperties(update: renderite.Shared.RenderSpaceUpdate) Properties {
     };
 }
 
-pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *renderite.SharedMemoryAccessor, update: renderite.Shared.RenderSpaceUpdate) !void {
+pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *renderite.buffer.SharedMemoryAccessor, update: renderite.shared.RenderSpaceUpdate) !void {
     self.updated = true;
 
     self.properties = loadProperties(update);
 
     if (update.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
-        if (try accessor.getOrCreate(renderite.Shared.ReflectionProbeSH2Task, gpa, sh2_tasks_descriptor.tasks)) |sh2_tasks| {
+        if (try accessor.getOrCreate(renderite.shared.ReflectionProbeSH2Task, gpa, sh2_tasks_descriptor.tasks)) |sh2_tasks| {
             defer sh2_tasks.release(accessor);
 
             for (sh2_tasks.data) |*task| {

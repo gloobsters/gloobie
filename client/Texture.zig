@@ -2,7 +2,7 @@ const std = @import("std");
 
 const gpu = @import("gpu");
 const renderite = @import("renderite");
-pub const Type = renderite.Shared.TextureType;
+pub const Type = renderite.shared.TextureType;
 
 const graphics = @import("graphics.zig");
 
@@ -14,8 +14,8 @@ const GraphicsData = struct {
     width: u32,
     height: u32,
     depth: u32,
-    texture_format: renderite.Shared.TextureFormat,
-    profile: renderite.Shared.ColorProfile,
+    texture_format: renderite.shared.TextureFormat,
+    profile: renderite.shared.ColorProfile,
     mipmap_count: u32,
 
     texture: gpu.Texture,
@@ -34,11 +34,11 @@ const GraphicsData = struct {
 };
 
 const Properties = struct {
-    filter_mode: renderite.Shared.TextureFilterMode,
+    filter_mode: renderite.shared.TextureFilterMode,
     aniso_level: i32,
-    wrap_u: renderite.Shared.TextureWrapMode,
-    wrap_v: renderite.Shared.TextureWrapMode,
-    wrap_w: renderite.Shared.TextureWrapMode,
+    wrap_u: renderite.shared.TextureWrapMode,
+    wrap_v: renderite.shared.TextureWrapMode,
+    wrap_w: renderite.shared.TextureWrapMode,
     mipmap_bias: f32,
     type: Type,
 };
@@ -46,7 +46,7 @@ const Properties = struct {
 properties: Properties,
 graphics_data: ?GraphicsData,
 
-pub fn create2d(frame_context: *graphics.FrameContext, properties: renderite.Shared.SetTexture2DProperties) !Texture {
+pub fn create2d(frame_context: *graphics.FrameContext, properties: renderite.shared.SetTexture2DProperties) !Texture {
     var texture: Texture = .{
         .properties = undefined,
         .graphics_data = null,
@@ -57,7 +57,7 @@ pub fn create2d(frame_context: *graphics.FrameContext, properties: renderite.Sha
     return texture;
 }
 
-pub fn create3d(frame_context: *graphics.FrameContext, properties: renderite.Shared.SetTexture3DProperties) !Texture {
+pub fn create3d(frame_context: *graphics.FrameContext, properties: renderite.shared.SetTexture3DProperties) !Texture {
     var texture: Texture = .{
         .properties = undefined,
         .graphics_data = null,
@@ -68,7 +68,7 @@ pub fn create3d(frame_context: *graphics.FrameContext, properties: renderite.Sha
     return texture;
 }
 
-pub fn createCubemap(frame_context: *graphics.FrameContext, properties: renderite.Shared.SetCubemapProperties) !Texture {
+pub fn createCubemap(frame_context: *graphics.FrameContext, properties: renderite.shared.SetCubemapProperties) !Texture {
     var texture: Texture = .{
         .properties = undefined,
         .graphics_data = null,
@@ -88,7 +88,7 @@ pub fn deinit(self: Texture, gpa: std.mem.Allocator, device: gpu.Device) void {
 pub fn setProperties2d(
     self: *Texture,
     frame_context: *graphics.FrameContext,
-    properties: renderite.Shared.SetTexture2DProperties,
+    properties: renderite.shared.SetTexture2DProperties,
 ) !void {
     self.properties = .{
         .filter_mode = properties.filterMode,
@@ -116,7 +116,7 @@ pub fn setProperties2d(
 pub fn setProperties3d(
     self: *Texture,
     frame_context: *graphics.FrameContext,
-    properties: renderite.Shared.SetTexture3DProperties,
+    properties: renderite.shared.SetTexture3DProperties,
 ) !void {
     self.properties = .{
         .filter_mode = properties.filterMode,
@@ -144,7 +144,7 @@ pub fn setProperties3d(
 pub fn setPropertiesCubemap(
     self: *Texture,
     frame_context: *graphics.FrameContext,
-    properties: renderite.Shared.SetCubemapProperties,
+    properties: renderite.shared.SetCubemapProperties,
 ) !void {
     self.properties = .{
         .filter_mode = properties.filterMode,
@@ -169,7 +169,7 @@ pub fn setPropertiesCubemap(
     }, std.time.ns_per_s * 10);
 }
 
-pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetTexture2DFormat) !void {
+pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.shared.SetTexture2DFormat) !void {
     if (self.graphics_data) |graphics_data| {
         graphics_data.deinit(gpa, frame_context.device);
     }
@@ -248,7 +248,7 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
     }, std.time.ns_per_s * 10);
 }
 
-pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetTexture3DFormat) !void {
+pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.shared.SetTexture3DFormat) !void {
     if (self.graphics_data) |graphics_data| {
         graphics_data.deinit(gpa, frame_context.device);
     }
@@ -330,7 +330,7 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
     }, std.time.ns_per_s * 10);
 }
 
-pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.Shared.SetCubemapFormat) !void {
+pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, renderite_format: renderite.shared.SetCubemapFormat) !void {
     if (self.graphics_data) |graphics_data| {
         graphics_data.deinit(gpa, frame_context.device);
     }
@@ -420,8 +420,8 @@ pub fn setData2d(
     self: *Texture,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    data: renderite.Shared.SetTexture2DData,
-    accessor: *renderite.SharedMemoryAccessor,
+    data: renderite.shared.SetTexture2DData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
@@ -550,8 +550,8 @@ pub fn setData3d(
     self: *Texture,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    data: renderite.Shared.SetTexture3DData,
-    accessor: *renderite.SharedMemoryAccessor,
+    data: renderite.shared.SetTexture3DData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
@@ -629,8 +629,8 @@ pub fn setDataCubemap(
     self: *Texture,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    data: renderite.Shared.SetCubemapData,
-    accessor: *renderite.SharedMemoryAccessor,
+    data: renderite.shared.SetCubemapData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
     defer data_slice.release(accessor);
@@ -786,7 +786,7 @@ pub fn setDataCubemap(
     }, std.time.ns_per_s * 10);
 }
 
-pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profile: renderite.Shared.ColorProfile) ?gpu.TextureFormat {
+pub fn renderiteFormatToGpuFormat(format: renderite.shared.TextureFormat, profile: renderite.shared.ColorProfile) ?gpu.TextureFormat {
     // TODO: Add all missing formats to GPU
     return switch (profile) {
         .Linear => switch (format) {
@@ -862,7 +862,7 @@ pub fn renderiteFormatToGpuFormat(format: renderite.Shared.TextureFormat, profil
     };
 }
 
-fn renderiteTextureWrapModeToGpuAddressMode(wrap_mode: renderite.Shared.TextureWrapMode) gpu.SamplerAddressMode {
+fn renderiteTextureWrapModeToGpuAddressMode(wrap_mode: renderite.shared.TextureWrapMode) gpu.SamplerAddressMode {
     return switch (wrap_mode) {
         .Clamp => .clamp_to_edge,
         .Repeat => .repeat,
@@ -871,7 +871,7 @@ fn renderiteTextureWrapModeToGpuAddressMode(wrap_mode: renderite.Shared.TextureW
     };
 }
 
-fn resoniteTextureFilterModeToGpuFilter(texture_filter_mode: renderite.Shared.TextureFilterMode) gpu.Filter {
+fn resoniteTextureFilterModeToGpuFilter(texture_filter_mode: renderite.shared.TextureFilterMode) gpu.Filter {
     return switch (texture_filter_mode) {
         .Point => .nearest,
         .Bilinear => .linear, // FIXME: this needs to be made correct!
@@ -896,7 +896,7 @@ pub fn renderiteSamplerParametersToGpuParameters(properties: Properties) gpu.Sam
     };
 }
 
-pub fn pixelToByte(pixel: u32, format: renderite.Shared.TextureFormat) u32 {
+pub fn pixelToByte(pixel: u32, format: renderite.shared.TextureFormat) u32 {
     const pixel_float: f64 = @floatFromInt(pixel);
 
     const bit: u64 = @intFromFloat(pixel_float * bitsPerPixel(format));
@@ -941,7 +941,7 @@ test calculateMipSize {
     try std.testing.expectEqual(1, level_99[1]);
 }
 
-pub fn bitsPerPixel(format: renderite.Shared.TextureFormat) f64 {
+pub fn bitsPerPixel(format: renderite.shared.TextureFormat) f64 {
     return switch (format) {
         .BC1,
         .BC4,
@@ -1002,7 +1002,7 @@ fn alignBlock(size: u32, block_size: u32) u32 {
     return size + (block_size - size % block_size) % block_size;
 }
 
-fn alignSize(format: renderite.Shared.TextureFormat, size: struct { u32, u32 }) struct { u32, u32 } {
+fn alignSize(format: renderite.shared.TextureFormat, size: struct { u32, u32 }) struct { u32, u32 } {
     const block_size = blockSize(format);
 
     return .{
@@ -1011,7 +1011,7 @@ fn alignSize(format: renderite.Shared.TextureFormat, size: struct { u32, u32 }) 
     };
 }
 
-pub fn blockSize(format: renderite.Shared.TextureFormat) struct { u32, u32 } {
+pub fn blockSize(format: renderite.shared.TextureFormat) struct { u32, u32 } {
     return switch (format) {
         .ARGB32,
         .ARGBFloat,

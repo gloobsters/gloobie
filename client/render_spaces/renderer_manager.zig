@@ -28,7 +28,7 @@ pub fn RendererManager(
         pub fn handleUpdate(
             self: *Self,
             gpa: std.mem.Allocator,
-            accessor: *renderite.SharedMemoryAccessor,
+            accessor: *renderite.buffer.SharedMemoryAccessor,
             render_space: *RenderSpace,
             update: UpdateType,
         ) !void {

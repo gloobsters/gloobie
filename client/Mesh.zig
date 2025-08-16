@@ -10,7 +10,7 @@ const log = @import("logger").Scoped(.mesh);
 const Mesh = @This();
 
 const VertexAttribute = struct {
-    type: renderite.Shared.VertexAttributeType,
+    type: renderite.shared.VertexAttributeType,
     format: gpu.VertexElementFormat,
 };
 
@@ -22,10 +22,10 @@ const MeshLayout = struct {
 };
 
 const SubMesh = struct {
-    topology: renderite.Shared.SubmeshTopology,
+    topology: renderite.shared.SubmeshTopology,
     index_start: u32,
     index_count: u32,
-    bounds: renderite.Shared.RenderBoundingBox,
+    bounds: renderite.shared.RenderBoundingBox,
 };
 
 vertex_buffer: ?gpu.Buffer,
@@ -40,8 +40,8 @@ mesh_layout: MeshLayout,
 pub fn init(
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    accessor: *renderite.SharedMemoryAccessor,
-    data_request: renderite.Shared.MeshUploadData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
+    data_request: renderite.shared.MeshUploadData,
 ) !Mesh {
     var mesh: Mesh = .{
         .mesh_layout = undefined,
@@ -58,7 +58,7 @@ pub fn init(
     return mesh;
 }
 
-fn convertVertexAttributes(gpa: std.mem.Allocator, renderite_vertex_attributes: []const renderite.Shared.VertexAttributeDescriptor) ![]VertexAttribute {
+fn convertVertexAttributes(gpa: std.mem.Allocator, renderite_vertex_attributes: []const renderite.shared.VertexAttributeDescriptor) ![]VertexAttribute {
     const vertex_attributes = try gpa.alloc(VertexAttribute, renderite_vertex_attributes.len);
     errdefer gpa.free(vertex_attributes);
 
@@ -72,7 +72,7 @@ fn convertVertexAttributes(gpa: std.mem.Allocator, renderite_vertex_attributes: 
     return vertex_attributes;
 }
 
-fn convertSubMeshes(gpa: std.mem.Allocator, renderite_submeshes: []const renderite.Shared.SubmeshBufferDescriptor) ![]SubMesh {
+fn convertSubMeshes(gpa: std.mem.Allocator, renderite_submeshes: []const renderite.shared.SubmeshBufferDescriptor) ![]SubMesh {
     const submeshes = try gpa.alloc(SubMesh, renderite_submeshes.len);
     errdefer gpa.free(submeshes);
 
@@ -92,8 +92,8 @@ pub fn setData(
     self: *Mesh,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    accessor: *renderite.SharedMemoryAccessor,
-    data_request: renderite.Shared.MeshUploadData,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
+    data_request: renderite.shared.MeshUploadData,
 ) !void {
     // log.debug(@src(), "Got mesh upload {any}", .{data_request});
 
@@ -241,7 +241,7 @@ pub fn deinit(self: Mesh, gpa: std.mem.Allocator, device: gpu.Device) void {
     gpa.free(self.submeshes);
 }
 
-fn calculateMeshLayout(data_request: renderite.Shared.MeshUploadData) !MeshLayout {
+fn calculateMeshLayout(data_request: renderite.shared.MeshUploadData) !MeshLayout {
     var vertex_stride: u32 = 0;
     for (data_request.vertexAttributes) |attribute| {
         const format = renderiteVertexAttributeDescriptorToVertexElementFormat(attribute) orelse return error.InvalidVertexAttributeDescriptor;
@@ -266,14 +266,14 @@ fn calculateMeshLayout(data_request: renderite.Shared.MeshUploadData) !MeshLayou
     };
 }
 
-fn renderiteIndexBufferFormatToGpu(index_buffer_format: renderite.Shared.IndexBufferFormat) gpu.IndexElementSize {
+fn renderiteIndexBufferFormatToGpu(index_buffer_format: renderite.shared.IndexBufferFormat) gpu.IndexElementSize {
     return switch (index_buffer_format) {
         .UInt16 => .indices_16bit,
         .UInt32 => .indices_32bit,
     };
 }
 
-fn renderiteVertexAttributeDescriptorToVertexElementFormat(descriptor: renderite.Shared.VertexAttributeDescriptor) ?gpu.VertexElementFormat {
+fn renderiteVertexAttributeDescriptorToVertexElementFormat(descriptor: renderite.shared.VertexAttributeDescriptor) ?gpu.VertexElementFormat {
     return switch (descriptor.format) {
         .Float32 => switch (descriptor.dimensions) {
             1 => .f32x1,
