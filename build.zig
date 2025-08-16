@@ -560,7 +560,11 @@ pub fn build(b: *std.Build) !void {
             },
         };
 
-        const shader_targets: []const Shader.Target = &.{ .spirv, .glsl, .dxil, .msl };
+        var shader_targets: std.ArrayListUnmanaged(Shader.Target) = .empty;
+        try shader_targets.append(b.allocator, .glsl);
+        if (build_options.render_backends.vulkan) {
+            try shader_targets.append(b.allocator, .spirv);
+        }
 
         const gloobie_mod = b.addModule("gloobie", .{
             .root_source_file = gloobie_root.path(b, "main.zig"),
@@ -584,7 +588,7 @@ pub fn build(b: *std.Build) !void {
         });
 
         for (shaders) |shader| {
-            for (shader_targets) |shader_target| {
+            for (shader_targets.items) |shader_target| {
                 const run_step = std.Build.Step.Run.create(b, b.fmt("Build Shader {s} for {s}", .{
                     shader.name,
                     @tagName(shader_target),

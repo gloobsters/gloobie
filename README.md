@@ -14,6 +14,12 @@ If you're interested in contributing, please get in touch and we'll let you know
 
 ## Building
 
+### Dependencies
+
+- Zig
+- slang (Automatically fetched, if you're building on an unsupported host target, you're on your own to add the correct binary!)
+- DXC (Optional, for D3D12/DXIL shader target)
+
 We target a version of Zig that isn't currently available in a formal release (otherwise known as a master build), since otherwise we would have to rewrite code as Zig isn't a stable language. You can see the version of Zig we used listed at the top of the [`build.zig.zon`](https://github.com/gloobsters/gloobie/blob/mommy/build.zig.zon) file.
 
 We recommend the [`zigup`](https://github.com/marler8997/zigup) tool for downloading Zig master builds. On Arch Linux it's provided via the `zigup-bin` package, but for other operating systems like Windows it's available as a [GitHub Release](https://github.com/marler8997/zigup/releases/latest).

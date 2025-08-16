@@ -16,8 +16,6 @@ jobs:
           wget https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/linux_dxc_2025_07_14.x86_64.tar.gz
           tar -xzf linux_dxc_2025_07_14.x86_64.tar.gz
           cd ..
-          # echo "$PWD/dxc/bin" >> "$GITHUB_PATH"
-          # echo "$PWD/dxc/lib" >> "$GITHUB_PATH"
           sudo cp dxc/lib/* /usr/lib/
           sudo cp dxc/bin/* /usr/bin/
       - name: Install Dependencies
@@ -29,9 +27,6 @@ jobs:
           curl -L -o dxc_2025_07_14.zip https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/dxc_2025_07_14.zip
           7z x dxc_2025_07_14.zip
           cd ..
-          # echo "$PWD/dxc/bin" >> "$GITHUB_PATH"
-          # echo "$PWD/dxc/lib" >> "$GITHUB_PATH"
-          # copy to system32
           cp dxc/lib/x64/* /c/Windows/System32/
           cp dxc/bin/x64/* /c/Windows/System32/
       - uses: actions/checkout@v3
