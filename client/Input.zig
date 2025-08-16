@@ -12,6 +12,7 @@ held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void),
 type_delta: std.ArrayListUnmanaged(u16),
 
 mouse_delta: math.Vector2f,
+scroll_delta: math.Vector2f,
 mouse_window_pos: math.Vector2f,
 mouse_desktop_pos: math.Vector2f,
 left_click_held: bool,
@@ -19,6 +20,8 @@ middle_click_held: bool,
 right_click_held: bool,
 x1_click_held: bool,
 x2_click_held: bool,
+
+dropped_files: std.ArrayListUnmanaged([]const u16),
 
 pub fn init(gpa: std.mem.Allocator) !Input {
     var held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void) = .empty;
@@ -29,6 +32,7 @@ pub fn init(gpa: std.mem.Allocator) !Input {
         .held_keys = held_keys,
         .type_delta = .empty,
         .mouse_delta = .zero,
+        .scroll_delta = .zero,
         .mouse_window_pos = .zero,
         .mouse_desktop_pos = .zero,
         .left_click_held = false,
@@ -36,12 +40,14 @@ pub fn init(gpa: std.mem.Allocator) !Input {
         .right_click_held = false,
         .x1_click_held = false,
         .x2_click_held = false,
+        .dropped_files = .empty,
     };
 }
 
 pub fn deinit(self: *Input, gpa: std.mem.Allocator) void {
     self.held_keys.deinit(gpa);
     self.type_delta.deinit(gpa);
+    self.dropped_files.deinit(gpa);
 }
 
 // Appends the UTF-8 text input into the type delta.
@@ -106,7 +112,20 @@ pub fn handleMouseMotionEvent(self: *Input, event: sdl3.events.MouseMotion) void
     self.mouse_delta = self.mouse_delta.add(delta);
 
     self.mouse_window_pos = .{ .x = event.x, .y = event.y };
-    self.mouse_desktop_pos = self.mouse_window_pos;
+    self.mouse_desktop_pos = self.mouse_window_pos; // TODO: handle global mouse position properly
+}
+
+pub fn handleMouseScrollEvent(self: *Input, event: sdl3.events.MouseWheel) void {
+    const scale: comptime_int = 120; // Gathered by using MouseScrollDelta flux node in Unity
+    const delta: math.Vector2f = .{ .x = event.scroll_x * scale, .y = event.scroll_y * scale };
+    self.scroll_delta = self.scroll_delta.add(delta);
+}
+
+pub fn handleDroppedFile(self: *Input, gpa: std.mem.Allocator, event: sdl3.events.DropFile) !void {
+    const file = try std.unicode.utf8ToUtf16LeAlloc(gpa, event.file_name);
+    errdefer gpa.free(file);
+
+    try self.dropped_files.append(gpa, file);
 }
 
 /// Takes the typed delta, and clears the list
@@ -121,6 +140,24 @@ pub fn takeTypedDelta(self: *Input) []u16 {
 pub fn takeMouseDelta(self: *Input) math.Vector2f {
     defer self.mouse_delta = .zero;
     return self.mouse_delta;
+}
+
+pub fn takeScrollDelta(self: *Input) math.Vector2f {
+    defer self.scroll_delta = .zero;
+    return self.scroll_delta;
+}
+
+pub fn takeDroppedFiles(self: *Input, gpa: std.mem.Allocator) !?renderite.Shared.DragAndDropEvent {
+    if (self.dropped_files.items.len == 0)
+        return null;
+
+    const arr = try gpa.dupe([]const u16, self.dropped_files.items);
+    self.dropped_files.clearRetainingCapacity();
+
+    return .{
+        .paths = arr,
+        .dropPoint = .zero,
+    };
 }
 
 fn renderiteKeyToSdlKeycode(key: renderite.Shared.Key) ?sdl3.keycode.Keycode {

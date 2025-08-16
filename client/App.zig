@@ -1042,15 +1042,21 @@ pub fn frameLoop(self: *App) !void {
                             self.game.input.handleMouseButtonEvent(mouse_up);
                         }
                     },
-                    // .mouse_wheel => |mouse_wheel| {
-                    //     if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
-                    //         self.game.input.handleMouseWheelEvent(mouse_wheel);
-                    //     }
-                    // },
+                    .mouse_wheel => |mouse_wheel| {
+                        if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseScrollEvent(mouse_wheel);
+                        }
+                    },
                     .mouse_motion => |mouse_motion| {
                         if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
                             self.game.input.handleMouseMotionEvent(mouse_motion);
                         }
+                    },
+                    .drop_file => |file| {
+                        try self.game.input.handleDroppedFile(self.gpa, file);
+                    },
+                    .drop_text => |text| {
+                        try self.game.input.handleTextInputUtf8(self.gpa, text.text);
                     },
                     else => {},
                 }
@@ -1105,6 +1111,14 @@ pub fn frameLoop(self: *App) !void {
 
             // send a frame start if the engine thread is waiting for us to do so
             if (self.game.load_state.full_init and begin_new_frame) {
+                const dropped_files = try self.game.input.takeDroppedFiles(self.gpa);
+                defer if (dropped_files) |files| {
+                    for (files.paths) |file| {
+                        self.gpa.free(file);
+                    }
+                    self.gpa.free(files.paths);
+                };
+
                 try self.messaging.host.primary.sendTimeout(.{
                     .FrameStartData = .{
                         .lastFrameIndex = self.game.last_frame_index,
@@ -1124,7 +1138,7 @@ pub fn frameLoop(self: *App) !void {
                                 .desktopPosition = self.game.input.mouse_desktop_pos,
                                 .directDelta = self.game.input.takeMouseDelta(),
                                 .isActive = self.window.mouse_active,
-                                .scrollWheelDelta = .zero,
+                                .scrollWheelDelta = self.game.input.takeScrollDelta(),
                                 .windowPosition = self.game.input.mouse_window_pos,
                             },
                             .touches = &.{},
@@ -1132,7 +1146,7 @@ pub fn frameLoop(self: *App) !void {
                             .window = .{
                                 .isFullscreen = self.window.fullscreen,
                                 .isWindowFocused = self.window.focus,
-                                .dragAndDropEvent = null,
+                                .dragAndDropEvent = dropped_files,
                                 // TODO: should this be window size or swapchain size?
                                 .windowResolution = .{
                                     .x = @intCast(swapchain_width),
