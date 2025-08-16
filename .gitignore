@@ -1,6 +1,9 @@
-.vscode/
+.vscode/*
 .zig-cache/
 zig-out/
 *.qu
 imgui.ini
 compile_commands.json
+
+# Exclusions
+!.vscode/extensions.json
