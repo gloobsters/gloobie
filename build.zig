@@ -67,6 +67,69 @@ fn addPlatformDefines(module: anytype, options: Options, target: std.Build.Resol
     }
 }
 
+const Shader = struct {
+    pub const Stage = enum {
+        vertex,
+        fragment,
+        compute,
+
+        pub fn toSlang(self: Stage) []const u8 {
+            return switch (self) {
+                .vertex => "vertex",
+                .fragment => "fragment",
+                .compute => "compute",
+            };
+        }
+    };
+
+    pub const Target = enum {
+        spirv,
+        glsl,
+
+        pub fn toSlang(self: Target) []const u8 {
+            return switch (self) {
+                .spirv => "spirv",
+                .glsl => "glsl",
+            };
+        }
+    };
+
+    path: std.Build.LazyPath,
+    name: []const u8,
+    stage: Stage,
+    entry_point: []const u8,
+
+    pub fn fillOutArguments(
+        self: Shader,
+        optimize: std.builtin.OptimizeMode,
+        step: *std.Build.Step.Run,
+        target: Target,
+    ) std.Build.LazyPath {
+        step.addFileArg(self.path);
+        step.addArgs(&.{ "-profile", "glsl_450" });
+        step.addArgs(&.{ "-target", target.toSlang() });
+        step.addArgs(&.{ "-entry", self.entry_point });
+        step.addArgs(&.{ "-stage", self.stage.toSlang() });
+        step.addArg(switch (optimize) {
+            .Debug => "-O0",
+            .ReleaseSafe => "-O1",
+            .ReleaseSmall => "-O2",
+            .ReleaseFast => "-O3",
+        });
+        step.addArg(switch (optimize) {
+            .ReleaseSmall => "-gnone",
+            .ReleaseFast => "-gminimal",
+            .ReleaseSafe => "-gstandard",
+            .Debug => "-gmaximal",
+        });
+        step.addArgs(&.{ "-std", "2026" });
+        step.addArgs(&.{ "-capability", "spirv_1_0" });
+        step.addArg("-fspv-reflect");
+        step.addArg("-o");
+        return step.addOutputFileArg(self.name);
+    }
+};
+
 pub fn build(b: *std.Build) !void {
     const shared_c_cpp_flags: []const []const u8 = &.{
         "-gen-cdb-fragment-path",
@@ -135,6 +198,8 @@ pub fn build(b: *std.Build) !void {
     const vulkan_headers_inc = vulkan_headers_dep.path("include/");
     const openxr_headers_dep = b.dependency("openxr-headers", .{});
     const openxr_headers_inc = openxr_headers_dep.path("include/");
+
+    const slang_compiler_path = b.dependency("slang", .{}).namedLazyPath("compiler");
 
     const vulkan_mod = b.dependency("vulkan-zig", .{
         .registry = b.dependency("vulkan-headers", .{}).path("registry/vk.xml"),
@@ -462,26 +527,78 @@ pub fn build(b: *std.Build) !void {
         break :create_renderite_mod renderite_mod;
     };
 
-    const gloobie_mod = b.addModule("gloobie", .{
-        .root_source_file = b.path("client/main.zig"),
+    const gloobie_mod = create_gloobie_mod: {
+        const gloobie_root = b.path("client");
 
-        .optimize = optimize,
-        .target = target,
+        const shaders_root = gloobie_root.path(b, "shaders");
+        const shaders: []const Shader = &.{
+            .{
+                .path = shaders_root.path(b, "basic.slang"),
+                .name = "basic",
+                .stage = .vertex,
+                .entry_point = "vertexMain",
+            },
+            .{
+                .path = shaders_root.path(b, "basic.slang"),
+                .name = "basic",
+                .stage = .fragment,
+                .entry_point = "fragmentMain",
+            },
+        };
 
-        .imports = &.{
-            .{ .name = "sdl3", .module = sdl3_mod },
-            .{ .name = "gpu", .module = gpu_mod },
-            .{ .name = "xr", .module = xr_mod },
-            .{ .name = "renderite", .module = renderite_mod },
-            .{ .name = "zinterprocess", .module = zinterprocess_mod },
-            .{ .name = "options", .module = options_module },
-            .{ .name = "imgui", .module = imgui_mod },
-            .{ .name = "math", .module = math_mod },
-            .{ .name = "mailbox", .module = mailbox_mod },
-            .{ .name = "tracy", .module = tracy_mod },
-            .{ .name = "logger", .module = logger_mod },
-        },
-    });
+        const shader_targets: []const Shader.Target = &.{ .spirv, .glsl };
+
+        const gloobie_mod = b.addModule("gloobie", .{
+            .root_source_file = gloobie_root.path(b, "main.zig"),
+
+            .optimize = optimize,
+            .target = target,
+
+            .imports = &.{
+                .{ .name = "sdl3", .module = sdl3_mod },
+                .{ .name = "gpu", .module = gpu_mod },
+                .{ .name = "xr", .module = xr_mod },
+                .{ .name = "renderite", .module = renderite_mod },
+                .{ .name = "zinterprocess", .module = zinterprocess_mod },
+                .{ .name = "options", .module = options_module },
+                .{ .name = "imgui", .module = imgui_mod },
+                .{ .name = "math", .module = math_mod },
+                .{ .name = "mailbox", .module = mailbox_mod },
+                .{ .name = "tracy", .module = tracy_mod },
+                .{ .name = "logger", .module = logger_mod },
+            },
+        });
+
+        for (shaders) |shader| {
+            for (shader_targets) |shader_target| {
+                const run_step = std.Build.Step.Run.create(b, b.fmt("Build Shader {s} for {s}", .{
+                    shader.name,
+                    @tagName(shader_target),
+                }));
+                run_step.addFileArg(slang_compiler_path);
+                const compiled_shader = shader.fillOutArguments(optimize, run_step, shader_target);
+
+                gloobie_mod.addAnonymousImport(
+                    b.fmt("shader-{s}-{s}-{s}", .{
+                        shader.name,
+                        @tagName(shader.stage),
+                        @tagName(shader_target),
+                    }),
+                    .{ .root_source_file = compiled_shader },
+                );
+
+                const install_step = b.addInstallBinFile(compiled_shader, b.fmt("shaders/{s}-{s}-{s}.glsl", .{
+                    shader.name,
+                    @tagName(shader.stage),
+                    @tagName(shader_target),
+                }));
+
+                b.getInstallStep().dependOn(&install_step.step);
+            }
+        }
+
+        break :create_gloobie_mod gloobie_mod;
+    };
 
     addPlatformDefines(gloobie_mod, build_options, target);
 

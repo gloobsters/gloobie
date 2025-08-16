@@ -35,6 +35,9 @@
             .hash = "N-V-__8AANptPwE8EYOS5w6KRzVyfllpOBthYRcuuQvYhhxb",
             .lazy = true,
         },
+        .slang = .{
+            .path = "build/slang/",
+        },
     },
     .paths = .{
         "client/",
