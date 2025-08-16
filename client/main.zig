@@ -19,12 +19,9 @@ comptime {
 }
 
 pub fn main() !void {
-    start() catch |err| {
-        log.err(@src(), "Got error: {s} running, latest SDL error: {?s}\n", .{ @errorName(err), sdl3.errors.get() });
+    try start();
 
-        return err;
-    };
-    log.info(@src(), "Gloobie exiting...", .{});
+    std.debug.print("Gloobie exiting...\n", .{});
 }
 
 fn sdl3ErrorCallback(err: ?[:0]const u8) void {
@@ -105,7 +102,12 @@ pub fn panic(
 ) noreturn {
     _ = trace;
 
-    log.err(@src(), "Latest SDL error: {?s}\n", .{sdl3.errors.get()});
+    if (sdl3.c.SDL_WasInit(0) != 0) {
+        const sdl_err = sdl3.c.SDL_GetError();
+        if (sdl_err != null) {
+            std.debug.print("Latest SDL error: {s}\n", .{sdl_err});
+        }
+    }
 
     std.debug.FullPanic(std.debug.defaultPanic).call(msg, ret_addr);
 }
