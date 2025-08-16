@@ -610,6 +610,17 @@ fn handleRendererCommand(
         .MeshUnload => |mesh_unload| {
             self.assets.unloadMesh(.from(mesh_unload.assetId), self.gpa, self.graphics_data.device);
         },
+        .ShaderUpload => |shader_upload| {
+            // TODO: load the associated shader in this case
+            try self.messaging.host.background.sendTimeout(.{ .ShaderUploadResult = .{
+                .assetId = shader_upload.assetId,
+                .instanceChanged = true,
+            } }, std.time.ns_per_s * 10);
+        },
+        .ShaderUnload => |shader_unload| {
+            // TODO: unload the loaded shader
+            _ = shader_unload;
+        },
         .FrameSubmitData => {
             std.debug.panic("This should be handled by the other thread!", .{});
         },
