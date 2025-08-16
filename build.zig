@@ -85,11 +85,17 @@ const Shader = struct {
     pub const Target = enum {
         spirv,
         glsl,
+        dxil,
+        msl,
+        metallib,
 
         pub fn toSlang(self: Target) []const u8 {
             return switch (self) {
                 .spirv => "spirv",
                 .glsl => "glsl",
+                .dxil => "dxil",
+                .msl => "metal",
+                .metallib => "metallib",
             };
         }
     };
@@ -106,7 +112,7 @@ const Shader = struct {
         target: Target,
     ) std.Build.LazyPath {
         step.addFileArg(self.path);
-        step.addArgs(&.{ "-profile", "glsl_450" });
+        step.addArgs(&.{ "-profile", if (target == .dxil) "sm_6_0" else "glsl_450" });
         step.addArgs(&.{ "-target", target.toSlang() });
         step.addArgs(&.{ "-entry", self.entry_point });
         step.addArgs(&.{ "-stage", self.stage.toSlang() });
@@ -587,7 +593,7 @@ pub fn build(b: *std.Build) !void {
                     .{ .root_source_file = compiled_shader },
                 );
 
-                const install_step = b.addInstallBinFile(compiled_shader, b.fmt("shaders/{s}-{s}-{s}.glsl", .{
+                const install_step = b.addInstallBinFile(compiled_shader, b.fmt("shaders/{s}-{s}.{s}", .{
                     shader.name,
                     @tagName(shader.stage),
                     @tagName(shader_target),
