@@ -1042,11 +1042,11 @@ pub fn frameLoop(self: *App) !void {
                             self.game.input.handleMouseButtonEvent(mouse_up);
                         }
                     },
-                    // .mouse_wheel => |mouse_wheel| {
-                    //     if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
-                    //         self.game.input.handleMouseWheelEvent(mouse_wheel);
-                    //     }
-                    // },
+                    .mouse_wheel => |mouse_wheel| {
+                        if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
+                            self.game.input.handleMouseScrollEvent(mouse_wheel);
+                        }
+                    },
                     .mouse_motion => |mouse_motion| {
                         if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
                             self.game.input.handleMouseMotionEvent(mouse_motion);
@@ -1138,7 +1138,7 @@ pub fn frameLoop(self: *App) !void {
                                 .desktopPosition = self.game.input.mouse_desktop_pos,
                                 .directDelta = self.game.input.takeMouseDelta(),
                                 .isActive = self.window.mouse_active,
-                                .scrollWheelDelta = .zero,
+                                .scrollWheelDelta = self.game.input.takeScrollDelta(),
                                 .windowPosition = self.game.input.mouse_window_pos,
                             },
                             .touches = &.{},

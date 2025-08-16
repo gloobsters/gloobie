@@ -12,6 +12,7 @@ held_keys: std.AutoArrayHashMapUnmanaged(renderite.Shared.Key, void),
 type_delta: std.ArrayListUnmanaged(u16),
 
 mouse_delta: math.Vector2f,
+scroll_delta: math.Vector2f,
 mouse_window_pos: math.Vector2f,
 mouse_desktop_pos: math.Vector2f,
 left_click_held: bool,
@@ -31,6 +32,7 @@ pub fn init(gpa: std.mem.Allocator) !Input {
         .held_keys = held_keys,
         .type_delta = .empty,
         .mouse_delta = .zero,
+        .scroll_delta = .zero,
         .mouse_window_pos = .zero,
         .mouse_desktop_pos = .zero,
         .left_click_held = false,
@@ -110,7 +112,13 @@ pub fn handleMouseMotionEvent(self: *Input, event: sdl3.events.MouseMotion) void
     self.mouse_delta = self.mouse_delta.add(delta);
 
     self.mouse_window_pos = .{ .x = event.x, .y = event.y };
-    self.mouse_desktop_pos = self.mouse_window_pos;
+    self.mouse_desktop_pos = self.mouse_window_pos; // TODO: handle global mouse position properly
+}
+
+pub fn handleMouseScrollEvent(self: *Input, event: sdl3.events.MouseWheel) void {
+    const scale: comptime_int = 120; // Gathered by using MouseScrollDelta flux node in Unity
+    const delta: math.Vector2f = .{ .x = event.scroll_x * scale, .y = event.scroll_y * scale };
+    self.scroll_delta = self.scroll_delta.add(delta);
 }
 
 pub fn handleDroppedFile(self: *Input, gpa: std.mem.Allocator, event: sdl3.events.DropFile) !void {
@@ -132,6 +140,11 @@ pub fn takeTypedDelta(self: *Input) []u16 {
 pub fn takeMouseDelta(self: *Input) math.Vector2f {
     defer self.mouse_delta = .zero;
     return self.mouse_delta;
+}
+
+pub fn takeScrollDelta(self: *Input) math.Vector2f {
+    defer self.scroll_delta = .zero;
+    return self.scroll_delta;
 }
 
 pub fn takeDroppedFiles(self: *Input, gpa: std.mem.Allocator) !?renderite.Shared.DragAndDropEvent {
