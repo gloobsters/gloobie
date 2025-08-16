@@ -20,10 +20,11 @@ jobs:
           echo "$PWD/dxc/bin" >> "$GITHUB_PATH"
       - name: Install Dependencies
         if: matrix.os == 'windows-2025'
+        shell: bash
         run: |
           # install DXC 
           mkdir dxc && cd dxc
-          wget https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/dxc_2025_07_14.zip
+          curl -L -o dxc_2025_07_14.zip https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/dxc_2025_07_14.zip
           tar -xf dxc_2025_07_14.zip
           cd ..
           echo "$PWD/dxc/bin" >> "$GITHUB_PATH"
