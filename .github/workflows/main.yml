@@ -32,8 +32,8 @@ jobs:
           # echo "$PWD/dxc/bin" >> "$GITHUB_PATH"
           # echo "$PWD/dxc/lib" >> "$GITHUB_PATH"
           # copy to system32
-          cp dxc/lib/* /c/Windows/System32/
-          cp dxc/bin/* /c/Windows/System32/
+          cp dxc/lib/x64/* /c/Windows/System32/
+          cp dxc/bin/x64/* /c/Windows/System32/
       - uses: actions/checkout@v3
       - uses: mlugg/setup-zig@v2
         with:
