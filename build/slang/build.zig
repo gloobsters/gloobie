@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) !void {
         else => @compileError("Unsupported platform " ++ builtin.cpu.arch),
     };
 
-    if (b.lazyDependency(bin_dep_name, .{})) |slang_bin_dep| {
+    const compiler_path = if (b.lazyDependency(bin_dep_name, .{})) |slang_bin_dep| get_compiler_path: {
         const bin_folder = slang_bin_dep.path("bin");
 
         const compiler_bin_name = switch (builtin.os.tag) {
@@ -25,8 +25,8 @@ pub fn build(b: *std.Build) !void {
             else => @compileError("Unsupported platform " ++ builtin.os.tag),
         };
 
-        const compiler_path = bin_folder.path(b, compiler_bin_name);
+        break :get_compiler_path bin_folder.path(b, compiler_bin_name);
+    } else b.path(".");
 
-        b.addNamedLazyPath("compiler", compiler_path);
-    }
+    b.addNamedLazyPath("compiler", compiler_path);
 }
