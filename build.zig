@@ -112,7 +112,11 @@ const Shader = struct {
         target: Target,
     ) std.Build.LazyPath {
         step.addFileArg(self.path);
-        step.addArgs(&.{ "-profile", if (target == .dxil) "sm_6_0" else "glsl_450" });
+        step.addArgs(&.{ "-profile", switch (target) {
+            .dxil => "sm_6_0",
+            .spirv => "spirv_1_0+GLSL_450",
+            .msl, .metallib, .glsl => "glsl_450",
+        } });
         step.addArgs(&.{ "-target", target.toSlang() });
         step.addArgs(&.{ "-entry", self.entry_point });
         step.addArgs(&.{ "-stage", self.stage.toSlang() });
@@ -131,6 +135,10 @@ const Shader = struct {
         step.addArgs(&.{ "-std", "2026" });
         step.addArgs(&.{ "-capability", "spirv_1_0" });
         step.addArg("-fspv-reflect");
+        step.addArg("-matrix-layout-column-major");
+        if (target == .spirv) {
+            step.addArg("-emit-spirv-via-glsl");
+        }
         step.addArg("-o");
         return step.addOutputFileArg(self.name);
     }
@@ -552,7 +560,7 @@ pub fn build(b: *std.Build) !void {
             },
         };
 
-        const shader_targets: []const Shader.Target = &.{ .spirv, .glsl };
+        const shader_targets: []const Shader.Target = &.{ .spirv, .glsl, .dxil, .msl };
 
         const gloobie_mod = b.addModule("gloobie", .{
             .root_source_file = gloobie_root.path(b, "main.zig"),
