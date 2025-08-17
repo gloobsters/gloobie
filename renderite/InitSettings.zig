@@ -7,7 +7,7 @@ queue_length: u32,
 pub fn init(args: []const []const u8) !InitSettings {
     // -QueueName randomString -QueueCapacity 8388608
 
-    if (args.len != 4)
+    if (args.len != 4 and args.len != 5)
         return error.InvalidNumberOfArguments;
 
     const offset: usize = if (args.len == 5) 1 else 0;

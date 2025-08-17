@@ -57,10 +57,22 @@ const GraphicsData = struct {
 const WindowData = struct {
     window: sdl3.video.Window,
     swapchain_format: gpu.TextureFormat,
+    composition_mode: gpu.SwapchainComposition,
+    default_present_mode: gpu.PresentMode,
+    present_mode: gpu.PresentMode,
 
     fullscreen: bool,
     focus: bool,
     mouse_active: bool,
+    resolution_updated: bool,
+
+    bg_max_framerate: ?u32,
+    fg_max_framerate: ?u32,
+
+    pub fn takeResolutionUpdate(self: *WindowData) bool {
+        defer self.resolution_updated = false;
+        return self.resolution_updated;
+    }
 
     pub fn deinit(self: WindowData) void {
         self.window.deinit();
@@ -223,11 +235,11 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
     var window_data: WindowData = create_window_data: {
         const window_ret = try sdl3.video.Window.initWithProperties(.{
-            .width = 1600,
-            .height = 900,
+            .width = 1280,
+            .height = 720,
             // TODO: only enable this when using the vulkan backend
             .vulkan = true,
-            .title = "gloobie",
+            .title = "Gloobie",
         });
         const window, const properties = .{ window_ret.window, window_ret.properties };
         properties.deinit();
@@ -238,7 +250,13 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .swapchain_format = undefined,
             .fullscreen = false,
             .focus = false,
+            .composition_mode = undefined,
+            .present_mode = undefined,
+            .default_present_mode = undefined,
             .mouse_active = false,
+            .resolution_updated = false,
+            .bg_max_framerate = 10,
+            .fg_max_framerate = 60, // set reasonable defaults while the engine is loading
         };
     };
     errdefer window_data.deinit();
@@ -304,21 +322,25 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     try graphics_data.device.claimWindow(window_data.window);
 
     const composition_mode: gpu.SwapchainComposition = .sdr_linear;
-    const present_mode_preference: []const gpu.PresentMode = &.{
+    const present_mode_preferences: []const gpu.PresentMode = &.{
         .mailbox,
         .immediate,
         .vsync,
     };
+
+    var present_mode: gpu.PresentMode = undefined;
 
     if (!graphics_data.device.windowSupportsSwapchainComposition(window_data.window, composition_mode)) {
         log.err(@src(), "Window does not support the composition mode ({s}) we want. Cannot continue.", .{@tagName(composition_mode)});
         return error.UnsupportCompositionMode;
     }
 
-    for (present_mode_preference) |present_mode| {
-        if (graphics_data.device.windowSupportsPresentMode(window_data.window, present_mode)) {
-            try graphics_data.device.setSwapchainParameters(window_data.window, composition_mode, present_mode);
+    for (present_mode_preferences) |present_mode_preference| {
+        if (graphics_data.device.windowSupportsPresentMode(window_data.window, present_mode_preference)) {
+            try graphics_data.device.setSwapchainParameters(window_data.window, composition_mode, present_mode_preference);
 
+            present_mode = present_mode_preference;
+            log.debug(@src(), "Using swapchain parameters: composition={any},present={any}", .{ composition_mode, present_mode_preference });
             break;
         }
     } else {
@@ -326,6 +348,9 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     }
 
     window_data.swapchain_format = graphics_data.device.getSwapchainTextureFormat(window_data.window);
+    window_data.composition_mode = composition_mode;
+    window_data.present_mode = present_mode;
+    window_data.default_present_mode = present_mode;
 
     log.debug(@src(), "Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
 
@@ -535,6 +560,34 @@ fn handleRendererCommand(
         .KeepAlive => {
             // do nothing
         },
+        .DesktopConfig => |desktop| {
+            log.debug(@src(), "Desktop Settings: vsync={any},bg={?d},fg={?d}", .{ desktop.vSync, desktop.maximumBackgroundFramerate, desktop.maximumForegroundFramerate });
+
+            self.window.bg_max_framerate = if (desktop.maximumBackgroundFramerate) |framerate| @intCast(framerate) else null;
+
+            // TODO: Read maximum foreground framerate. Depends on https://github.com/Yellow-Dog-Man/Resonite-Issues/issues/5269
+            // We can't do so now since the nature of the bug means that it's uninitialized memory.
+            // self.window.fg_max_framerate = if (desktop.maximumForegroundFramerate) |framerate| @intCast(framerate) else null;
+            self.window.fg_max_framerate = null;
+
+            try self.updateVSync(desktop.vSync);
+        },
+        .ResolutionConfig => |resolution| {
+            log.debug(@src(), "Window Settings: res={any},fullscreen={any}", .{ resolution.resolution, resolution.fullscreen });
+            self.window.fullscreen = resolution.fullscreen;
+            try self.window.window.setSize(@intCast(resolution.resolution.x), @intCast(resolution.resolution.y));
+            try self.window.window.setResizable(true);
+
+            // If one of the extants matches the primary display resolution, the window was probably maximized on that monitor.
+            // Restore that state here, because this is a personal annoyance of mine. -jvy
+            if (self.getPrimaryDisplay()) |display| {
+                if (display.resolution.x == resolution.resolution.x or display.resolution.y == resolution.resolution.y) {
+                    try self.window.window.maximize();
+                }
+            }
+
+            self.window.resolution_updated = true;
+        },
         .SetTexture2DProperties => |set_texture_2d_properties| {
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, frame_context, set_texture_2d_properties);
         },
@@ -703,6 +756,13 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
             }
         },
         .background => {
+            if (message.command == .DesktopConfig) {
+                self.sendLetterToMain(.{
+                    .renderer_command = .{ .command = message, .queue_type = queue_type },
+                }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
+                return;
+            }
+
             // FIXME: push resource uploads onto another thread!
             var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
             defer arena_impl.deinit();
@@ -924,10 +984,30 @@ fn updateDisplays(self: *App) !void {
     }
 }
 
-fn updateWindowState(self: *App) !void {
-    self.game.window_state = .{
-        .isFullscreen = self.window.fullscreen,
-    };
+fn getPrimaryDisplay(self: *App) ?renderite.shared.DisplayState {
+    for (self.game.displays.items) |display| {
+        if (display.isPrimary)
+            return display;
+    }
+
+    return null;
+}
+
+fn updateVSync(self: *App, vsync: bool) !void {
+    const present_mode = if (vsync) .vsync else self.window.default_present_mode;
+
+    if (present_mode == self.window.present_mode)
+        return;
+
+    if (!self.window.window.hasSurface())
+        return;
+
+    // SAFETY: The default present mode was guaranteed to be supported on startup
+    if (!self.graphics_data.device.windowSupportsPresentMode(self.window.window, present_mode))
+        unreachable;
+
+    try self.graphics_data.device.setSwapchainParameters(self.window.window, self.window.composition_mode, present_mode);
+    self.window.present_mode = present_mode;
 }
 
 fn applyOutputState(self: *App, output_state: renderite.shared.OutputState) !void {
@@ -1163,7 +1243,7 @@ pub fn frameLoop(self: *App) !void {
                                     .x = @intCast(swapchain_width),
                                     .y = @intCast(swapchain_height),
                                 },
-                                .resolutionSettingsApplied = false,
+                                .resolutionSettingsApplied = self.window.takeResolutionUpdate(),
                             },
                         },
                         .performance = self.game.perf.state,
