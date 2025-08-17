@@ -570,9 +570,7 @@ fn handleRendererCommand(
             // self.window.fg_max_framerate = if (desktop.maximumForegroundFramerate) |framerate| @intCast(framerate) else null;
             self.window.fg_max_framerate = null;
 
-            const present_mode: gpu.PresentMode = if (desktop.vSync) .vsync else self.window.default_present_mode;
-
-            try self.updatePresentMode(present_mode);
+            try self.updateVSync(desktop.vSync);
         },
         .ResolutionConfig => |resolution| {
             log.debug(@src(), "Window Settings: res={any},fullscreen={any}", .{ resolution.resolution, resolution.fullscreen });
@@ -995,15 +993,18 @@ fn getPrimaryDisplay(self: *App) ?renderite.shared.DisplayState {
     return null;
 }
 
-fn updatePresentMode(self: *App, present_mode: gpu.PresentMode) !void {
+fn updateVSync(self: *App, vsync: bool) !void {
+    const present_mode = if (vsync) .vsync else self.window.default_present_mode;
+
     if (present_mode == self.window.present_mode)
         return;
 
     if (!self.window.window.hasSurface())
         return;
 
+    // SAFETY: The default present mode was guaranteed to be supported on startup
     if (!self.graphics_data.device.windowSupportsPresentMode(self.window.window, present_mode))
-        return error.PresentModeUnsupported;
+        unreachable;
 
     try self.graphics_data.device.setSwapchainParameters(self.window.window, self.window.composition_mode, present_mode);
     self.window.present_mode = present_mode;
