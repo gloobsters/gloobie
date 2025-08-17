@@ -529,6 +529,9 @@ pub fn build(b: *std.Build) !void {
         const renderite_root = b.path("renderite/");
 
         const renderite_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+
             .root_source_file = renderite_root.path(b, "root.zig"),
             .imports = &.{
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
@@ -656,8 +659,18 @@ pub fn build(b: *std.Build) !void {
         .use_llvm = build_options.use_llvm,
     });
 
+    const renderite_test_exe = b.addTest(.{
+        .name = "renderite",
+        .root_module = renderite_mod,
+        .use_lld = build_options.use_lld,
+        .use_llvm = build_options.use_llvm,
+    });
+
     const gloobie_test_exe_run = b.addRunArtifact(gloobie_test_exe);
     test_step.dependOn(&gloobie_test_exe_run.step);
+
+    const renderite_test_exe_run = b.addRunArtifact(renderite_test_exe);
+    test_step.dependOn(&renderite_test_exe_run.step);
 
     const cc_step = b.step("cc", "Generate Compile Commands Database");
     const gen_file_step = try compile_commands.createStep(
