@@ -86,6 +86,14 @@ pub fn start(self: *ImGuiManager) !void {
             if (imgui.collapsingHeader("Meshes", 0)) {
                 self.fillMeshes();
             }
+
+            if (imgui.collapsingHeader("Materials", 0)) {
+                self.fillMaterials();
+            }
+
+            if (imgui.collapsingHeader("Property Blocks", 0)) {
+                self.fillPropertyBlocks();
+            }
         }
     }
 
@@ -137,6 +145,33 @@ pub fn draw(draw_data: *imgui.DrawData, command_buffer: gpu.CommandBuffer, rende
         render_pass,
         null,
     );
+}
+
+fn fillMaterials(self: *ImGuiManager) void {
+    var material_iter = self.app.assets.materials.materials.iterator();
+    while (material_iter.next()) |material_entry| {
+        defer imgui.separator();
+
+        const id, const material = .{ material_entry.key_ptr.*, material_entry.value_ptr };
+
+        imgui.c.igText("Material %d", id.to());
+        imgui.c.igText("Render Type: %s", @tagName(material.render_type).ptr);
+        imgui.c.igText("Shader ID: %d", material.shader_id.to());
+        imgui.c.igText("Render Queue Override: %d", material.render_queue_override orelse -1);
+        imgui.c.igText("Enable Instancing: %d", @as(u32, @intFromBool(material.enable_instancing)));
+    }
+}
+
+fn fillPropertyBlocks(self: *ImGuiManager) void {
+    var property_block_iter = self.app.assets.materials.property_blocks.iterator();
+    while (property_block_iter.next()) |material_entry| {
+        defer imgui.separator();
+
+        const id, const property_block = .{ material_entry.key_ptr.*, material_entry.value_ptr };
+        _ = property_block;
+
+        imgui.c.igText("Property Block %d", id.to());
+    }
 }
 
 fn fillTextures(self: *ImGuiManager, texture_type: Texture.Type) void {

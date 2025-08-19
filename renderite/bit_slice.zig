@@ -1,12 +1,13 @@
 const std = @import("std");
 
+/// Tightly packed slice of integers storing a set of bits which can be indexed and modified in O(1) time
 pub fn BitSlice(comptime BackingInteger: type) type {
     return struct {
         const Self = @This();
 
         const IndexType = std.math.IntFittingRange(0, std.math.maxInt(usize) * @bitSizeOf(BackingInteger));
 
-        slice: []BackingInteger,
+        slice: []align(1) BackingInteger,
 
         fn byteIndex(index: IndexType) usize {
             return @intCast(@divFloor(index, @bitSizeOf(BackingInteger)));
@@ -16,6 +17,7 @@ pub fn BitSlice(comptime BackingInteger: type) type {
             return @intCast(index % @bitSizeOf(BackingInteger));
         }
 
+        /// Gets whether a bit at `index` is set.
         pub fn get(self: Self, index: IndexType) bool {
             const byte_index = byteIndex(index);
             const byte_bit_index = byteBitIndex(index);
@@ -23,6 +25,7 @@ pub fn BitSlice(comptime BackingInteger: type) type {
             return (self.slice[byte_index] & (@as(BackingInteger, 1) << byte_bit_index)) > 0;
         }
 
+        /// Sets the value at `index`
         pub fn set(self: Self, index: IndexType, value: bool) void {
             const byte_index = byteIndex(index);
             const byte_bit_index = byteBitIndex(index);

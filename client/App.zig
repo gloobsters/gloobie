@@ -695,6 +695,9 @@ fn handleRendererCommand(
                 },
             }, std.time.ns_per_s * 10);
         },
+        .MaterialsUpdateBatch => |materials_update_batch| {
+            try self.assets.handleMaterialUpdate(self.gpa, frame_context, &self.messaging.accessor.?, materials_update_batch);
+        },
         else => {
             log.warn(@src(), "Unhandled command type {s}", .{@tagName(command)});
         },

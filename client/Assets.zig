@@ -5,6 +5,7 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const graphics = @import("graphics.zig");
+const Materials = @import("Materials.zig");
 const Mesh = @import("Mesh.zig");
 const Texture = @import("Texture.zig");
 
@@ -12,10 +13,10 @@ const log = @import("logger").Scoped(.assets);
 
 const Assets = @This();
 
-pub const AssetId = @import("id.zig").Id(i32, struct {});
+pub const Id = @import("id.zig").Id(i32, struct {});
 
 pub const TextureHandle = packed struct(u64) {
-    id: AssetId,
+    id: Id,
     type: Texture.Type,
 };
 
@@ -48,12 +49,14 @@ pub const TextureReadyFenceHandler = graphics.FenceHandler(TextureReadyFenceHand
 
 lock: std.Thread.RwLock,
 textures: std.AutoHashMapUnmanaged(TextureHandle, Texture),
-meshes: std.AutoHashMapUnmanaged(AssetId, Mesh),
+meshes: std.AutoHashMapUnmanaged(Id, Mesh),
+materials: Materials,
 
 pub const empty: Assets = .{
     .lock = .{},
     .textures = .empty,
     .meshes = .empty,
+    .materials = .empty,
 };
 
 pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
@@ -291,7 +294,13 @@ pub fn unloadTexture(self: *Assets, texture_handle: TextureHandle, gpa: std.mem.
     std.debug.assert(removed);
 }
 
-pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *graphics.FrameContext, accessor: *renderite.buffer.SharedMemoryAccessor, mesh_upload_data: renderite.shared.MeshUploadData) !void {
+pub fn uploadMeshData(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
+    mesh_upload_data: renderite.shared.MeshUploadData,
+) !void {
     self.lock.lock();
     defer self.lock.unlock();
 
@@ -307,7 +316,7 @@ pub fn uploadMeshData(self: *Assets, gpa: std.mem.Allocator, frame_context: *gra
     }
 }
 
-pub fn unloadMesh(self: *Assets, asset_id: AssetId, gpa: std.mem.Allocator, device: gpu.Device) void {
+pub fn unloadMesh(self: *Assets, asset_id: Id, gpa: std.mem.Allocator, device: gpu.Device) void {
     self.lock.lock();
     defer self.lock.unlock();
 
@@ -320,4 +329,17 @@ pub fn unloadMesh(self: *Assets, asset_id: AssetId, gpa: std.mem.Allocator, devi
 
     const removed = self.meshes.remove(asset_id);
     std.debug.assert(removed);
+}
+
+pub fn handleMaterialUpdate(
+    self: *Assets,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
+    update: renderite.shared.MaterialsUpdateBatch,
+) !void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    try self.materials.handleUpdate(gpa, frame_context, accessor, update);
 }
