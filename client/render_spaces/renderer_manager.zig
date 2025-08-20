@@ -22,6 +22,12 @@ pub fn RendererManager(
         }
 
         pub fn deinit(self: *Self, gpa: std.mem.Allocator) void {
+            if (@hasDecl(ChildType, "deinit")) {
+                for (self.contents.items) |removed| {
+                    removed.deinit(gpa);
+                }
+            }
+
             self.contents.deinit(gpa);
         }
 
@@ -32,37 +38,38 @@ pub fn RendererManager(
             render_space: *RenderSpace,
             update: UpdateType,
         ) !void {
-            if (try accessor.getOrCreate(i32, gpa, update.removals)) |removals| {
-                defer removals.release(accessor);
+            const removals = try accessor.getOrCreate(i32, gpa, update.removals);
+            defer removals.release(accessor);
 
-                for (removals.data) |removal| {
-                    if (removal < 0) {
-                        break;
-                    }
+            for (removals.data) |removal| {
+                if (removal < 0) {
+                    break;
+                }
 
-                    _ = self.contents.swapRemove(@intCast(removal));
+                const removed = self.contents.swapRemove(@intCast(removal));
+                if (@hasDecl(ChildType, "deinit")) {
+                    removed.deinit(gpa);
                 }
             }
 
-            if (try accessor.getOrCreate(i32, gpa, update.additions)) |additions| {
-                defer additions.release(accessor);
+            const additions = try accessor.getOrCreate(i32, gpa, update.additions);
+            defer additions.release(accessor);
 
-                try self.contents.ensureUnusedCapacity(gpa, additions.data.len);
+            try self.contents.ensureUnusedCapacity(gpa, additions.data.len);
 
-                for (additions.data) |transform| {
-                    if (transform < 0) {
-                        break;
-                    }
-
-                    std.debug.assert(transform < render_space.transforms.transforms.items.len);
-
-                    const child: ChildType = .init(Transforms.Transform.Id.from(transform));
-
-                    self.contents.appendAssumeCapacity(child);
+            for (additions.data) |transform| {
+                if (transform < 0) {
+                    break;
                 }
+
+                std.debug.assert(transform < render_space.transforms.transforms.items.len);
+
+                const child: ChildType = .init(Transforms.Transform.Id.from(transform));
+
+                self.contents.appendAssumeCapacity(child);
             }
 
-            return try finishUpdateFn(self, gpa, accessor, update);
+            return try finishUpdateFn(self.contents.items, gpa, accessor, update);
         }
     };
 }

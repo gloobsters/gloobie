@@ -1251,6 +1251,7 @@ pub fn frameLoop(self: *App) !void {
                         },
                         .performance = self.game.perf.state,
                         .renderedReflectionProbes = &.{},
+                        .videoClockErrors = &.{},
                     },
                 }, std.time.ns_per_s);
 

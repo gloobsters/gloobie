@@ -301,6 +301,8 @@ fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
 
     const root_transform = render_space.properties.root_transform;
 
+    var name_buf: [64]u8 = undefined;
+
     imgui.c.igText("Active: %d", @as(u32, @intFromBool(render_space.properties.active)));
     imgui.c.igText("Overlay: %d", @as(u32, @intFromBool(render_space.properties.overlay)));
     imgui.c.igText("Private: %d", @as(u32, @intFromBool(render_space.properties.private)));
@@ -365,7 +367,21 @@ fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
             defer imgui.separator();
 
             imgui.c.igText("Mesh Renderer %d", @as(i32, @intCast(i)));
-            imgui.c.igText("Transform %d", mesh_renderer.transform.to());
+            imgui.c.igText("Transform: %d", mesh_renderer.transform.to());
+            imgui.c.igText("Mesh: %d", mesh_renderer.mesh.to());
+            imgui.c.igText("Shadow Cast Mode: %s", @tagName(mesh_renderer.shadow_cast_mode).ptr);
+            imgui.c.igText("Motion Vector Mode: %s", @tagName(mesh_renderer.motion_vector_mode).ptr);
+            imgui.c.igText("Sorting Order: %d", @as(c_int, mesh_renderer.sorting_order));
+            if (imgui.collapsingHeader(
+                // SAFETY: it's big enough
+                std.fmt.bufPrintZ(&name_buf, "Material Pairs##{d}", .{i}) catch unreachable,
+                0,
+            )) for (mesh_renderer.material_pairs) |pair| {
+                defer imgui.separator();
+
+                imgui.c.igText("Material: %d", pair.material.to());
+                imgui.c.igText("Property Block: %d", pair.property_block.to());
+            };
         }
     }
 }

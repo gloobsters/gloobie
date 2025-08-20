@@ -71,6 +71,10 @@ pub const SharedMemoryAccessor = struct {
             const Self = @This();
 
             pub fn release(self: Self, accessor: *SharedMemoryAccessor) void {
+                if (self.data.len == 0) {
+                    return;
+                }
+
                 accessor.lock.lock();
                 defer accessor.lock.unlock();
 
@@ -107,7 +111,7 @@ pub const SharedMemoryAccessor = struct {
         comptime ChildType: type,
         gpa: std.mem.Allocator,
         descriptor: SharedMemoryBufferDescriptor,
-    ) !?Slice(ChildType) {
+    ) !Slice(ChildType) {
         self.lock.lock();
         defer self.lock.unlock();
 
@@ -116,8 +120,9 @@ pub const SharedMemoryAccessor = struct {
         const offset: usize = @intCast(descriptor.offset);
         const length: usize = @intCast(descriptor.length);
 
-        if (length == 0)
-            return null;
+        if (length == 0) {
+            return .{ .buffer = buffer_id, .data = &.{} };
+        }
 
         if (self.handles.getPtr(buffer_id)) |handle| {
             // Increment the references

@@ -74,12 +74,11 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
     self.properties = loadProperties(update);
 
     if (update.reflectionProbeSH2Taks) |sh2_tasks_descriptor| {
-        if (try accessor.getOrCreate(renderite.shared.ReflectionProbeSH2Task, gpa, sh2_tasks_descriptor.tasks)) |sh2_tasks| {
-            defer sh2_tasks.release(accessor);
+        const sh2_tasks = try accessor.getOrCreate(renderite.shared.ReflectionProbeSH2Task, gpa, sh2_tasks_descriptor.tasks);
+        defer sh2_tasks.release(accessor);
 
-            for (sh2_tasks.data) |*task| {
-                task.result = .Failed;
-            }
+        for (sh2_tasks.data) |*task| {
+            task.result = .Failed;
         }
     }
 

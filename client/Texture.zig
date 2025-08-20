@@ -423,7 +423,7 @@ pub fn setData2d(
     data: renderite.shared.SetTexture2DData,
     accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
-    const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
+    const data_slice = try accessor.getOrCreate(u8, gpa, data.data);
     defer data_slice.release(accessor);
 
     // std.debug.print("Texture2D upload details: {any}\n", .{data});
@@ -553,7 +553,7 @@ pub fn setData3d(
     data: renderite.shared.SetTexture3DData,
     accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
-    const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
+    const data_slice = try accessor.getOrCreate(u8, gpa, data.data);
     defer data_slice.release(accessor);
 
     // std.debug.print("Texture3D upload details: {any}\n", .{data});
@@ -632,7 +632,7 @@ pub fn setDataCubemap(
     data: renderite.shared.SetCubemapData,
     accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
-    const data_slice = try accessor.getOrCreate(u8, gpa, data.data) orelse return error.MissingBuffer;
+    const data_slice = try accessor.getOrCreate(u8, gpa, data.data);
     defer data_slice.release(accessor);
 
     // std.debug.print("Cubemap upload details: {any}\n", .{data});

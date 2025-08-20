@@ -252,6 +252,14 @@ const MaterialUpdateReader = struct {
     vector_buffer: SharedMemorySliceIterator(math.Vector4f),
     matrix_buffer: SharedMemorySliceIterator(math.Matrix4x4f),
 
+    pub fn deinit(self: MaterialUpdateReader, accessor: *SharedMemoryAccessor) void {
+        self.update_buffer.deinit(accessor);
+        self.int_buffer.deinit(accessor);
+        self.float_buffer.deinit(accessor);
+        self.vector_buffer.deinit(accessor);
+        self.matrix_buffer.deinit(accessor);
+    }
+
     pub fn hasNext(self: *MaterialUpdateReader) bool {
         if (self.update_buffer.active_buffer) |active_buffer| {
             if (self.update_buffer.next_element_index == active_buffer.data.len) {
@@ -276,7 +284,7 @@ pub fn handleUpdate(
     accessor: *SharedMemoryAccessor,
     update: shared.MaterialsUpdateBatch,
 ) !void {
-    const instance_changed_buffer = try accessor.getOrCreate(u32, gpa, update.instanceChangedBuffer) orelse return;
+    const instance_changed_buffer = try accessor.getOrCreate(u32, gpa, update.instanceChangedBuffer);
     defer instance_changed_buffer.release(accessor);
 
     var reader: MaterialUpdateReader = .{
@@ -292,6 +300,7 @@ pub fn handleUpdate(
         .update_buffer = .init(update.materialUpdates),
         .vector_buffer = .init(update.float4Buffers),
     };
+    defer reader.deinit(accessor);
 
     var i: usize = 0;
     var handling_property_block_updates = false;

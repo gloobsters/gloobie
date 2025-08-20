@@ -30,23 +30,22 @@ pub fn handleUpdate(
     accessor: *renderite.buffer.SharedMemoryAccessor,
     update: renderite.shared.TransformsUpdate,
 ) !void {
-    if (try accessor.getOrCreate(i32, gpa, update.removals)) |removals| {
-        defer removals.release(accessor);
+    const removals = try accessor.getOrCreate(i32, gpa, update.removals);
+    defer removals.release(accessor);
 
-        for (removals.data) |removal| {
-            if (removal < 0) {
-                break;
-            }
-
-            // orphan all children
-            for (self.transforms.items) |*transform| {
-                if (transform.parent.to() == removal) {
-                    transform.parent = .invalid;
-                }
-            }
-
-            _ = self.transforms.swapRemove(@intCast(removal));
+    for (removals.data) |removal| {
+        if (removal < 0) {
+            break;
         }
+
+        // orphan all children
+        for (self.transforms.items) |*transform| {
+            if (transform.parent.to() == removal) {
+                transform.parent = .invalid;
+            }
+        }
+
+        _ = self.transforms.swapRemove(@intCast(removal));
     }
 
     // engine says how many transforms there will be in the end
@@ -68,31 +67,29 @@ pub fn handleUpdate(
         }
     }
 
-    if (try accessor.getOrCreate(renderite.shared.TransformParentUpdate, gpa, update.parentUpdates)) |parent_updates| {
-        defer parent_updates.release(accessor);
+    const parent_updates = try accessor.getOrCreate(renderite.shared.TransformParentUpdate, gpa, update.parentUpdates);
+    defer parent_updates.release(accessor);
 
-        for (parent_updates.data) |parent_update| {
-            if (parent_update.transformId < 0) {
-                break;
-            }
-
-            const transform = &self.transforms.items[@intCast(parent_update.transformId)];
-
-            transform.parent = .from(parent_update.newParentId);
+    for (parent_updates.data) |parent_update| {
+        if (parent_update.transformId < 0) {
+            break;
         }
+
+        const transform = &self.transforms.items[@intCast(parent_update.transformId)];
+
+        transform.parent = .from(parent_update.newParentId);
     }
 
-    if (try accessor.getOrCreate(renderite.shared.TransformPoseUpdate, gpa, update.poseUpdates)) |pose_updates| {
-        defer pose_updates.release(accessor);
+    const pose_updates = try accessor.getOrCreate(renderite.shared.TransformPoseUpdate, gpa, update.poseUpdates);
+    defer pose_updates.release(accessor);
 
-        for (pose_updates.data) |pose_update| {
-            if (pose_update.transformId < 0) {
-                break;
-            }
-
-            const transform = &self.transforms.items[@intCast(pose_update.transformId)];
-
-            transform.render_transform = pose_update.pose;
+    for (pose_updates.data) |pose_update| {
+        if (pose_update.transformId < 0) {
+            break;
         }
+
+        const transform = &self.transforms.items[@intCast(pose_update.transformId)];
+
+        transform.render_transform = pose_update.pose;
     }
 }
