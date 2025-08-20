@@ -3259,8 +3259,8 @@ pub const MultisampleState = struct {
     /// Reserved for future use.
     /// Must be set to false.
     enable_mask: bool = false,
-    // /// True enables the alpha-to-coverage feature.
-    enable_alpha_to_coverage: bool,
+    /// True enables the alpha-to-coverage feature.
+    enable_alpha_to_coverage: bool = false,
 
     /// Convert from an SDL value.
     pub fn fromSdl(value: c.GPU_MultisampleState) MultisampleState {
