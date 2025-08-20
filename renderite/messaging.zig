@@ -233,10 +233,13 @@ pub fn Host(comptime Context: type) type {
                     self.send(command) catch |err| {
                         // if the queue is full and we're before the end timeout, just continue, else return the error
                         if (err == error.QueueFull and std.time.nanoTimestamp() < end_ns) {
-                            log.err(@src(), "Sending message {s} timed out after {d} nanoseconds", .{ @tagName(command), timeout_ns });
                             // SAFETY: we really don't care if this fails
                             std.Thread.yield() catch {};
                             continue;
+                        }
+
+                        if (err == error.QueueFull) {
+                            log.err(@src(), "Sending message {s} timed out after {d} nanoseconds", .{ @tagName(command), timeout_ns });
                         }
 
                         return err;
