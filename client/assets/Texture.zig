@@ -4,7 +4,7 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 pub const Type = renderite.shared.TextureType;
 
-const graphics = @import("graphics.zig");
+const graphics = @import("../graphics.zig");
 
 const log = @import("logger").Scoped(.texture);
 

@@ -3,7 +3,7 @@ const std = @import("std");
 const gpu = @import("gpu");
 const renderite = @import("renderite");
 
-const graphics = @import("graphics.zig");
+const graphics = @import("../graphics.zig");
 
 const log = @import("logger").Scoped(.mesh);
 

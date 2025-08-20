@@ -3,9 +3,9 @@ const std = @import("std");
 const gpu = @import("gpu");
 
 const App = @import("App.zig");
-const Assets = @import("Assets.zig");
+const Assets = @import("assets/Assets.zig");
+const Texture = @import("assets/Texture.zig");
 const pooling = @import("pooling.zig");
-const Texture = @import("Texture.zig");
 
 const log = @import("logger").Scoped(.graphics);
 

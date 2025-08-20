@@ -13,13 +13,13 @@ const sdl3 = @import("sdl3");
 const tracy = @import("tracy");
 const xr_t = @import("xr");
 
-const Assets = @import("Assets.zig");
+const Assets = @import("assets/Assets.zig");
+const Texture = @import("assets/Texture.zig");
 const graphics = @import("graphics.zig");
 const ImGuiManager = @import("gui/ImGuiManager.zig");
 const Input = @import("Input.zig");
 const PerformanceMonitor = @import("PerformanceMonitor.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
-const Texture = @import("Texture.zig");
 
 pub const MessagingHost = renderite.messaging.Host(*App);
 const log = @import("logger").Scoped(.app);

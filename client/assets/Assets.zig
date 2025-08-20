@@ -4,7 +4,7 @@ const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const renderite = @import("renderite");
 
-const graphics = @import("graphics.zig");
+const graphics = @import("../graphics.zig");
 const Materials = @import("Materials.zig");
 const Mesh = @import("Mesh.zig");
 const Texture = @import("Texture.zig");
@@ -13,7 +13,7 @@ const log = @import("logger").Scoped(.assets);
 
 const Assets = @This();
 
-pub const Id = @import("id.zig").Id(i32, struct {});
+pub const Id = @import("../id.zig").Id(i32, struct {});
 
 pub const TextureHandle = packed struct(u64) {
     id: Id,

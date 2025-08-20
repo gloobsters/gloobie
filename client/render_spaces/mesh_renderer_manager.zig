@@ -2,7 +2,7 @@ const std = @import("std");
 
 const renderite = @import("renderite");
 
-const Assets = @import("../Assets.zig");
+const Assets = @import("../assets/Assets.zig");
 const Transforms = @import("Transforms.zig");
 
 const log = @import("logger").Scoped(.render_space);

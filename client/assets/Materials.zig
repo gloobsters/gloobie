@@ -6,8 +6,8 @@ const renderite = @import("renderite");
 const SharedMemoryAccessor = renderite.buffer.SharedMemoryAccessor;
 const shared = renderite.shared;
 
+const graphics = @import("../graphics.zig");
 const Assets = @import("Assets.zig");
-const graphics = @import("graphics.zig");
 
 const Materials = @This();
 
@@ -372,7 +372,7 @@ pub fn handleUpdate(
         }
     }
 
-    try frame_context.messaging_host.background.send(.{ .MaterialsUpdateBatchResult = .{
+    try frame_context.messaging_host.background.sendTimeout(.{ .MaterialsUpdateBatchResult = .{
         .updateBatchId = update.updateBatchId,
-    } });
+    } }, std.time.ns_per_s * 10);
 }

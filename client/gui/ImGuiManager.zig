@@ -4,8 +4,8 @@ const gpu = @import("gpu");
 const imgui = @import("imgui");
 
 const App = @import("../App.zig");
+const Texture = @import("../assets/Texture.zig");
 const RenderSpace = @import("../render_spaces/RenderSpace.zig");
-const Texture = @import("../Texture.zig");
 
 pub const ImGuiManager = @This();
 
