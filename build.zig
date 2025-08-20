@@ -110,7 +110,11 @@ const Shader = struct {
         optimize: std.builtin.OptimizeMode,
         step: *std.Build.Step.Run,
         target: Target,
-    ) std.Build.LazyPath {
+        generate_reflection: bool,
+    ) struct {
+        shader: std.Build.LazyPath,
+        reflection_json: ?std.Build.LazyPath,
+    } {
         step.addFileArg(self.path);
         step.addArgs(&.{ "-profile", switch (target) {
             .dxil => "sm_6_0",
@@ -139,8 +143,17 @@ const Shader = struct {
         if (target == .spirv) {
             step.addArg("-emit-spirv-via-glsl");
         }
+
+        if (generate_reflection) {
+            step.addArg("-reflection-json");
+        }
+        const reflection_json =
+            if (generate_reflection) step.addOutputFileArg("reflection") else null;
+
         step.addArg("-o");
-        return step.addOutputFileArg(self.name);
+        const shader = step.addOutputFileArg(self.name);
+
+        return .{ .shader = shader, .reflection_json = reflection_json };
     }
 };
 
@@ -591,13 +604,15 @@ pub fn build(b: *std.Build) !void {
         });
 
         for (shaders) |shader| {
+            var output_reflection = true;
             for (shader_targets.items) |shader_target| {
                 const run_step = std.Build.Step.Run.create(b, b.fmt("Build Shader {s} for {s}", .{
                     shader.name,
                     @tagName(shader_target),
                 }));
                 run_step.addFileArg(slang_compiler_path);
-                const compiled_shader = shader.fillOutArguments(optimize, run_step, shader_target);
+                const compiler_output = shader.fillOutArguments(optimize, run_step, shader_target, output_reflection);
+                output_reflection = false;
 
                 gloobie_mod.addAnonymousImport(
                     b.fmt("shader-{s}-{s}-{s}", .{
@@ -605,16 +620,33 @@ pub fn build(b: *std.Build) !void {
                         @tagName(shader.stage),
                         @tagName(shader_target),
                     }),
-                    .{ .root_source_file = compiled_shader },
+                    .{ .root_source_file = compiler_output.shader },
                 );
 
-                const install_step = b.addInstallBinFile(compiled_shader, b.fmt("shaders/{s}-{s}.{s}", .{
+                const install_step = b.addInstallBinFile(compiler_output.shader, b.fmt("shaders/{s}-{s}.{s}", .{
                     shader.name,
                     @tagName(shader.stage),
                     @tagName(shader_target),
                 }));
 
                 b.getInstallStep().dependOn(&install_step.step);
+
+                if (compiler_output.reflection_json) |reflection_json| {
+                    gloobie_mod.addAnonymousImport(
+                        b.fmt("shader-{s}-{s}-reflection", .{
+                            shader.name,
+                            @tagName(shader.stage),
+                        }),
+                        .{ .root_source_file = reflection_json },
+                    );
+
+                    const install_reflection_step = b.addInstallBinFile(reflection_json, b.fmt("shaders/{s}-{s}.json", .{
+                        shader.name,
+                        @tagName(shader.stage),
+                    }));
+
+                    b.getInstallStep().dependOn(&install_reflection_step.step);
+                }
             }
         }
 

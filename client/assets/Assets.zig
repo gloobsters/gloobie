@@ -63,6 +63,8 @@ pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
     self.lock.lock();
     defer self.lock.unlock();
 
+    self.materials.deinit(gpa);
+
     var tex_iter = self.textures.valueIterator();
     while (tex_iter.next()) |texture| {
         texture.deinit(gpa, device);

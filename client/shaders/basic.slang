@@ -36,8 +36,8 @@ VertexStageOutput vertexMain(Vertex vertex)
 {
     VertexStageOutput output;
 
-    output.frag_input.color = float4(1.0, 0.0, 0.0, 1.0); // Red color
     output.position = mul(mul(render_data.render_matrix, model_data.model_matrix), float4(vertex.position, 1.0));
+    output.frag_input.color = float4((output.position.z / 10.0), 0.0, 0.0, 1.0); // Red color
 
     return output;
 }

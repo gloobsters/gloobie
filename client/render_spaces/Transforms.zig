@@ -33,14 +33,22 @@ pub fn handleUpdate(
     const removals = try accessor.getOrCreate(i32, gpa, update.removals);
     defer removals.release(accessor);
 
-    for (removals.data) |removal| {
+    for (removals.data, 0..) |removal, i| {
         if (removal < 0) {
             break;
         }
 
+        // adjust for the fact the removal IDs are offset by previous removals
+        var pre_removal_id = removal;
+        for (removals.data[0..i]) |previous_removal| {
+            if (pre_removal_id >= previous_removal) {
+                pre_removal_id += 1;
+            }
+        }
+
         // orphan all children
         for (self.transforms.items) |*transform| {
-            if (transform.parent.to() == removal) {
+            if (transform.parent.to() == pre_removal_id) {
                 transform.parent = .invalid;
             }
         }

@@ -18,8 +18,11 @@ const Texture = @import("assets/Texture.zig");
 const graphics = @import("graphics.zig");
 const ImGuiManager = @import("gui/ImGuiManager.zig");
 const Input = @import("Input.zig");
+const Output = @import("Output.zig");
 const PerformanceMonitor = @import("PerformanceMonitor.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
+const GpuShader = @import("shaders/GpuShader.zig");
+const GraphicsPipeline = @import("shaders/GraphicsPipeline.zig");
 
 pub const MessagingHost = renderite.messaging.Host(*App);
 const log = @import("logger").Scoped(.app);
@@ -44,6 +47,8 @@ const GraphicsData = struct {
     transfer_buffer_pool: graphics.TransferBufferPool,
 
     fence_manager: FenceManager,
+
+    window_test_pipeline: GraphicsPipeline,
 
     pub fn deinit(self: *GraphicsData, gpa: std.mem.Allocator) void {
         self.fence_manager.deinit(gpa);
@@ -165,12 +170,20 @@ const GameData = struct {
     input: Input,
     perf: PerformanceMonitor,
 
+    /// Vertical FOV in degrees
+    desktop_fov: f32,
+    near_z: f32,
+    far_z: f32,
+    head_output: Output,
+
     pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
         if (self.engine_thread) |engine_thread| {
             self.engine_thread_cancellation.set();
 
             engine_thread.join();
         }
+
+        self.head_output.deinit(gpa);
 
         for (self.render_spaces.values()) |*render_space| {
             render_space.deinit(gpa);
@@ -197,6 +210,10 @@ assets: Assets,
 pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
     const app = try gpa.create(App);
     errdefer gpa.destroy(app);
+
+    var arena_impl: std.heap.ArenaAllocator = .init(gpa);
+    defer arena_impl.deinit();
+    const arena = arena_impl.allocator();
 
     const messaging_data: MessagingData = create_messaging_data: {
         const host = MessagingHost.init(settings.queue_name.constSlice(), settings.queue_length, messagingCallback, app) catch |err| debug_queue: {
@@ -309,50 +326,80 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         // SAFETY: this call never fails if we pass a valid GPU device handle, which we should always have
         log.info(@src(), "Acquired OpenXR GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
 
+        try gpu_device.claimWindow(window_data.window);
+
+        const composition_mode: gpu.SwapchainComposition = .sdr_linear;
+        const present_mode_preferences: []const gpu.PresentMode = &.{
+            .mailbox,
+            .immediate,
+            .vsync,
+        };
+
+        var present_mode: gpu.PresentMode = undefined;
+
+        if (!gpu_device.windowSupportsSwapchainComposition(window_data.window, composition_mode)) {
+            log.err(@src(), "Window does not support the composition mode ({s}) we want. Cannot continue.", .{@tagName(composition_mode)});
+            return error.UnsupportCompositionMode;
+        }
+
+        for (present_mode_preferences) |present_mode_preference| {
+            if (gpu_device.windowSupportsPresentMode(window_data.window, present_mode_preference)) {
+                try gpu_device.setSwapchainParameters(window_data.window, composition_mode, present_mode_preference);
+
+                present_mode = present_mode_preference;
+                log.debug(@src(), "Using swapchain parameters: composition={any},present={any}", .{ composition_mode, present_mode_preference });
+                break;
+            }
+        } else {
+            log.err(@src(), "Window supports none of our wanted present modes. VR performance may be impacted strongly.", .{});
+        }
+
+        window_data.swapchain_format = gpu_device.getSwapchainTextureFormat(window_data.window);
+        window_data.composition_mode = composition_mode;
+        window_data.present_mode = present_mode;
+        window_data.default_present_mode = present_mode;
+
+        log.debug(@src(), "Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
+
+        const test_vertex_shader: GpuShader = try .create(
+            arena,
+            gpu_device,
+            @embedFile("shader-basic-vertex-spirv"),
+            @embedFile("shader-basic-vertex-reflection"),
+            .{ .spirv = true },
+            "main",
+            .vertex,
+        );
+        errdefer test_vertex_shader.deinit(gpu_device);
+
+        const test_fragment_shader: GpuShader = try .create(
+            arena,
+            gpu_device,
+            @embedFile("shader-basic-fragment-spirv"),
+            @embedFile("shader-basic-fragment-reflection"),
+            .{ .spirv = true },
+            "main",
+            .fragment,
+        );
+        errdefer test_fragment_shader.deinit(gpu_device);
+
+        const window_test_pipeline: GraphicsPipeline = try .create(
+            gpu_device,
+            window_data.swapchain_format,
+            test_vertex_shader,
+            test_fragment_shader,
+        );
+
         break :create_graphics_data .{
             .device = gpu_device,
             .sampler_supported_formats = sampler_supported_formats,
             .cubemap_supported_formats = cubemap_supported_formats,
             .transfer_buffer_pool = .init(gpu_device),
             .fence_manager = .init(gpu_device),
+            .window_test_pipeline = window_test_pipeline,
         };
     };
     errdefer graphics_data.deinit(gpa);
-
-    try graphics_data.device.claimWindow(window_data.window);
-
-    const composition_mode: gpu.SwapchainComposition = .sdr_linear;
-    const present_mode_preferences: []const gpu.PresentMode = &.{
-        .mailbox,
-        .immediate,
-        .vsync,
-    };
-
-    var present_mode: gpu.PresentMode = undefined;
-
-    if (!graphics_data.device.windowSupportsSwapchainComposition(window_data.window, composition_mode)) {
-        log.err(@src(), "Window does not support the composition mode ({s}) we want. Cannot continue.", .{@tagName(composition_mode)});
-        return error.UnsupportCompositionMode;
-    }
-
-    for (present_mode_preferences) |present_mode_preference| {
-        if (graphics_data.device.windowSupportsPresentMode(window_data.window, present_mode_preference)) {
-            try graphics_data.device.setSwapchainParameters(window_data.window, composition_mode, present_mode_preference);
-
-            present_mode = present_mode_preference;
-            log.debug(@src(), "Using swapchain parameters: composition={any},present={any}", .{ composition_mode, present_mode_preference });
-            break;
-        }
-    } else {
-        log.err(@src(), "Window supports none of our wanted present modes. VR performance may be impacted strongly.", .{});
-    }
-
-    window_data.swapchain_format = graphics_data.device.getSwapchainTextureFormat(window_data.window);
-    window_data.composition_mode = composition_mode;
-    window_data.present_mode = present_mode;
-    window_data.default_present_mode = present_mode;
-
-    log.debug(@src(), "Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
 
     // TODO: make ImGui an optional build dependency
     var maybe_imgui_data: ?ImGuiManager = create_imgui_data: {
@@ -422,6 +469,10 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .perf = PerformanceMonitor.init(),
             .render_spaces = .empty,
             .render_spaces_lock = .{},
+            .head_output = .init(),
+            .desktop_fov = 90,
+            .near_z = 0.1,
+            .far_z = 1000,
         };
 
         // SAFETY: this is way smaller than the maximum of 128, and we've just created these arrays
@@ -698,6 +749,16 @@ fn handleRendererCommand(
         .MaterialsUpdateBatch => |materials_update_batch| {
             try self.assets.handleMaterialUpdate(self.gpa, frame_context, &self.messaging.accessor.?, materials_update_batch);
         },
+        .SetRenderTextureFormat => |set_render_target_format| {
+            // TODO: actually create render targets
+            try self.messaging.host.background.sendTimeout(
+                .{ .RenderTextureResult = .{
+                    .assetId = set_render_target_format.assetId,
+                    .instanceChanged = true,
+                } },
+                std.time.ns_per_s * 10,
+            );
+        },
         else => {
             log.warn(@src(), "Unhandled command type {s}", .{@tagName(command)});
         },
@@ -882,6 +943,9 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
     log.trace(@src(), "Frame {d} completion", .{frame_submit_data.frameIndex});
 
     try self.updateRenderSpaces(frame_submit_data.renderSpaces);
+    self.game.desktop_fov = frame_submit_data.desktopFOV;
+    self.game.near_z = frame_submit_data.nearClip;
+    self.game.far_z = frame_submit_data.farClip;
 
     self.game.engine_thread_ready_for_begin_frame.set();
 }
@@ -1041,6 +1105,7 @@ pub fn frameLoop(self: *App) !void {
 
     var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
     defer arena_impl.deinit();
+    const arena = arena_impl.allocator();
 
     while (self.game.run_loop) {
         tracy.frameMark();
@@ -1179,7 +1244,7 @@ pub fn frameLoop(self: *App) !void {
                 command_buffer,
                 &self.graphics_data.fence_manager,
                 &self.messaging.host,
-                arena_impl.allocator(),
+                arena,
             );
 
             var begin_new_frame = true;
@@ -1278,12 +1343,23 @@ pub fn frameLoop(self: *App) !void {
                 const render_trace = tracy.traceNamed(@src(), "Render Frame");
                 defer render_trace.end();
 
+                try self.game.head_output.addDesktopView(
+                    self.gpa,
+                    self.game.desktop_fov,
+                    self.game.near_z,
+                    self.game.far_z,
+                    swapchain_width,
+                    swapchain_height,
+                    swapchain_texture,
+                );
+                try self.game.head_output.renderScene(arena, self, command_buffer);
+
                 const imgui_draw_data = if (self.imgui_data != null and self.imgui_data.?.open) ImGuiManager.getDrawData(command_buffer) else null;
 
                 const render_pass = command_buffer.beginRenderPass(&.{.{
                     .texture = swapchain_texture,
-                    .clear_color = .{ .a = 1.0 },
-                    .load = .clear,
+                    .load = .load,
+                    .store = .store,
                 }}, null);
 
                 if (imgui_draw_data) |draw_data| {

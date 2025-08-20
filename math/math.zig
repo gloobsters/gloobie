@@ -8,6 +8,14 @@ pub fn srgbToLinear(comptime T: type, srgb: T) f32 {
     return if (srgb <= 0.04045) (srgb / 12.92) else std.math.pow(T, (srgb + 0.055) / 1.055, 2.4);
 }
 
+pub fn degreesToRadians(comptime T: type, degrees: T) T {
+    return degrees * (std.math.pi / 180.0);
+}
+
+pub fn radiansToDegrees(comptime T: type, radians: T) T {
+    return radians * (180.0 / std.math.pi);
+}
+
 // Aliases to hint for what the actual contents are
 pub const Pointf = Vector3f;
 

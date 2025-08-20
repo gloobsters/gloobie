@@ -29,7 +29,9 @@ fn sdl3ErrorCallback(err: ?[:0]const u8) void {
 }
 
 fn start() !void {
-    var debug_alloc_impl: std.heap.DebugAllocator(.{}) = .init;
+    var debug_alloc_impl: std.heap.DebugAllocator(.{
+        .stack_trace_frames = 10,
+    }) = .init;
     defer if (build_options.safety and debug_alloc_impl.deinit() == .leak) {
         @panic("Memory leak!");
     };

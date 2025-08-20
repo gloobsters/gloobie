@@ -19,6 +19,8 @@ const MeshLayout = struct {
     index_buffer_start: u32,
     num_indices: u32,
     index_buffer_byte_size: u32,
+    num_vertices: u32,
+    index_element_type: gpu.IndexElementSize,
 };
 
 const SubMesh = struct {
@@ -200,7 +202,7 @@ pub fn setData(
                     vertex_write_ptr += attribute_stride;
                 }
 
-                offset_start_ptr += @intCast(attribute_stride * @as(u32, @intCast(data_request.vertexCount)));
+                offset_start_ptr += attribute_stride;
             }
 
             std.debug.assert(@intFromPtr(vertex_write_ptr) <= @intFromPtr(write_ptr + mesh_layout.index_buffer_start));
@@ -283,13 +285,17 @@ fn calculateMeshLayout(data_request: renderite.shared.MeshUploadData) !MeshLayou
         num_indices = @max(num_indices, submesh.indexStart + submesh.indexCount);
     }
 
-    const index_buffer_byte_size = num_indices * renderiteIndexBufferFormatToGpu(data_request.indexBufferFormat).byteSize();
+    const index_element_type = renderiteIndexBufferFormatToGpu(data_request.indexBufferFormat);
+
+    const index_buffer_byte_size = num_indices * index_element_type.byteSize();
 
     return .{
         .interleaved_vertex_stride = interleaved_vertex_stride,
         .index_buffer_start = index_buffer_start,
         .num_indices = num_indices,
         .index_buffer_byte_size = index_buffer_byte_size,
+        .num_vertices = @intCast(data_request.vertexCount),
+        .index_element_type = index_element_type,
     };
 }
 
