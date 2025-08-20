@@ -15,7 +15,7 @@ const VertexAttribute = struct {
 };
 
 const MeshLayout = struct {
-    vertex_stride: u32,
+    interleaved_vertex_stride: u32,
     index_buffer_start: u32,
     num_indices: u32,
     index_buffer_byte_size: u32,
@@ -183,7 +183,31 @@ pub fn setData(
         const write_ptr = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.value, true);
         defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
 
-        @memcpy(write_ptr, data);
+        // Copy in the vertex data, de-interleaving it
+        {
+            var vertex_write_ptr = write_ptr;
+
+            var offset_start_ptr: [*]u8 = data.ptr;
+
+            for (data_request.vertexAttributes) |vertex_attribute| {
+                const attribute_stride = renderiteVertexAttributeDescriptorToVertexElementFormat(vertex_attribute).?.stride();
+
+                var data_ptr = offset_start_ptr;
+                for (0..@intCast(data_request.vertexCount)) |_| {
+                    @memcpy(vertex_write_ptr, data_ptr[0..attribute_stride]);
+
+                    data_ptr += mesh_layout.interleaved_vertex_stride;
+                    vertex_write_ptr += attribute_stride;
+                }
+
+                offset_start_ptr += @intCast(attribute_stride * @as(u32, @intCast(data_request.vertexCount)));
+            }
+
+            std.debug.assert(@intFromPtr(vertex_write_ptr) <= @intFromPtr(write_ptr + mesh_layout.index_buffer_start));
+        }
+
+        // Copy in the index data
+        @memcpy(write_ptr + mesh_layout.index_buffer_start, data[mesh_layout.index_buffer_start..]);
     }
 
     const copy_pass = try frame_context.getSharedCopyPass();
@@ -245,14 +269,14 @@ pub fn deinit(self: Mesh, gpa: std.mem.Allocator, device: gpu.Device) void {
 }
 
 fn calculateMeshLayout(data_request: renderite.shared.MeshUploadData) !MeshLayout {
-    var vertex_stride: u32 = 0;
+    var interleaved_vertex_stride: u32 = 0;
     for (data_request.vertexAttributes) |attribute| {
         const format = renderiteVertexAttributeDescriptorToVertexElementFormat(attribute) orelse return error.InvalidVertexAttributeDescriptor;
 
-        vertex_stride += format.stride();
+        interleaved_vertex_stride += format.stride();
     }
 
-    const index_buffer_start = vertex_stride * @as(u32, @intCast(data_request.vertexCount));
+    const index_buffer_start = interleaved_vertex_stride * @as(u32, @intCast(data_request.vertexCount));
 
     var num_indices: u32 = 0;
     for (data_request.submeshes) |submesh| {
@@ -262,7 +286,7 @@ fn calculateMeshLayout(data_request: renderite.shared.MeshUploadData) !MeshLayou
     const index_buffer_byte_size = num_indices * renderiteIndexBufferFormatToGpu(data_request.indexBufferFormat).byteSize();
 
     return .{
-        .vertex_stride = vertex_stride,
+        .interleaved_vertex_stride = interleaved_vertex_stride,
         .index_buffer_start = index_buffer_start,
         .num_indices = num_indices,
         .index_buffer_byte_size = index_buffer_byte_size,
