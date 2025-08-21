@@ -639,12 +639,12 @@ inline static void XrMatrix4x4f_CreateProjection(XrMatrix4x4f *result, GraphicsA
 
         result->m[2] = 0.0f;
         result->m[6] = 0.0f;
-        result->m[10] = -1.0f;
-        result->m[14] = -(nearZ + offsetZ);
+        result->m[10] = 1.0f;
+        result->m[14] = (nearZ + offsetZ);
 
         result->m[3] = 0.0f;
         result->m[7] = 0.0f;
-        result->m[11] = -1.0f;
+        result->m[11] = 1.0f;
         result->m[15] = 0.0f;
     }
     else
@@ -662,12 +662,12 @@ inline static void XrMatrix4x4f_CreateProjection(XrMatrix4x4f *result, GraphicsA
 
         result->m[2] = 0.0f;
         result->m[6] = 0.0f;
-        result->m[10] = -(farZ + offsetZ) / (farZ - nearZ);
-        result->m[14] = -(farZ * (nearZ + offsetZ)) / (farZ - nearZ);
+        result->m[10] = (farZ + offsetZ) / (farZ - nearZ);
+        result->m[14] = (farZ * (nearZ + offsetZ)) / (farZ - nearZ);
 
         result->m[3] = 0.0f;
         result->m[7] = 0.0f;
-        result->m[11] = -1.0f;
+        result->m[11] = 1.0f;
         result->m[15] = 0.0f;
     }
 }
