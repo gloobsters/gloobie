@@ -670,7 +670,7 @@ pub const Matrix4x4f = extern struct {
 
     pub inline fn createProjectionFov(fov: c.XrFovf, near_z: f32, far_z: f32) Matrix4x4f {
         var ret: Matrix4x4f = undefined;
-        c.XrMatrix4x4f_CreateProjectionFov(@ptrCast(&ret), c.GRAPHICS_D3D, fov, near_z, far_z);
+        c.XrMatrix4x4f_CreateProjectionFov(@ptrCast(&ret), fov, near_z, far_z, false);
         return ret;
     }
 

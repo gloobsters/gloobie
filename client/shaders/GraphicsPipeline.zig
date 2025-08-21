@@ -21,10 +21,12 @@ pub fn create(
             .color_target_descriptions = &.{.{
                 .format = target_format,
             }},
+            .depth_stencil_format = .depth32_float,
         },
         .rasterizer_state = .{
             .cull_mode = .back,
             .front_face = .clockwise,
+            .enable_depth_clip = true,
         },
         .vertex_input_state = .{
             .vertex_attributes = &.{
@@ -33,6 +35,12 @@ pub fn create(
             .vertex_buffer_descriptions = &.{
                 .{ .slot = 0, .pitch = @sizeOf(math.Vector3f), .input_rate = .vertex },
             },
+        },
+        .depth_stencil_state = .{
+            .enable_stencil_test = false,
+            .enable_depth_test = true,
+            .enable_depth_write = true,
+            .compare = .greater_or_equal,
         },
     });
 

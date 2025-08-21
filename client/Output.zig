@@ -11,6 +11,13 @@ const RenderSpace = @import("render_spaces/RenderSpace.zig");
 
 const Output = @This();
 
+pub const OutputTarget = struct {
+    raster_target: gpu.Texture,
+    cycle_raster_target: bool,
+    depth_target: gpu.Texture,
+    cycle_depth_target: bool,
+};
+
 const View = struct {
     pub const Type = enum {
         left_eye,
@@ -21,7 +28,7 @@ const View = struct {
     transform: renderite.shared.RenderTransform,
     projection: math.Matrix4x4f,
     type: Type,
-    texture: gpu.Texture,
+    output_target: OutputTarget,
 };
 
 views: std.ArrayListUnmanaged(View),
@@ -138,6 +145,7 @@ pub fn addDesktopView(
     swapchain_width: u32,
     swapchain_height: u32,
     texture: gpu.Texture,
+    depth_texture: gpu.Texture,
 ) !void {
     const aspect_ratio: f32 = @as(f32, @floatFromInt(swapchain_width)) / @as(f32, @floatFromInt(swapchain_height));
 
@@ -148,7 +156,7 @@ pub fn addDesktopView(
         .angleDown = -(vertical_fov / 2.0),
         .angleRight = horizontal_fov / 2.0,
         .angleLeft = -(horizontal_fov / 2.0),
-    }, near_z, far_z);
+    }, far_z, near_z); // inverse Z
 
     try self.views.append(gpa, .{
         .projection = matrix,
@@ -157,7 +165,12 @@ pub fn addDesktopView(
             .rotation = .identity,
             .scale = .one,
         },
-        .texture = texture,
+        .output_target = .{
+            .raster_target = texture,
+            .cycle_raster_target = false,
+            .depth_target = depth_texture,
+            .cycle_depth_target = true,
+        },
         .type = .desktop,
     });
 }
@@ -176,9 +189,10 @@ pub fn renderScene(
     app.assets.lock.lockShared();
     defer app.assets.lock.unlockShared();
 
+    var first_render_pass = true;
     for (self.views.items) |*view| {
         const render_pass = command_buffer.beginRenderPass(&.{.{
-            .texture = view.texture,
+            .texture = view.output_target.raster_target,
             .load = .clear,
             .store = .store,
             .clear_color = .{
@@ -187,9 +201,21 @@ pub fn renderScene(
                 .b = 0.1,
                 .a = 1,
             },
-            .cycle = false,
-        }}, null);
-        defer render_pass.end();
+            .cycle = view.output_target.cycle_raster_target and first_render_pass,
+        }}, .{
+            .texture = view.output_target.depth_target,
+            .clear_depth = 0.0,
+            .load = .clear,
+            .store = .store,
+            .stencil_load = .do_not_care,
+            .stencil_store = .do_not_care,
+            .cycle = view.output_target.cycle_depth_target and first_render_pass,
+            .clear_stencil = 0,
+        });
+        defer {
+            render_pass.end();
+            first_render_pass = false;
+        }
 
         render_pass.bindGraphicsPipeline(app.graphics_data.window_test_pipeline.pipeline);
 

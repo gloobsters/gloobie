@@ -44,13 +44,22 @@ const GraphicsData = struct {
     sampler_supported_formats: std.enums.EnumSet(renderite.shared.TextureFormat),
     cubemap_supported_formats: std.enums.EnumSet(renderite.shared.TextureFormat),
 
+    depth_texture: ?gpu.Texture,
+    depth_texture_size: math.Vector2i,
+
     transfer_buffer_pool: graphics.TransferBufferPool,
 
     fence_manager: FenceManager,
 
     window_test_pipeline: GraphicsPipeline,
 
-    pub fn deinit(self: *GraphicsData, gpa: std.mem.Allocator) void {
+    pub fn deinit(
+        self: *GraphicsData,
+        gpa: std.mem.Allocator,
+    ) void {
+        if (self.depth_texture) |depth_texture| {
+            self.device.releaseTexture(depth_texture);
+        }
         self.fence_manager.deinit(gpa);
 
         self.transfer_buffer_pool.deinit(gpa);
@@ -397,6 +406,8 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .transfer_buffer_pool = .init(gpu_device),
             .fence_manager = .init(gpu_device),
             .window_test_pipeline = window_test_pipeline,
+            .depth_texture = null,
+            .depth_texture_size = .{ .x = 0, .y = 0 },
         };
     };
     errdefer graphics_data.deinit(gpa);
@@ -1343,6 +1354,25 @@ pub fn frameLoop(self: *App) !void {
                 const render_trace = tracy.traceNamed(@src(), "Render Frame");
                 defer render_trace.end();
 
+                if (swapchain_width != self.graphics_data.depth_texture_size.x or swapchain_height != self.graphics_data.depth_texture_size.y) {
+                    if (self.graphics_data.depth_texture) |depth_texture| {
+                        self.graphics_data.device.releaseTexture(depth_texture);
+                    }
+
+                    self.graphics_data.depth_texture = try self.graphics_data.device.createTexture(.{
+                        .format = .depth32_float,
+                        .width = swapchain_width,
+                        .height = swapchain_height,
+                        .layer_count_or_depth = 1,
+                        .num_levels = 1,
+                        .usage = .{ .depth_stencil_target = true },
+                    });
+                    self.graphics_data.depth_texture_size = .{
+                        .x = @intCast(swapchain_width),
+                        .y = @intCast(swapchain_height),
+                    };
+                }
+
                 try self.game.head_output.addDesktopView(
                     self.gpa,
                     self.game.desktop_fov,
@@ -1351,6 +1381,7 @@ pub fn frameLoop(self: *App) !void {
                     swapchain_width,
                     swapchain_height,
                     swapchain_texture,
+                    self.graphics_data.depth_texture.?,
                 );
                 try self.game.head_output.renderScene(arena, self, command_buffer);
 

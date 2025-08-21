@@ -16,13 +16,13 @@ struct VertexStageOutput
 
 struct RenderData
 {
-    row_major mat4 view_matrix;
-    row_major mat4 projection_matrix;
+    mat4 view_matrix;
+    mat4 projection_matrix;
 }
 
 struct ModelData
 {
-    row_major mat4 model_matrix;
+    mat4 model_matrix;
 }
 
 [[vk_binding(0, 1)]]
@@ -35,9 +35,8 @@ VertexStageOutput vertexMain(Vertex vertex)
 {
     VertexStageOutput output;
 
-    output.position = mul(float4(vertex.position, 1.0), render_data.projection_matrix * render_data.view_matrix * model_data.model_matrix);
-
-    output.frag_input.color = float4((output.position.z / 10.0), 0.0, 0.0, 1.0); // Red color
+    output.position = mul(model_data.model_matrix * render_data.view_matrix * render_data.projection_matrix, float4(vertex.position, 1.0));
+    output.frag_input.color = float4((vertex.position.x * 10.0) % 1.0, (vertex.position.y * 10.0) % 1.0, (vertex.position.z * 10.0) % 1.0, 1.0); // test nonsense
 
     return output;
 }

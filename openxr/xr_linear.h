@@ -138,15 +138,6 @@ static const XrColor4f XrColorCyan = {0.0f, 1.0f, 1.0f, 1.0f};
 static const XrColor4f XrColorLightGrey = {0.7f, 0.7f, 0.7f, 1.0f};
 static const XrColor4f XrColorDarkGrey = {0.3f, 0.3f, 0.3f, 1.0f};
 
-typedef enum GraphicsAPI
-{
-    GRAPHICS_VULKAN,
-    GRAPHICS_OPENGL,
-    GRAPHICS_OPENGL_ES,
-    GRAPHICS_D3D,
-    GRAPHICS_METAL
-} GraphicsAPI;
-
 // Column-major, pre-multiplied. This type does not exist in the OpenXR API and is provided for convenience.
 typedef struct XrMatrix4x4f
 {
@@ -603,28 +594,23 @@ inline static void XrMatrix4x4f_CreateFromRigidTransform(XrMatrix4x4f *result, c
 }
 
 // Creates a projection matrix based on the specified dimensions.
-// The projection matrix transforms -Z=forward, +Y=up, +X=right to the appropriate clip space for the graphics API.
+// The projection matrix transforms +Z=forward, +Y=up, +X=right to the appropriate clip space for the graphics API.
 // The far plane is placed at infinity if farZ <= nearZ.
 // An infinite projection matrix is preferred for rasterization because, except for
 // things *right* up against the near plane, it always provides better precision:
 //              "Tightening the Precision of Perspective Rendering"
 //              Paul Upchurch, Mathieu Desbrun
 //              Journal of Graphics Tools, Volume 16, Issue 1, 2012
-inline static void XrMatrix4x4f_CreateProjection(XrMatrix4x4f *result, GraphicsAPI graphicsApi, const float tanAngleLeft,
+inline static void XrMatrix4x4f_CreateProjection(XrMatrix4x4f *result, const float tanAngleLeft,
                                                  const float tanAngleRight, const float tanAngleUp, float const tanAngleDown,
-                                                 const float nearZ, const float farZ)
+                                                 const float nearZ, const float farZ, bool infiniteProjection)
 {
     const float tanAngleWidth = tanAngleRight - tanAngleLeft;
 
-    // Set to tanAngleDown - tanAngleUp for a clip space with positive Y down (Vulkan).
-    // Set to tanAngleUp - tanAngleDown for a clip space with positive Y up (OpenGL / D3D / Metal).
-    const float tanAngleHeight = graphicsApi == GRAPHICS_VULKAN ? (tanAngleDown - tanAngleUp) : (tanAngleUp - tanAngleDown);
+    // Set to tanAngleUp - tanAngleDown for a clip space with positive Y up.
+    const float tanAngleHeight = tanAngleUp - tanAngleDown;
 
-    // Set to nearZ for a [-1,1] Z clip space (OpenGL / OpenGL ES).
-    // Set to zero for a [0,1] Z clip space (Vulkan / D3D / Metal).
-    const float offsetZ = (graphicsApi == GRAPHICS_OPENGL || graphicsApi == GRAPHICS_OPENGL_ES) ? nearZ : 0;
-
-    if (farZ <= nearZ)
+    if (infiniteProjection)
     {
         // place the far plane at infinity
         result->m[0] = 2.0f / tanAngleWidth;
@@ -640,7 +626,7 @@ inline static void XrMatrix4x4f_CreateProjection(XrMatrix4x4f *result, GraphicsA
         result->m[2] = 0.0f;
         result->m[6] = 0.0f;
         result->m[10] = 1.0f;
-        result->m[14] = (nearZ + offsetZ);
+        result->m[14] = -nearZ;
 
         result->m[3] = 0.0f;
         result->m[7] = 0.0f;
@@ -662,8 +648,8 @@ inline static void XrMatrix4x4f_CreateProjection(XrMatrix4x4f *result, GraphicsA
 
         result->m[2] = 0.0f;
         result->m[6] = 0.0f;
-        result->m[10] = (farZ + offsetZ) / (farZ - nearZ);
-        result->m[14] = (farZ * (nearZ + offsetZ)) / (farZ - nearZ);
+        result->m[10] = farZ / (farZ - nearZ);
+        result->m[14] = -(farZ * nearZ) / (farZ - nearZ);
 
         result->m[3] = 0.0f;
         result->m[7] = 0.0f;
@@ -673,8 +659,8 @@ inline static void XrMatrix4x4f_CreateProjection(XrMatrix4x4f *result, GraphicsA
 }
 
 // Creates a projection matrix based on the specified FOV.
-inline static void XrMatrix4x4f_CreateProjectionFov(XrMatrix4x4f *result, GraphicsAPI graphicsApi, const XrFovf fov,
-                                                    const float nearZ, const float farZ)
+inline static void XrMatrix4x4f_CreateProjectionFov(XrMatrix4x4f *result, const XrFovf fov,
+                                                    const float nearZ, const float farZ, bool infiniteProjection)
 {
     const float tanLeft = tanf(fov.angleLeft);
     const float tanRight = tanf(fov.angleRight);
@@ -682,7 +668,7 @@ inline static void XrMatrix4x4f_CreateProjectionFov(XrMatrix4x4f *result, Graphi
     const float tanDown = tanf(fov.angleDown);
     const float tanUp = tanf(fov.angleUp);
 
-    XrMatrix4x4f_CreateProjection(result, graphicsApi, tanLeft, tanRight, tanUp, tanDown, nearZ, farZ);
+    XrMatrix4x4f_CreateProjection(result, tanLeft, tanRight, tanUp, tanDown, nearZ, farZ, infiniteProjection);
 }
 
 // Creates a matrix that transforms the -1 to 1 cube to cover the given 'mins' and 'maxs' transformed with the given 'matrix'.
