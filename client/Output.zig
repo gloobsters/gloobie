@@ -3,6 +3,7 @@ const std = @import("std");
 const gpu = @import("gpu");
 const math = @import("math");
 const renderite = @import("renderite");
+const tracy = @import("tracy");
 
 const App = @import("App.zig");
 const Assets = @import("assets/Assets.zig");
@@ -69,13 +70,20 @@ fn renderRenderSpace(
     command_buffer: gpu.CommandBuffer,
     render_pass: gpu.RenderPass,
 ) !void {
+    const trace = tracy.traceNamed(@src(), "Render Render Space");
+    defer trace.end();
+
     var transform_matrix_stack: std.ArrayListUnmanaged(*const renderite.shared.RenderTransform) = try .initCapacity(arena, 64);
     defer transform_matrix_stack.deinit(arena);
 
     const transforms = render_space.transforms.transforms.items;
 
     for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
-        std.debug.assert(mesh_renderer.transform != .invalid);
+        // TODO: is this intended behaviour?
+        // std.debug.assert(mesh_renderer.transform != .invalid);
+        if (mesh_renderer.transform == .invalid) {
+            continue;
+        }
 
         const mesh = assets.meshes.get(mesh_renderer.mesh) orelse continue;
         if (mesh.vertex_buffer == null or mesh.index_buffer == null) {
@@ -181,6 +189,9 @@ pub fn renderScene(
     app: *App,
     command_buffer: gpu.CommandBuffer,
 ) !void {
+    const trace = tracy.traceNamed(@src(), "Render Scene");
+    defer trace.end();
+
     defer self.views.clearRetainingCapacity();
 
     app.game.render_spaces_lock.lock();

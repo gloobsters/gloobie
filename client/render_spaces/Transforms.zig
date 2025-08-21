@@ -2,6 +2,8 @@ const std = @import("std");
 
 const renderite = @import("renderite");
 
+const RenderSpace = @import("RenderSpace.zig");
+
 const Transforms = @This();
 
 pub const Transform = struct {
@@ -28,6 +30,7 @@ pub fn handleUpdate(
     self: *Transforms,
     gpa: std.mem.Allocator,
     accessor: *renderite.buffer.SharedMemoryAccessor,
+    render_space: *RenderSpace,
     update: renderite.shared.TransformsUpdate,
 ) !void {
     const removals = try accessor.getOrCreate(i32, gpa, update.removals);
@@ -47,6 +50,16 @@ pub fn handleUpdate(
             // The last item is about to be moved into the removed slot, so update any children of the last item to the new slot it will be in
             if (transform.parent.to() == self.transforms.items.len - 1) {
                 transform.parent = .from(removal);
+            }
+        }
+
+        for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
+            if (mesh_renderer.transform.to() == removal) {
+                // Mark the mesh renderer as having an invalid transform
+                mesh_renderer.transform = .invalid;
+            } else if (mesh_renderer.transform.to() == self.transforms.items.len - 1) {
+                // Update all mesh renderers to the new ID, since the last slot is moving
+                mesh_renderer.transform = .from(removal);
             }
         }
 

@@ -1006,10 +1006,8 @@ fn updateDisplays(self: *App) !void {
         // According to SDL documentation, DPI is approximated by multiplying
         // SDL_GetWindowDisplayScale() times 160 on iPhone and Android, and 96 on other platforms
         const dpi_scale =
-            if (builtin.os.tag == .ios)
-                120
-            else if (builtin.abi.isAndroid())
-                120
+            if (builtin.os.tag == .ios or builtin.abi.isAndroid())
+                160
             else
                 96;
 
@@ -1259,14 +1257,19 @@ pub fn frameLoop(self: *App) !void {
             );
 
             var begin_new_frame = true;
-            self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
-                if (err == error.Timeout) {
-                    begin_new_frame = false;
-                    log.trace(@src(), "FrooxEngine running really slow, no new frame :(", .{});
-                } else {
-                    return err;
-                }
-            };
+            {
+                const trace = tracy.traceNamed(@src(), "Waiting on engine");
+                defer trace.end();
+
+                self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
+                    if (err == error.Timeout) {
+                        begin_new_frame = false;
+                        log.trace(@src(), "FrooxEngine running really slow, no new frame :(", .{});
+                    } else {
+                        return err;
+                    }
+                };
+            }
 
             // handle any messages from the queues, happens before processing most of the frame/rendering
             try handleMessages(self, &frame_context);

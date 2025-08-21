@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const renderite = @import("renderite");
+const tracy = @import("tracy");
 
 const MeshRendererManager = @import("mesh_renderer_manager.zig").MeshRendererManager;
 const RendererManager = @import("renderer_manager.zig").RendererManager;
@@ -69,6 +70,9 @@ fn loadProperties(update: renderite.shared.RenderSpaceUpdate) Properties {
 }
 
 pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *renderite.buffer.SharedMemoryAccessor, update: renderite.shared.RenderSpaceUpdate) !void {
+    const trace = tracy.traceNamed(@src(), "Render Space Update");
+    defer trace.end();
+
     self.updated = true;
 
     self.properties = loadProperties(update);
@@ -83,7 +87,12 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
     }
 
     if (update.transformsUpdate) |transforms_update| {
-        try self.transforms.handleUpdate(gpa, accessor, transforms_update);
+        try self.transforms.handleUpdate(
+            gpa,
+            accessor,
+            self,
+            transforms_update,
+        );
     }
 
     if (update.meshRenderersUpdate) |mesh_renderer_update| {
