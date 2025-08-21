@@ -1244,8 +1244,6 @@ pub fn frameLoop(self: *App) !void {
         const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
 
         {
-            errdefer command_buffer.cancel() catch std.debug.panic("failed to cancel cmdbuf", .{});
-
             var frame_context: graphics.FrameContext = .initMain(
                 self.graphics_data.device,
                 &self.graphics_data.transfer_buffer_pool,
@@ -1256,24 +1254,6 @@ pub fn frameLoop(self: *App) !void {
                 arena,
             );
 
-            var begin_new_frame = true;
-            {
-                const trace = tracy.traceNamed(@src(), "Waiting on engine");
-                defer trace.end();
-
-                self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
-                    if (err == error.Timeout) {
-                        begin_new_frame = false;
-                        log.trace(@src(), "FrooxEngine running really slow, no new frame :(", .{});
-                    } else {
-                        return err;
-                    }
-                };
-            }
-
-            // handle any messages from the queues, happens before processing most of the frame/rendering
-            try handleMessages(self, &frame_context);
-
             const swapchain_texture_result = acquire_swapchain_texture: {
                 const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
                 defer trace.end();
@@ -1283,7 +1263,7 @@ pub fn frameLoop(self: *App) !void {
             const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
 
             // send a frame start if the engine thread is waiting for us to do so
-            if (self.game.load_state.full_init and begin_new_frame) {
+            if (self.game.load_state.full_init and self.game.engine_thread_ready_for_begin_frame.isSet()) {
                 const dropped_files = try self.game.input.takeDroppedFiles(self.gpa);
                 defer if (dropped_files) |files| {
                     for (files.paths) |file| {
@@ -1338,6 +1318,23 @@ pub fn frameLoop(self: *App) !void {
 
                 self.game.engine_thread_ready_for_begin_frame.reset();
             }
+
+            const wait_on_engine = true;
+            if (wait_on_engine) {
+                const trace = tracy.traceNamed(@src(), "Waiting on engine");
+                defer trace.end();
+
+                self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
+                    if (err == error.Timeout) {
+                        log.trace(@src(), "FrooxEngine running really slow, no new frame :(", .{});
+                    } else {
+                        return err;
+                    }
+                };
+            }
+
+            // handle any messages from the queues, happens before processing most of the frame/rendering
+            try handleMessages(self, &frame_context);
 
             // end frame context, frame is over
             try frame_context.end(self.gpa);
