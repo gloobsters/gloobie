@@ -38,10 +38,15 @@ pub fn handleUpdate(
             break;
         }
 
-        // orphan all children
         for (self.transforms.items) |*transform| {
+            // orphan all children
             if (transform.parent.to() == removal) {
                 transform.parent = .invalid;
+            }
+
+            // The last item is about to be moved into the removed slot, so update any children of the last item to the new slot it will be in
+            if (transform.parent.to() == self.transforms.items.len - 1) {
+                transform.parent = .from(removal);
             }
         }
 
