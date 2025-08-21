@@ -1,5 +1,3 @@
-typedef float4x4 mat4;
-
 struct Vertex
 {
     float3 position : POSITION;
@@ -18,12 +16,13 @@ struct VertexStageOutput
 
 struct RenderData
 {
-    mat4 render_matrix;
+    row_major mat4 view_matrix;
+    row_major mat4 projection_matrix;
 }
 
 struct ModelData
 {
-    mat4 model_matrix;
+    row_major mat4 model_matrix;
 }
 
 [[vk_binding(0, 1)]]
@@ -36,7 +35,8 @@ VertexStageOutput vertexMain(Vertex vertex)
 {
     VertexStageOutput output;
 
-    output.position = mul(mul(render_data.render_matrix, model_data.model_matrix), float4(vertex.position, 1.0));
+    output.position = mul(float4(vertex.position, 1.0), render_data.projection_matrix * render_data.view_matrix * model_data.model_matrix);
+
     output.frag_input.color = float4((output.position.z / 10.0), 0.0, 0.0, 1.0); // Red color
 
     return output;

@@ -22,7 +22,10 @@ pub fn create(
                 .format = target_format,
             }},
         },
-        .rasterizer_state = .{},
+        .rasterizer_state = .{
+            .cull_mode = .back,
+            .front_face = .clockwise,
+        },
         .vertex_input_state = .{
             .vertex_attributes = &.{
                 .{ .location = 0, .buffer_slot = 0, .format = .f32x3, .offset = 0 },

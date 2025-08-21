@@ -632,55 +632,61 @@ pub const Matrix4x4f = extern struct {
         return @bitCast(self);
     }
 
-    pub fn mult(self: *const Matrix4x4f, other: *const Matrix4x4f) Matrix4x4f {
+    pub inline fn mult(self: *const Matrix4x4f, other: *const Matrix4x4f) Matrix4x4f {
         var curr: Matrix4x4f = undefined;
         c.XrMatrix4x4f_Multiply(@ptrCast(&curr), @ptrCast(self), @ptrCast(other));
         return curr;
     }
 
-    pub fn transformVector3(self: *const Matrix4x4f, vec: Vector3f) Vector3f {
+    pub inline fn transformVector3(self: *const Matrix4x4f, vec: Vector3f) Vector3f {
         var ret: Vector3f = undefined;
         c.XrMatrix4x4f_TransformVector3f(@ptrCast(&ret), @ptrCast(self), @ptrCast(&vec));
         return ret;
     }
 
-    pub fn createRotation(x: f32, y: f32, z: f32) Matrix4x4f {
+    pub inline fn createRotation(x: f32, y: f32, z: f32) Matrix4x4f {
         var ret: Matrix4x4f = undefined;
         c.XrMatrix4x4f_CreateRotationRadians(@ptrCast(&ret), x, y, z);
         return ret;
     }
 
-    pub fn createTranslation(translation: Vector3f) Matrix4x4f {
+    pub inline fn createTranslation(translation: Vector3f) Matrix4x4f {
         var ret: Matrix4x4f = undefined;
         c.XrMatrix4x4f_CreateTranslation(@ptrCast(&ret), translation.x, translation.y, translation.z);
         return ret;
     }
 
-    pub fn createScale(scale: Vector3f) Matrix4x4f {
+    pub inline fn createScale(scale: Vector3f) Matrix4x4f {
         var ret: Matrix4x4f = undefined;
         c.XrMatrix4x4f_CreateScale(@ptrCast(&ret), scale.x, scale.y, scale.z);
         return ret;
     }
 
-    pub fn createTranslationRotationScale(translation: Vector3f, rotation: Quaternionf, scale: Vector3f) Matrix4x4f {
+    pub inline fn createTranslationRotationScale(translation: Vector3f, rotation: Quaternionf, scale: Vector3f) Matrix4x4f {
         var ret: Matrix4x4f = undefined;
         c.XrMatrix4x4f_CreateTranslationRotationScale(@ptrCast(&ret), @ptrCast(&translation), @ptrCast(&rotation), @ptrCast(&scale));
         return ret;
     }
 
-    pub fn createProjectionFov(fov: c.XrFovf, near_z: f32, far_z: f32) Matrix4x4f {
+    pub inline fn createProjectionFov(fov: c.XrFovf, near_z: f32, far_z: f32) Matrix4x4f {
         var ret: Matrix4x4f = undefined;
         c.XrMatrix4x4f_CreateProjectionFov(@ptrCast(&ret), c.GRAPHICS_D3D, fov, near_z, far_z);
         return ret;
     }
 
-    pub fn createFromPose(pose: c.XrPosef) Matrix4x4f {
+    pub inline fn createFromPose(pose: c.XrPosef) Matrix4x4f {
         return createTranslationRotationScale(@bitCast(pose.position), @bitCast(pose.orientation), .{ .x = 1, .y = 1, .z = 1 });
     }
 
-    pub fn invert(self: Matrix4x4f) Matrix4x4f {
+    pub inline fn invert(self: Matrix4x4f) Matrix4x4f {
         var ret: Matrix4x4f = undefined;
         c.XrMatrix4x4f_Invert(@ptrCast(&ret), @ptrCast(&self));
+        return ret;
+    }
+
+    pub inline fn transpose(self: Matrix4x4f) Matrix4x4f {
+        var ret: Matrix4x4f = undefined;
+        c.XrMatrix4x4f_Transpose(@ptrCast(&ret), @ptrCast(&self));
         return ret;
     }
 
@@ -699,13 +705,13 @@ pub const Matrix4x4f = extern struct {
         };
     }
 
-    pub fn getRotation(self: Matrix4x4f) Quaternionf {
+    pub inline fn getRotation(self: Matrix4x4f) Quaternionf {
         var ret: c.XrQuaternionf = undefined;
         c.XrMatrix4x4f_GetRotation(&ret, @ptrCast(&self));
         return @bitCast(ret);
     }
 
-    pub fn getTranslation(self: Matrix4x4f) Vector3f {
+    pub inline fn getTranslation(self: Matrix4x4f) Vector3f {
         var ret: c.XrVector3f = undefined;
         c.XrMatrix4x4f_GetTranslation(&ret, @ptrCast(&self));
         return @bitCast(ret);

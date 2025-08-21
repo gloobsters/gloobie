@@ -140,6 +140,7 @@ const Shader = struct {
         step.addArgs(&.{ "-capability", "spirv_1_0" });
         step.addArg("-fspv-reflect");
         step.addArg("-matrix-layout-column-major");
+        step.addArg("-allow-glsl");
         if (target == .spirv) {
             step.addArg("-emit-spirv-via-glsl");
         }

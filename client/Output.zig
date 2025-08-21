@@ -40,8 +40,19 @@ inline fn renderTransformToMatrix(render_transform: renderite.shared.RenderTrans
     return .createTranslationRotationScale(.{
         .x = render_transform.position.x,
         .y = render_transform.position.y,
-        .z = -render_transform.position.z,
+        .z = render_transform.position.z,
     }, render_transform.rotation, render_transform.scale);
+}
+
+/// Ensures a view scale is actually valid, and non-zero
+fn filterScale(scale: math.Vector3f) math.Vector3f {
+    const minimum_scale: math.SimdVector3f = @splat(1E-08);
+
+    if (@reduce(.Or, scale.toSimd() <= minimum_scale)) {
+        return .one;
+    }
+
+    return scale;
 }
 
 fn renderRenderSpace(
@@ -75,12 +86,12 @@ fn renderRenderSpace(
 
         std.debug.assert(transform_matrix_stack.items.len > 0);
 
-        var model_matrix = renderTransformToMatrix(transform_matrix_stack.pop().?.*);
+        var parent_matrix = renderTransformToMatrix(transform_matrix_stack.pop().?.*);
         while (transform_matrix_stack.pop()) |child_matrix| {
-            model_matrix = model_matrix.mult(&renderTransformToMatrix(child_matrix.*));
+            parent_matrix = parent_matrix.mult(&renderTransformToMatrix(child_matrix.*));
         }
 
-        command_buffer.pushComputeUniformData(1, std.mem.asBytes(&model_matrix));
+        command_buffer.pushVertexUniformData(1, std.mem.asBytes(&parent_matrix));
 
         const position_offset = find_position_offset: {
             var offset: u32 = 0;
@@ -187,11 +198,16 @@ pub fn renderScene(
                 continue;
             }
 
-            const view_matrix: math.Matrix4x4f = renderTransformToMatrix(render_space.properties.overridden_view_transform orelse render_space.properties.root_transform);
+            var view_transform = render_space.properties.overridden_view_transform orelse render_space.properties.root_transform;
+            view_transform.scale = filterScale(view_transform.scale);
 
-            const render_matrix = view.projection.mult(&view_matrix);
+            const view_matrix: math.Matrix4x4f = renderTransformToMatrix(view_transform);
 
-            command_buffer.pushComputeUniformData(0, std.mem.asBytes(&render_matrix));
+            var matrices: [2]math.Matrix4x4f = .{
+                view_matrix.invert(),
+                view.projection,
+            };
+            command_buffer.pushVertexUniformData(0, std.mem.sliceAsBytes(&matrices));
 
             try renderRenderSpace(
                 arena,
