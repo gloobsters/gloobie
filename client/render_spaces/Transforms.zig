@@ -26,6 +26,20 @@ pub fn deinit(self: *Transforms, gpa: std.mem.Allocator) void {
     self.transforms.deinit(gpa);
 }
 
+fn fixupTransform(
+    old_transform: Transform.Id,
+    removed: Transform.Id,
+    last_transform: usize,
+) Transform.Id {
+    if (old_transform == removed) {
+        return .invalid;
+    } else if (old_transform.to() == last_transform) {
+        return removed;
+    }
+
+    return old_transform;
+}
+
 pub fn handleUpdate(
     self: *Transforms,
     gpa: std.mem.Allocator,
@@ -36,34 +50,38 @@ pub fn handleUpdate(
     const removals = try accessor.getOrCreate(i32, gpa, update.removals);
     defer removals.release(accessor);
 
-    for (removals.data) |removal| {
-        if (removal < 0) {
+    for (removals.data) |removal_id| {
+        if (removal_id < 0) {
             break;
         }
 
+        const removal: Transform.Id = .from(removal_id);
+
         for (self.transforms.items) |*transform| {
             // orphan all children
-            if (transform.parent.to() == removal) {
+            if (transform.parent == removal) {
                 transform.parent = .invalid;
             }
 
             // The last item is about to be moved into the removed slot, so update any children of the last item to the new slot it will be in
             if (transform.parent.to() == self.transforms.items.len - 1) {
-                transform.parent = .from(removal);
+                transform.parent = removal;
             }
         }
 
         for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
-            if (mesh_renderer.transform.to() == removal) {
-                // Mark the mesh renderer as having an invalid transform
-                mesh_renderer.transform = .invalid;
-            } else if (mesh_renderer.transform.to() == self.transforms.items.len - 1) {
-                // Update all mesh renderers to the new ID, since the last slot is moving
-                mesh_renderer.transform = .from(removal);
+            mesh_renderer.shared.transform = fixupTransform(mesh_renderer.shared.transform, removal, self.transforms.items.len - 1);
+        }
+
+        for (render_space.skinned_mesh_renderer_manager.contents.items) |*skinned_mesh_renderer| {
+            skinned_mesh_renderer.shared.transform = fixupTransform(skinned_mesh_renderer.shared.transform, removal, self.transforms.items.len - 1);
+            skinned_mesh_renderer.root_bone = fixupTransform(skinned_mesh_renderer.root_bone, removal, self.transforms.items.len - 1);
+            for (skinned_mesh_renderer.bones) |*bone| {
+                bone.* = fixupTransform(bone.*, removal, self.transforms.items.len - 1);
             }
         }
 
-        _ = self.transforms.swapRemove(@intCast(removal));
+        _ = self.transforms.swapRemove(@intCast(removal_id));
     }
 
     // engine says how many transforms there will be in the end

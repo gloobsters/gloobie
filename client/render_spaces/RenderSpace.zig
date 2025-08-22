@@ -3,7 +3,7 @@ const std = @import("std");
 const renderite = @import("renderite");
 const tracy = @import("tracy");
 
-const MeshRendererManager = @import("mesh_renderer_manager.zig").MeshRendererManager;
+const mesh_renderer_managers = @import("mesh_renderer_manager.zig");
 const RendererManager = @import("renderer_manager.zig").RendererManager;
 const Transforms = @import("Transforms.zig");
 
@@ -36,7 +36,8 @@ id: Id,
 properties: Properties,
 updated: bool,
 transforms: Transforms,
-mesh_renderer_manager: MeshRendererManager,
+mesh_renderer_manager: mesh_renderer_managers.MeshRendererManager,
+skinned_mesh_renderer_manager: mesh_renderer_managers.SkinnedMeshRendererManager,
 
 pub fn init(update: renderite.shared.RenderSpaceUpdate) !RenderSpace {
     const render_space: RenderSpace = .{
@@ -46,6 +47,7 @@ pub fn init(update: renderite.shared.RenderSpaceUpdate) !RenderSpace {
         .transforms = .init(),
         .imgui_data = .default,
         .mesh_renderer_manager = .init(),
+        .skinned_mesh_renderer_manager = .init(),
     };
 
     return render_space;
@@ -98,9 +100,14 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
     if (update.meshRenderersUpdate) |mesh_renderer_update| {
         try self.mesh_renderer_manager.handleUpdate(gpa, accessor, self, mesh_renderer_update);
     }
+
+    if (update.skinnedMeshRenderersUpdate) |skinned_mesh_renderers_update| {
+        try self.skinned_mesh_renderer_manager.handleUpdate(gpa, accessor, self, skinned_mesh_renderers_update);
+    }
 }
 
 pub fn deinit(self: *RenderSpace, gpa: std.mem.Allocator) void {
     self.transforms.deinit(gpa);
     self.mesh_renderer_manager.deinit(gpa);
+    self.skinned_mesh_renderer_manager.deinit(gpa);
 }

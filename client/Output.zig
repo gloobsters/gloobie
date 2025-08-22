@@ -8,7 +8,9 @@ const tracy = @import("tracy");
 const App = @import("App.zig");
 const Assets = @import("assets/Assets.zig");
 const graphics = @import("graphics.zig");
+const mesh_renderer_manager = @import("render_spaces/mesh_renderer_manager.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
+const Transforms = @import("render_spaces/Transforms.zig");
 
 const Output = @This();
 
@@ -63,6 +65,79 @@ fn filterScale(scale: math.Vector3f) math.Vector3f {
     return scale;
 }
 
+fn renderSharedMeshRenderer(
+    arena: std.mem.Allocator,
+    command_buffer: gpu.CommandBuffer,
+    render_pass: gpu.RenderPass,
+    mesh_renderer: mesh_renderer_manager.SharedMeshRenderable,
+    assets: *Assets,
+    transforms: []Transforms.Transform,
+    transform_matrix_stack: *std.ArrayListUnmanaged(*const renderite.shared.RenderTransform),
+) !void {
+    // TODO: is this intended behaviour?
+    // std.debug.assert(mesh_renderer.transform != .invalid);
+    if (mesh_renderer.transform == .invalid) {
+        return;
+    }
+
+    const mesh = assets.meshes.get(mesh_renderer.mesh) orelse return;
+    if (mesh.vertex_buffer == null or mesh.index_buffer == null) {
+        return;
+    }
+
+    var transform_id = mesh_renderer.transform;
+    while (transform_id != .invalid) {
+        const transform = &transforms[@intCast(transform_id.to())];
+
+        try transform_matrix_stack.append(arena, &transform.render_transform);
+
+        transform_id = transform.parent;
+    }
+
+    std.debug.assert(transform_matrix_stack.items.len > 0);
+
+    var parent_matrix = renderTransformToMatrix(transform_matrix_stack.pop().?.*);
+    while (transform_matrix_stack.pop()) |child_matrix| {
+        parent_matrix = parent_matrix.mult(&renderTransformToMatrix(child_matrix.*));
+    }
+
+    command_buffer.pushVertexUniformData(1, std.mem.asBytes(&parent_matrix));
+
+    const position_offset = find_position_offset: {
+        var offset: u32 = 0;
+        for (mesh.vertex_attributes) |vertex_attribute| {
+            if (vertex_attribute.type == .Position) {
+                break;
+            }
+
+            offset += vertex_attribute.format.stride() * mesh.mesh_layout.num_vertices;
+        }
+        break :find_position_offset offset;
+    };
+
+    render_pass.bindVertexBuffers(0, &.{
+        .{
+            .buffer = mesh.vertex_buffer.?,
+            .offset = position_offset,
+        },
+    });
+
+    render_pass.bindIndexBuffer(.{
+        .buffer = mesh.index_buffer.?,
+        .offset = 0,
+    }, mesh.mesh_layout.index_element_type);
+
+    for (mesh.submeshes) |submesh| {
+        render_pass.drawIndexedPrimitives(
+            submesh.index_count,
+            1,
+            submesh.index_start,
+            0,
+            0,
+        );
+    }
+}
+
 fn renderRenderSpace(
     arena: std.mem.Allocator,
     assets: *Assets,
@@ -79,68 +154,27 @@ fn renderRenderSpace(
     const transforms = render_space.transforms.transforms.items;
 
     for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
-        // TODO: is this intended behaviour?
-        // std.debug.assert(mesh_renderer.transform != .invalid);
-        if (mesh_renderer.transform == .invalid) {
-            continue;
-        }
+        try renderSharedMeshRenderer(
+            arena,
+            command_buffer,
+            render_pass,
+            mesh_renderer.shared,
+            assets,
+            transforms,
+            &transform_matrix_stack,
+        );
+    }
 
-        const mesh = assets.meshes.get(mesh_renderer.mesh) orelse continue;
-        if (mesh.vertex_buffer == null or mesh.index_buffer == null) {
-            continue;
-        }
-
-        var transform_id = mesh_renderer.transform;
-        while (transform_id != .invalid) {
-            const transform = &transforms[@intCast(transform_id.to())];
-
-            try transform_matrix_stack.append(arena, &transform.render_transform);
-
-            transform_id = transform.parent;
-        }
-
-        std.debug.assert(transform_matrix_stack.items.len > 0);
-
-        var parent_matrix = renderTransformToMatrix(transform_matrix_stack.pop().?.*);
-        while (transform_matrix_stack.pop()) |child_matrix| {
-            parent_matrix = parent_matrix.mult(&renderTransformToMatrix(child_matrix.*));
-        }
-
-        command_buffer.pushVertexUniformData(1, std.mem.asBytes(&parent_matrix));
-
-        const position_offset = find_position_offset: {
-            var offset: u32 = 0;
-            for (mesh.vertex_attributes) |vertex_attribute| {
-                if (vertex_attribute.type == .Position) {
-                    break;
-                }
-
-                offset += vertex_attribute.format.stride() * mesh.mesh_layout.num_vertices;
-            }
-            break :find_position_offset offset;
-        };
-
-        render_pass.bindVertexBuffers(0, &.{
-            .{
-                .buffer = mesh.vertex_buffer.?,
-                .offset = position_offset,
-            },
-        });
-
-        render_pass.bindIndexBuffer(.{
-            .buffer = mesh.index_buffer.?,
-            .offset = 0,
-        }, mesh.mesh_layout.index_element_type);
-
-        for (mesh.submeshes) |submesh| {
-            render_pass.drawIndexedPrimitives(
-                submesh.index_count,
-                1,
-                submesh.index_start,
-                0,
-                0,
-            );
-        }
+    for (render_space.skinned_mesh_renderer_manager.contents.items) |*skinned_mesh_renderer| {
+        try renderSharedMeshRenderer(
+            arena,
+            command_buffer,
+            render_pass,
+            skinned_mesh_renderer.shared,
+            assets,
+            transforms,
+            &transform_matrix_stack,
+        );
     }
 }
 

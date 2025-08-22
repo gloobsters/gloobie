@@ -5,6 +5,7 @@ const imgui = @import("imgui");
 
 const App = @import("../App.zig");
 const Texture = @import("../assets/Texture.zig");
+const mesh_renderer_manager = @import("../render_spaces/mesh_renderer_manager.zig");
 const RenderSpace = @import("../render_spaces/RenderSpace.zig");
 
 pub const ImGuiManager = @This();
@@ -367,23 +368,59 @@ fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
             defer imgui.separator();
 
             imgui.c.igText("Mesh Renderer %d", @as(i32, @intCast(i)));
-            imgui.c.igText("Transform: %d", mesh_renderer.transform.to());
-            imgui.c.igText("Mesh: %d", mesh_renderer.mesh.to());
-            imgui.c.igText("Shadow Cast Mode: %s", @tagName(mesh_renderer.shadow_cast_mode).ptr);
-            imgui.c.igText("Motion Vector Mode: %s", @tagName(mesh_renderer.motion_vector_mode).ptr);
-            imgui.c.igText("Sorting Order: %d", @as(c_int, mesh_renderer.sorting_order));
-            if (imgui.collapsingHeader(
-                // SAFETY: it's big enough
-                std.fmt.bufPrintZ(&name_buf, "Material Pairs##{d}", .{i}) catch unreachable,
-                0,
-            )) for (mesh_renderer.material_pairs) |pair| {
-                defer imgui.separator();
-
-                imgui.c.igText("Material: %d", pair.material.to());
-                imgui.c.igText("Property Block: %d", pair.property_block.to());
-            };
+            fillMeshRendererShared(mesh_renderer.shared, i);
         }
     }
+
+    if (imgui.collapsingHeader("Skinned Mesh Renderers", 0)) {
+        for (render_space.skinned_mesh_renderer_manager.contents.items, 0..) |*skinned_mesh_renderer, i| {
+            defer imgui.separator();
+
+            imgui.c.igText("Skinned Mesh Renderer %d", @as(i32, @intCast(i)));
+            fillMeshRendererShared(skinned_mesh_renderer.shared, i);
+            imgui.c.igText("Update when offscreen: %d", @as(c_int, @intFromBool(skinned_mesh_renderer.update_when_offscreen)));
+            imgui.c.igText(
+                "Bounds: %fx%fx%f, %fx%fx%f",
+                skinned_mesh_renderer.bounds.center.x,
+                skinned_mesh_renderer.bounds.center.y,
+                skinned_mesh_renderer.bounds.center.z,
+                skinned_mesh_renderer.bounds.extents.x,
+                skinned_mesh_renderer.bounds.extents.y,
+                skinned_mesh_renderer.bounds.extents.z,
+            );
+            imgui.c.igText("Root bone: %d", skinned_mesh_renderer.root_bone.to());
+            // SAFETY: it's big enough
+            if (imgui.collapsingHeader(std.fmt.bufPrintZ(&name_buf, "Bones##{d}", .{i}) catch unreachable, 0)) {
+                for (skinned_mesh_renderer.bones, 0..) |bone, bone_i| {
+                    defer imgui.separator();
+
+                    imgui.c.igText("[%d] Bone: %d", @as(usize, @intCast(bone_i)), bone.to());
+                }
+            }
+        }
+    }
+}
+
+fn fillMeshRendererShared(
+    shared: mesh_renderer_manager.SharedMeshRenderable,
+    i: usize,
+) void {
+    var name_buf: [64]u8 = undefined;
+    imgui.c.igText("Transform: %d", shared.transform.to());
+    imgui.c.igText("Mesh: %d", shared.mesh.to());
+    imgui.c.igText("Shadow Cast Mode: %s", @tagName(shared.shadow_cast_mode).ptr);
+    imgui.c.igText("Motion Vector Mode: %s", @tagName(shared.motion_vector_mode).ptr);
+    imgui.c.igText("Sorting Order: %d", @as(c_int, shared.sorting_order));
+    if (imgui.collapsingHeader(
+        // SAFETY: it's big enough
+        std.fmt.bufPrintZ(&name_buf, "Material Pairs##{d}", .{i}) catch unreachable,
+        0,
+    )) for (shared.material_pairs) |pair| {
+        defer imgui.separator();
+
+        imgui.c.igText("Material: %d", pair.material.to());
+        imgui.c.igText("Property Block: %d", pair.property_block.to());
+    };
 }
 
 fn fillPerformance(self: *ImGuiManager) void {
