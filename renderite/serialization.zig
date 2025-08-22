@@ -204,6 +204,10 @@ pub const IpcDeserializer = struct {
 
         return list;
     }
+
+    pub fn skip(self: IpcDeserializer, comptime len: usize) !void {
+        try self.reader.discardAll(len);
+    }
 };
 
 pub const IpcSerializer = struct {
@@ -345,6 +349,10 @@ pub const IpcSerializer = struct {
         for (strings) |string| {
             try self.writeString(string);
         }
+    }
+
+    pub fn skip(self: IpcSerializer, comptime len: usize) !void {
+        _ = try self.writer.splatByteAll(0, len);
     }
 };
 

@@ -43,7 +43,8 @@ public class ExplicitStructGenerator : StructGenerator
             int size = Marshal.SizeOf(fieldType);
             int gap = offset.Value - last;
 
-            if (gap != 0) w.Note($"field with gap/overlap, {field.Name} = offset:{offset.Value}, size:{size}, gap:{gap}");
+            if (gap < 0) w.Note($"field with gap/overlap, {field.Name} = offset:{offset.Value}, size:{size}, gap:{gap}");
+            else if (gap > 0) w.Any($"try ipc.skip({gap});");
 
             string name = field.Name;
 
