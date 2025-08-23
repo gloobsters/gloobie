@@ -1101,6 +1101,11 @@ fn applyOutputState(self: *App, output_state: renderite.shared.OutputState) !voi
     const locking_cursor = output_state.lockCursor and !imgui_open;
 
     try sdl3.mouse.setWindowRelativeMode(self.window.window, locking_cursor);
+
+    if (locking_cursor) {
+        const size = try self.window.window.getSize();
+        sdl3.mouse.warpInWindow(self.window.window, @as(f32, @floatFromInt(size.width)) / 2.0, @as(f32, @floatFromInt(size.height)) / 2.0);
+    }
 }
 
 pub fn frameLoop(self: *App) !void {
