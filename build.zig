@@ -575,6 +575,18 @@ pub fn build(b: *std.Build) !void {
                 .stage = .fragment,
                 .entry_point = "fragmentMain",
             },
+            .{
+                .path = shaders_root.path(b, "basic_skinned.slang"),
+                .name = "basic_skinned",
+                .stage = .vertex,
+                .entry_point = "vertexMain",
+            },
+            .{
+                .path = shaders_root.path(b, "basic_skinned.slang"),
+                .name = "basic_skinned",
+                .stage = .fragment,
+                .entry_point = "fragmentMain",
+            },
         };
 
         var shader_targets: std.ArrayListUnmanaged(Shader.Target) = .empty;
