@@ -18,10 +18,6 @@
             .url = "git+https://github.com/Snektron/vulkan-zig#ed429842b8ad60966bc3b8b214606d8a5714f99e",
             .hash = "vulkan-0.0.0-r7Ytx5w-AwC04xBpfzcuIjGyYv2z6xb1i49ZUeNUgT5H",
         },
-        .zinterprocess = .{
-            .url = "git+https://github.com/gloobsters/zinterprocess#ab29fd3ed953995be95fea7b7081082ba5d44f26",
-            .hash = "zinterprocess-0.0.0-phn7ujJvAABNkBpqPkmKve9vpdm4Y77omc99f_H1Tipd",
-        },
         .imgui = .{
             .url = "git+https://github.com/ocornut/imgui#44aa9a4b3a6f27d09a4eb5770d095cbd376dfc4b",
             .hash = "N-V-__8AAMSpeAAjIlPRk36GN81oqHOrwAtfmTZdOcDg42BM",
@@ -37,6 +33,14 @@
         },
         .slang = .{
             .path = "build/slang/",
+        },
+        .zigwin32 = .{
+            // TODO: uncomment when https://github.com/marlersoft/zigwin32gen/pull/48 is merged
+            //
+            // .url = "git+https://github.com/marlersoft/zigwin32?ref=main#d21b419d808215e1f82605fdaddc49750bfa3bca",
+            // .hash = "zigwin32-25.0.28-preview-AAAAAI0J-wP-8_KKo4Yjr33XLhVhlJmeagGUedByaOnX",
+            .url = "git+https://github.com/kcbanner/zigwin32?ref=0.15.x#d53efcf7e94b130fb0e84979aef6e5193ed377f7",
+            .hash = "zigwin32-25.0.28-preview-AAAAAGeI5ANWTScxLlUycxTkQN25FlWjLnrYPNBjImlH",
         },
     },
     .paths = .{

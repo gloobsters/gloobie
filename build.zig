@@ -229,6 +229,9 @@ pub fn build(b: *std.Build) !void {
 
     const slang_compiler_path = b.dependency("slang", .{}).namedLazyPath("compiler");
 
+    const win32_dep = b.dependency("zigwin32", .{});
+    const win32_mod = win32_dep.module("win32");
+
     const vulkan_mod = b.dependency("vulkan-zig", .{
         .registry = b.dependency("vulkan-headers", .{}).path("registry/vk.xml"),
     }).module("vulkan-zig");
@@ -534,10 +537,21 @@ pub fn build(b: *std.Build) !void {
         break :create_xr_mod xr_mod;
     };
 
-    const zinterprocess_mod = b.dependency("zinterprocess", .{
-        .target = target,
-        .optimize = optimize,
-    }).module("zinterprocess");
+    const zinterprocess_mod = create_zinterprocess_mod: {
+        const zinterprocess_root = b.path("zinterprocess/");
+
+        const zinterprocess_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+
+            .root_source_file = zinterprocess_root.path(b, "root.zig"),
+            .imports = &.{
+                .{ .name = "win32", .module = win32_mod },
+            },
+        });
+
+        break :create_zinterprocess_mod zinterprocess_mod;
+    };
 
     const renderite_mod = create_renderite_mod: {
         const renderite_root = b.path("renderite/");

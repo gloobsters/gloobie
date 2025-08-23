@@ -60,3 +60,4 @@ You can also replace `Renderer/Renderite.Renderer.exe` with Gloobie and it will 
 - `build/`: Misc build scripts.
 - `tracy/`: Zig + Tracy integration
 - `logger/`: A basic logging system for our needs
+- `zinterprocess`: Zig implementation of YDMS's fork of Interprocess.
