@@ -72,15 +72,18 @@ fn start() !void {
         }
     };
 
-    const bootstrap = init_bootstrap: {
+    var bootstrap = init_bootstrap: {
         const trace = tracy.traceNamed(@src(), "Bootstrap");
         defer trace.end();
 
-        var bootstrap = try renderite.Bootstrap.init(args, gpa);
-        errdefer bootstrap.deinit(gpa);
+        var bootstrap = try renderite.Bootstrap.init(args, gpa, copy, paste);
+        errdefer bootstrap.deinit();
+
+        try bootstrap.startReceiving(gpa);
 
         break :init_bootstrap bootstrap;
     };
+    defer bootstrap.deinit();
 
     const app = init_app: {
         const trace = tracy.traceNamed(@src(), "Init application");
@@ -95,6 +98,14 @@ fn start() !void {
 
         return err;
     };
+}
+
+fn copy(text: [:0]const u8) anyerror!void {
+    try sdl3.clipboard.setText(text);
+}
+
+fn paste() anyerror![:0]u8 {
+    return try sdl3.clipboard.getText();
 }
 
 pub fn panic(
