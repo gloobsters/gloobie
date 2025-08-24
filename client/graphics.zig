@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const gpu = @import("gpu");
+const math = @import("math");
 
 const App = @import("App.zig");
 const Assets = @import("assets/Assets.zig");
@@ -17,6 +18,12 @@ pub const TransferBufferPool = pooling.FrameReferencedResourcePool(
     releaseTransferBuffer,
     120,
 );
+
+pub const BlendshapeOffset = extern struct {
+    position_offset: math.Vector3f,
+    normal_offset: math.Vector3f,
+    tangent_offset: math.Vector3f,
+};
 
 fn createTransferBuffer(device: gpu.Device, key: pooling.SizedKey(gpu.TransferBufferUsage)) !gpu.TransferBuffer {
     var buffer_name_buf: [64]u8 = undefined;

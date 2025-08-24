@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const gpu = @import("gpu");
 const renderite = @import("renderite");
 const tracy = @import("tracy");
 
@@ -71,7 +72,13 @@ fn loadProperties(update: renderite.shared.RenderSpaceUpdate) Properties {
     };
 }
 
-pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *renderite.buffer.SharedMemoryAccessor, update: renderite.shared.RenderSpaceUpdate) !void {
+pub fn handleUpdate(
+    self: *RenderSpace,
+    gpa: std.mem.Allocator,
+    device: gpu.Device,
+    accessor: *renderite.buffer.SharedMemoryAccessor,
+    update: renderite.shared.RenderSpaceUpdate,
+) !void {
     const trace = tracy.traceNamed(@src(), "Render Space Update");
     defer trace.end();
 
@@ -98,16 +105,20 @@ pub fn handleUpdate(self: *RenderSpace, gpa: std.mem.Allocator, accessor: *rende
     }
 
     if (update.meshRenderersUpdate) |mesh_renderer_update| {
-        try self.mesh_renderer_manager.handleUpdate(gpa, accessor, self, mesh_renderer_update);
+        try self.mesh_renderer_manager.handleUpdate(gpa, device, accessor, self, mesh_renderer_update);
     }
 
     if (update.skinnedMeshRenderersUpdate) |skinned_mesh_renderers_update| {
-        try self.skinned_mesh_renderer_manager.handleUpdate(gpa, accessor, self, skinned_mesh_renderers_update);
+        try self.skinned_mesh_renderer_manager.handleUpdate(gpa, device, accessor, self, skinned_mesh_renderers_update);
     }
 }
 
-pub fn deinit(self: *RenderSpace, gpa: std.mem.Allocator) void {
+pub fn deinit(
+    self: *RenderSpace,
+    gpa: std.mem.Allocator,
+    device: gpu.Device,
+) void {
     self.transforms.deinit(gpa);
-    self.mesh_renderer_manager.deinit(gpa);
-    self.skinned_mesh_renderer_manager.deinit(gpa);
+    self.mesh_renderer_manager.deinit(gpa, device);
+    self.skinned_mesh_renderer_manager.deinit(gpa, device);
 }

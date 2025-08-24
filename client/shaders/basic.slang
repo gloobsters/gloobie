@@ -25,9 +25,9 @@ struct ModelData
     float4x4 model_matrix;
 }
 
-[[vk_binding(0, 1)]]
+[vk::binding(0, 1)]
 ConstantBuffer<RenderData> render_data;
-[[vk_binding(1, 1)]]
+[vk::binding(1, 1)]
 ConstantBuffer<ModelData> model_data;
 
 [shader("vertex")]

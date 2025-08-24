@@ -1,8 +1,10 @@
 const std = @import("std");
 
+const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const Assets = @import("../assets/Assets.zig");
+const graphics = @import("../graphics.zig");
 const Transforms = @import("Transforms.zig");
 
 const log = @import("logger").Scoped(.render_space);
@@ -45,7 +47,8 @@ const MeshRenderable = struct {
         };
     }
 
-    pub fn deinit(self: MeshRenderable, gpa: std.mem.Allocator) void {
+    pub fn deinit(self: MeshRenderable, gpa: std.mem.Allocator, device: gpu.Device) void {
+        _ = device;
         self.shared.deinit(gpa);
     }
 };
@@ -57,7 +60,24 @@ const SkinnedMeshRenderable = struct {
     bounds: renderite.shared.RenderBoundingBox,
 
     root_bone: Transforms.Transform.Id,
+
+    /// The CPU sided copy of the bone transforms
     bones: []Transforms.Transform.Id,
+    /// The GPU sided copy of the bone transforms, it is UB to access this when `capacity` == 0!
+    bone_transforms_buffer: gpu.Buffer,
+    /// The size of the bone transform GPU buffer, in bytes
+    bone_transforms_buffer_capacity: u32,
+    /// Whether the CPU sided bone transform buffer has been updated
+    bone_transforms_updated: bool,
+
+    /// The CPU sided copy of the blend shape values
+    blend_shape_values: []f32,
+    /// The GPU sided copy of the blend shape values, it is UB to access this when `capacity` == 0!
+    blend_shape_values_buffer: gpu.Buffer,
+    /// The size of the blend shape GPU buffer, in bytes
+    blend_shape_values_buffer_capacity: u32,
+    /// Whether the CPU sided blend shapes buffer has been updated
+    blend_shape_values_updated: bool,
 
     pub fn init(transform: Transforms.Transform.Id) SkinnedMeshRenderable {
         return .{
@@ -67,12 +87,45 @@ const SkinnedMeshRenderable = struct {
             .bounds = .{ .center = .zero, .extents = .zero },
 
             .root_bone = .invalid,
+
             .bones = &.{},
+            .bone_transforms_updated = false,
+            .bone_transforms_buffer = undefined,
+            .bone_transforms_buffer_capacity = 0,
+
+            .blend_shape_values = &.{},
+            .blend_shape_values_updated = false,
+            .blend_shape_values_buffer = undefined,
+            .blend_shape_values_buffer_capacity = 0,
         };
     }
 
-    pub fn deinit(self: SkinnedMeshRenderable, gpa: std.mem.Allocator) void {
+    pub fn tryPushDataAssetsLocked(
+        self: SkinnedMeshRenderable,
+        frame_context: *graphics.FrameContext,
+        assets: *Assets,
+    ) !void {
+        _ = frame_context; // autofix
+        if (self.shared.mesh == .invalid) {
+            return;
+        }
+
+        const mesh = assets.meshes.getPtr(self.shared.mesh) orelse return;
+        _ = mesh; // autofix
+    }
+
+    pub fn deinit(
+        self: SkinnedMeshRenderable,
+        gpa: std.mem.Allocator,
+        device: gpu.Device,
+    ) void {
         self.shared.deinit(gpa);
+        // Non-zero capacity means it's valid
+        if (self.bone_transforms_buffer_capacity > 0)
+            device.releaseBuffer(self.bone_transforms_buffer);
+        if (self.blend_shape_values_buffer_capacity > 0)
+            device.releaseBuffer(self.blend_shape_values_buffer);
+        gpa.free(self.blend_shape_values);
         gpa.free(self.bones);
     }
 };
@@ -207,21 +260,25 @@ fn skinnedMeshRendererFinishUpdates(
 
         const renderable = &contents[@intCast(bone_assignment.renderableIndex)];
 
-        if (renderable.bones.len != bone_assignment.boneCount) {
-            gpa.free(renderable.bones);
+        {
+            if (renderable.bones.len != bone_assignment.boneCount) {
+                gpa.free(renderable.bones);
 
-            renderable.bones = try gpa.alloc(Transforms.Transform.Id, @intCast(bone_assignment.boneCount));
-        }
-        errdefer @compileError("Cannot error! bones may not be set to a value!");
+                renderable.bones = try gpa.alloc(Transforms.Transform.Id, @intCast(bone_assignment.boneCount));
+            }
+            errdefer @compileError("Cannot error! bones may not be set to a value!");
 
-        for (renderable.bones) |*bone| {
-            const transform_idx = bone_transform_indexes.data[next_bone_index];
-            next_bone_index += 1;
+            for (renderable.bones) |*bone| {
+                const transform_idx = bone_transform_indexes.data[next_bone_index];
+                next_bone_index += 1;
 
-            bone.* = if (transform_idx < 0) .invalid else .from(transform_idx);
+                bone.* = if (transform_idx < 0) .invalid else .from(transform_idx);
+            }
         }
 
         renderable.root_bone = if (bone_assignment.rootBoneTransformId < 0) .invalid else .from(bone_assignment.rootBoneTransformId);
+
+        renderable.bone_transforms_updated = true;
     }
 
     const blendshape_update_batches = try accessor.getOrCreate(renderite.shared.BlendshapeUpdateBatch, gpa, update.blendshapeUpdateBatches);
@@ -236,7 +293,6 @@ fn skinnedMeshRendererFinishUpdates(
         }
 
         const renderable = &contents[@intCast(blendshape_update_batch.renderableIndex)];
-        _ = renderable;
 
         // TODO: handle blendshape updates
         for (0..@intCast(blendshape_update_batch.blendshapeUpdateCount)) |_| {
@@ -245,6 +301,8 @@ fn skinnedMeshRendererFinishUpdates(
 
             _ = blendshape_update;
         }
+
+        renderable.blend_shape_values_updated = true;
     }
 }
 

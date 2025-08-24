@@ -185,7 +185,11 @@ const GameData = struct {
     far_z: f32,
     head_output: Output,
 
-    pub fn deinit(self: *GameData, gpa: std.mem.Allocator) void {
+    pub fn deinit(
+        self: *GameData,
+        gpa: std.mem.Allocator,
+        device: gpu.Device,
+    ) void {
         if (self.engine_thread) |engine_thread| {
             self.engine_thread_cancellation.set();
 
@@ -195,7 +199,7 @@ const GameData = struct {
         self.head_output.deinit(gpa);
 
         for (self.render_spaces.values()) |*render_space| {
-            render_space.deinit(gpa);
+            render_space.deinit(gpa, device);
         }
         self.render_spaces.deinit(gpa);
 
@@ -509,7 +513,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 pub fn deinit(self: *App) void {
     const gpa = self.gpa;
 
-    self.game.deinit(gpa);
+    self.game.deinit(gpa, self.graphics_data.device);
     self.messaging.deinit(gpa);
     if (self.imgui_data) |*imgui_data| imgui_data.deinit(gpa);
     if (self.xr) |xr| xr.deinit(gpa);
@@ -900,7 +904,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.shared.RenderSpaceU
     for (updates) |update| {
         const render_space = self.game.render_spaces.getPtr(.from(update.id)) orelse create_render_space: {
             var render_space: RenderSpace = try .init(update);
-            errdefer render_space.deinit(self.gpa);
+            errdefer render_space.deinit(self.gpa, self.graphics_data.device);
 
             log.debug(@src(), "Created render space {d}", .{update.id});
 
@@ -910,7 +914,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.shared.RenderSpaceU
             break :create_render_space self.game.render_spaces.getPtr(.from(update.id)).?;
         };
 
-        try render_space.handleUpdate(self.gpa, accessor, update);
+        try render_space.handleUpdate(self.gpa, self.graphics_data.device, accessor, update);
 
         if (render_space.properties.active and !render_space.properties.overlay) {
             if (active_render_space != .invalid) {
@@ -930,7 +934,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.shared.RenderSpaceU
             if (render_space.updated) {
                 i += 1;
             } else {
-                render_space.deinit(self.gpa);
+                render_space.deinit(self.gpa, self.graphics_data.device);
 
                 log.debug(@src(), "Render space {d} removed", .{render_space.id.to()});
                 const removed = self.game.render_spaces.swapRemove(render_space.id);

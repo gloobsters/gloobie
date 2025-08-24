@@ -58,11 +58,11 @@ VertexStageOutput vertexMain(Vertex vertex, uint vertex_id: SV_VertexID)
     float3 vertex_position = vertex.position;
 
     // Apply blendshape offsets
-    for (uint32_t i = 0; i < model_data.num_blendshapes; i++)
+    for (uint32_t blendshape_index = 0; blendshape_index < model_data.num_blendshapes; blendshape_index++)
     {
-        float weight = blendshape_weights[i];
+        float weight = blendshape_weights[blendshape_index];
 
-        BlendshapeOffset offset = vertex_offsets[vertex_id];
+        BlendshapeOffset offset = vertex_offsets[(blendshape_index * model_data.num_vertices) + vertex_id];
 
         vertex_position.xyz += offset.position_offset * weight;
     }

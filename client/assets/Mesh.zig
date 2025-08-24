@@ -49,8 +49,10 @@ const MeshLayout = struct {
     bone_weights_buffer: BufferRegion,
     /// The data region containing the inverse bind poses for each bone
     inverse_bind_poses_buffer: BufferRegion,
-    /// The data region containing the
-    blend_shapes_buffer: BufferRegion,
+    /// The data region containing the data for all blend shapes
+    blendshapes_buffer: BufferRegion,
+    /// The total number of blendshapes
+    num_blendshapes: u32,
 };
 
 const SubMesh = struct {
@@ -75,6 +77,14 @@ const SkinningData = struct {
     weights_start_idx: u32,
     /// The starting index of the vertex bone IDs
     ids_start_idx: u32,
+    /// The GPU buffer storing the blendshape vertex offsets
+    blendshape_buffer: ?gpu.Buffer,
+
+    pub fn deinit(self: SkinningData, gpa: std.mem.Allocator, device: gpu.Device) void {
+        gpa.free(self.inverse_bind_poses);
+        if (self.bone_buffer) |buffer| device.releaseBuffer(buffer);
+        if (self.blendshape_buffer) |buffer| device.releaseBuffer(buffer);
+    }
 };
 
 /// The buffer storing all the vertex data for all submeshes
@@ -117,6 +127,7 @@ pub fn init(
             .bone_buffer = null,
             .ids_start_idx = 0,
             .weights_start_idx = 0,
+            .blendshape_buffer = null,
         },
     };
 
@@ -326,6 +337,17 @@ fn uploadIndex(
     };
 }
 
+fn getChunk(
+    src: []align(1) const math.Vector3f,
+    num_vertices: u32,
+    chunks_read: *u32,
+) []align(1) const math.Vector3f {
+    defer chunks_read.* += 1;
+
+    const start = chunks_read.* * num_vertices;
+    return src[start .. start + num_vertices];
+}
+
 fn uploadSkinningData(
     self: *Mesh,
     gpa: std.mem.Allocator,
@@ -345,6 +367,7 @@ fn uploadSkinningData(
             .ids_start_idx = 0,
             .inverse_bind_poses = &.{},
             .weights_start_idx = 0,
+            .blendshape_buffer = null,
         };
     }
 
@@ -360,58 +383,137 @@ fn uploadSkinningData(
 
     const bytes_per_vertex = @sizeOf(math.Vector4f) + @sizeOf(math.Vector4i);
 
-    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{
-        .size = bytes_per_vertex * mesh_layout.num_vertices,
-        .value = .upload,
-    });
-    defer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
+    const bone_buffer = create_bone_buffer: {
+        const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{
+            .size = bytes_per_vertex * mesh_layout.num_vertices,
+            .value = .upload,
+        });
+        defer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
 
-    {
-        const mapped_data = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.value, true);
-        defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
+        {
+            const mapped_data = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.value, true);
+            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
 
-        const vertices_bone_weights_start = @sizeOf(math.Vector4i) * mesh_layout.num_vertices;
-        const vertices_bone_ids: []align(1) math.Vector4i = @ptrCast(mapped_data[0..vertices_bone_weights_start]);
-        const vertices_bone_weights: []align(1) math.Vector4f = @ptrCast(mapped_data[vertices_bone_weights_start .. vertices_bone_weights_start + (@sizeOf(math.Vector4f) * mesh_layout.num_vertices)]);
+            const vertices_bone_weights_start = @sizeOf(math.Vector4i) * mesh_layout.num_vertices;
+            const vertices_bone_ids: []align(1) math.Vector4i = @ptrCast(mapped_data[0..vertices_bone_weights_start]);
+            const vertices_bone_weights: []align(1) math.Vector4f = @ptrCast(mapped_data[vertices_bone_weights_start .. vertices_bone_weights_start + (@sizeOf(math.Vector4f) * mesh_layout.num_vertices)]);
 
-        const bone_counts = mesh_layout.bone_counts_buffer.slice(data);
-        std.debug.assert(bone_counts.len == mesh_layout.num_vertices);
+            const bone_counts = mesh_layout.bone_counts_buffer.slice(data);
+            std.debug.assert(bone_counts.len == mesh_layout.num_vertices);
 
-        const bone_weights: []align(1) const shared.BoneWeight = @ptrCast(mesh_layout.bone_weights_buffer.slice(data));
-        var bone_weight_ptr: [*]align(1) const shared.BoneWeight = bone_weights.ptr;
-        for (bone_counts, vertices_bone_ids, vertices_bone_weights) |bone_count, *vertex_bone_ids, *vertex_bone_weights| {
-            // TODO: actually handle bone counts over 4!
-            const vertex_bone_weights_src: []align(1) const shared.BoneWeight = bone_weight_ptr[0..@min(bone_count, 4)];
+            const bone_weights: []align(1) const shared.BoneWeight = @ptrCast(mesh_layout.bone_weights_buffer.slice(data));
+            var bone_weight_ptr: [*]align(1) const shared.BoneWeight = bone_weights.ptr;
+            for (bone_counts, vertices_bone_ids, vertices_bone_weights) |bone_count, *vertex_bone_ids, *vertex_bone_weights| {
+                // TODO: actually handle bone counts over 4!
+                const vertex_bone_weights_src: []align(1) const shared.BoneWeight = bone_weight_ptr[0..@min(bone_count, 4)];
 
-            const vertex_bone_weights_array_dst: *align(1) [4]f32 = @ptrCast(vertex_bone_weights);
-            @memset(vertex_bone_weights_array_dst, 0.0);
-            const vertex_bone_ids_array_dst: *align(1) [4]i32 = @ptrCast(vertex_bone_ids);
-            @memset(vertex_bone_ids_array_dst, 0);
+                const vertex_bone_weights_array_dst: *align(1) [4]f32 = @ptrCast(vertex_bone_weights);
+                @memset(vertex_bone_weights_array_dst, 0.0);
+                const vertex_bone_ids_array_dst: *align(1) [4]i32 = @ptrCast(vertex_bone_ids);
+                @memset(vertex_bone_ids_array_dst, 0);
 
-            for (vertex_bone_weights_src, 0..) |weight, i| {
-                vertex_bone_weights_array_dst[i] = weight.weight;
-                vertex_bone_ids_array_dst[i] = weight.bone_index;
+                for (vertex_bone_weights_src, 0..) |weight, i| {
+                    vertex_bone_weights_array_dst[i] = weight.weight;
+                    vertex_bone_ids_array_dst[i] = weight.bone_index;
+                }
+
+                bone_weight_ptr += bone_count;
             }
-
-            bone_weight_ptr += bone_count;
         }
-    }
 
-    const bone_buffer = try frame_context.device.createBuffer(.{
-        .size = @intCast(transfer_buffer_entry.key.size),
-        .usage = .{ .vertex = true },
-    });
+        const bone_buffer = try frame_context.device.createBuffer(.{
+            .size = @intCast(transfer_buffer_entry.key.size),
+            .usage = .{ .vertex = true },
+        });
+        errdefer frame_context.device.releaseBuffer(bone_buffer);
+
+        const copy_pass = try frame_context.getSharedCopyPass();
+        copy_pass.uploadToBuffer(.{
+            .offset = 0,
+            .transfer_buffer = transfer_buffer_entry.value,
+        }, .{
+            .buffer = bone_buffer,
+            .offset = 0,
+            .size = @intCast(transfer_buffer_entry.key.size),
+        }, true);
+
+        break :create_bone_buffer bone_buffer;
+    };
     errdefer frame_context.device.releaseBuffer(bone_buffer);
 
-    const copy_pass = try frame_context.getSharedCopyPass();
-    copy_pass.uploadToBuffer(.{
-        .offset = 0,
-        .transfer_buffer = transfer_buffer_entry.value,
-    }, .{
-        .buffer = bone_buffer,
-        .offset = 0,
-        .size = @intCast(transfer_buffer_entry.key.size),
-    }, true);
+    const blendshape_buffer = create_blendshape_buffer: {
+        const buffer_size = mesh_layout.num_blendshapes * mesh_layout.num_vertices * @sizeOf(graphics.BlendshapeOffset);
+
+        const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{
+            .size = buffer_size,
+            .value = .upload,
+        });
+        defer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
+
+        {
+            const mapped_data = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.value, true);
+            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
+
+            // NOTE: these technically aren't bytes, but `0x00000000` as a float is `0.0`, so this is what we want!
+            @memset(mapped_data[0..buffer_size], 0);
+
+            const blendshape_buffer_src: []align(1) const math.Vector3f = @ptrCast(mesh_layout.blendshapes_buffer.slice(data));
+            const final_offsets: []align(1) graphics.BlendshapeOffset = @ptrCast(mapped_data[0..buffer_size]);
+
+            var chunks_read: u32 = 0;
+            for (data_request.blendshapeBuffers) |blendshape_buffer_descriptor| {
+                const offset_start = @as(u32, @intCast(blendshape_buffer_descriptor.blendshapeIndex)) * mesh_layout.num_vertices;
+
+                const blendshape_offsets_dst = final_offsets[offset_start .. offset_start + mesh_layout.num_vertices];
+
+                // NOTE: Renderite.Unity appears to *always* look for the positions, so I've done so here aswell!
+                if (blendshape_buffer_descriptor.dataFlags.Positions or true) {
+                    const chunk = getChunk(blendshape_buffer_src, mesh_layout.num_vertices, &chunks_read);
+
+                    for (chunk, blendshape_offsets_dst) |src_offset, *offset| {
+                        offset.position_offset = src_offset;
+                    }
+                }
+
+                // Copy in normal offsets, if present
+                if (blendshape_buffer_descriptor.dataFlags.Normals) {
+                    const chunk = getChunk(blendshape_buffer_src, mesh_layout.num_vertices, &chunks_read);
+
+                    for (chunk, blendshape_offsets_dst) |src_offset, *offset| {
+                        offset.normal_offset = src_offset;
+                    }
+                }
+
+                // Copy in the tangent offsets, if present
+                if (blendshape_buffer_descriptor.dataFlags.Tangets) {
+                    const chunk = getChunk(blendshape_buffer_src, mesh_layout.num_vertices, &chunks_read);
+
+                    for (chunk, blendshape_offsets_dst) |src_offset, *offset| {
+                        offset.tangent_offset = src_offset;
+                    }
+                }
+            }
+        }
+
+        const blendshape_buffer = try frame_context.device.createBuffer(.{
+            .size = buffer_size,
+            .usage = .{ .graphics_storage_read = true },
+        });
+        errdefer frame_context.device.releaseBuffer(blendshape_buffer);
+
+        const copy_pass = try frame_context.getSharedCopyPass();
+        copy_pass.uploadToBuffer(.{
+            .offset = 0,
+            .transfer_buffer = transfer_buffer_entry.value,
+        }, .{
+            .buffer = blendshape_buffer,
+            .offset = 0,
+            .size = buffer_size,
+        }, true);
+
+        break :create_blendshape_buffer blendshape_buffer;
+    };
+    errdefer frame_context.device.releaseBuffer(blendshape_buffer);
 
     return .{
         .bone_count = @intCast(data_request.boneCount),
@@ -419,6 +521,7 @@ fn uploadSkinningData(
         .bone_buffer = bone_buffer,
         .ids_start_idx = 0,
         .weights_start_idx = @sizeOf(math.Vector4i) * mesh_layout.num_vertices,
+        .blendshape_buffer = blendshape_buffer,
     };
 }
 
@@ -521,6 +624,8 @@ pub fn setData(
 }
 
 pub fn deinit(self: Mesh, gpa: std.mem.Allocator, device: gpu.Device) void {
+    self.skinning_data.deinit(gpa, device);
+
     if (self.vertex_buffer) |vertex_buffer| {
         device.releaseBuffer(vertex_buffer);
     }
@@ -571,6 +676,7 @@ fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
     const bind_poses_buffer_byte_size = num_bones * @sizeOf(math.Matrix4x4f);
     idx += bone_weights_buffer_byte_size;
 
+    var num_blendshapes: u32 = 0;
     const blendshape_buffer_byte_start = idx;
     var blendshape_buffer_byte_size: u32 = 0;
     for (data_request.blendshapeBuffers) |blendshape_buffer| {
@@ -583,6 +689,8 @@ fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
         if (blendshape_buffer.dataFlags.Tangets) {
             blendshape_buffer_byte_size += @sizeOf(math.Vector3f) * num_vertices;
         }
+
+        num_blendshapes = @max(num_blendshapes, @as(u32, @intCast(blendshape_buffer.blendshapeIndex + 1)));
     }
 
     return .{
@@ -591,7 +699,8 @@ fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
         .bone_counts_buffer = .{ .byte_start = bone_counts_buffer_byte_start, .byte_end = bone_counts_buffer_byte_start + bone_counts_buffer_byte_size },
         .bone_weights_buffer = .{ .byte_start = bone_weights_buffer_byte_start, .byte_end = bone_counts_buffer_byte_start + bone_counts_buffer_byte_size },
         .inverse_bind_poses_buffer = .{ .byte_start = bind_poses_buffer_byte_start, .byte_end = bind_poses_buffer_byte_start + bind_poses_buffer_byte_size },
-        .blend_shapes_buffer = .{ .byte_start = blendshape_buffer_byte_start, .byte_end = blendshape_buffer_byte_start + blendshape_buffer_byte_size },
+        .blendshapes_buffer = .{ .byte_start = blendshape_buffer_byte_start, .byte_end = blendshape_buffer_byte_start + blendshape_buffer_byte_size },
+        .num_blendshapes = num_blendshapes,
         .interleaved_vertex_stride = interleaved_vertex_stride,
         .num_indices = num_indices,
         .num_vertices = num_vertices,

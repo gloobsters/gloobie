@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const RenderSpace = @import("RenderSpace.zig");
@@ -21,10 +22,10 @@ pub fn RendererManager(
             };
         }
 
-        pub fn deinit(self: *Self, gpa: std.mem.Allocator) void {
+        pub fn deinit(self: *Self, gpa: std.mem.Allocator, device: gpu.Device) void {
             if (@hasDecl(ChildType, "deinit")) {
                 for (self.contents.items) |removed| {
-                    removed.deinit(gpa);
+                    removed.deinit(gpa, device);
                 }
             }
 
@@ -34,6 +35,7 @@ pub fn RendererManager(
         pub fn handleUpdate(
             self: *Self,
             gpa: std.mem.Allocator,
+            device: gpu.Device,
             accessor: *renderite.buffer.SharedMemoryAccessor,
             render_space: *RenderSpace,
             update: UpdateType,
@@ -48,7 +50,7 @@ pub fn RendererManager(
 
                 const removed = self.contents.swapRemove(@intCast(removal));
                 if (@hasDecl(ChildType, "deinit")) {
-                    removed.deinit(gpa);
+                    removed.deinit(gpa, device);
                 }
             }
 
