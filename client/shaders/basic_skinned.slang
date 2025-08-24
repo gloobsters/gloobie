@@ -25,32 +25,62 @@ struct RenderData
 struct ModelData
 {
     float4x4 model_matrix;
+    uint32_t num_vertices;
+    uint32_t num_blendshapes;
 }
 
-[[vk_binding(1, 0)]]
-StructuredBuffer<float4x4> bone_matrices; // Buffer for bone matrices
+struct BlendshapeOffset
+{
+    float3 position_offset;
+    float3 normal_offset;
+    float3 tangent_offset;
+}
 
-[[vk_binding(0, 1)]]
+[vk::binding(0, 0)]
+StructuredBuffer<float4x4> skinning_matrices;
+[vk::binding(1, 0)]
+StructuredBuffer<BlendshapeOffset> vertex_offsets;
+[vk::binding(2, 0)]
+StructuredBuffer<float> blendshape_weights;
+
+[vk::binding(0, 1)]
 ConstantBuffer<RenderData> render_data;
-[[vk_binding(1, 1)]]
+[vk::binding(1, 1)]
 ConstantBuffer<ModelData> model_data;
 
+#define MAX_BONE_INFLUENCES 4
+
 [shader("vertex")]
-VertexStageOutput vertexMain(Vertex vertex)
+VertexStageOutput vertexMain(Vertex vertex, uint vertex_id: SV_VertexID)
 {
     VertexStageOutput output;
 
-    float4 transformed_position = float4(0.0f);
-    for (int i = 0; i < 4; i++)
-    {
-        if (vertex.bone_ids[i] == -1)
-            continue;
+    float3 vertex_position = vertex.position;
 
-        float4 local_position = mul(bone_matrices[vertex.bone_ids[i]], float4(vertex.position, 1.0f));
-        transformed_position += local_position * vertex.bone_weights[i];
+    // Apply blendshape offsets
+    for (uint32_t i = 0; i < model_data.num_blendshapes; i++)
+    {
+        float weight = blendshape_weights[i];
+
+        BlendshapeOffset offset = vertex_offsets[vertex_id];
+
+        vertex_position.xyz += offset.position_offset * weight;
     }
 
-    output.position = mul(model_data.model_matrix * render_data.view_matrix * render_data.projection_matrix, transformed_position);
+    // Apply bone transformations
+    float3 skinned_position = float3(0.0, 0.0, 0.0);
+    for (int i = 0; i < MAX_BONE_INFLUENCES; i++)
+    {
+        // NOTE: for an invalid bone_id (which can in theory be any value but will be 0 in practice), we rely on the weight being 0.0 aswell
+        //       this let's us avoid branching, i didnt do the performance checks but i don't imagine it can be *that* much worse. and it probably is better.
+        int bone_id = vertex.bone_ids[i];
+        float weight = vertex.bone_weights[i];
+
+        float4x4 skinning_matrix = skinning_matrices[bone_id];
+        skinned_position += mul(skinning_matrix, float4(vertex.position, 1.0)).xyz * weight;
+    }
+
+    output.position = mul(model_data.model_matrix * render_data.view_matrix * render_data.projection_matrix, float4(skinned_position, 1.0));
     output.frag_input.color = float4((vertex.position.x * 10.0) % 1.0, (vertex.position.y * 10.0) % 1.0, (vertex.position.z * 10.0) % 1.0, 1.0); // test nonsense
 
     return output;

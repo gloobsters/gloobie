@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const gpu = @import("gpu");
+const math = @import("math");
 const renderite = @import("renderite");
 const shared = renderite.shared;
 
@@ -11,38 +12,90 @@ const log = @import("logger").Scoped(.mesh);
 const Mesh = @This();
 
 const VertexAttribute = struct {
+    /// The type of data contained within
     type: shared.VertexAttributeType,
+    /// The format of the vertex element
     format: gpu.VertexElementFormat,
 };
 
+const BufferRegion = struct {
+    byte_start: u32,
+    byte_end: u32,
+
+    pub fn len(self: BufferRegion) u32 {
+        return self.byte_end - self.byte_start;
+    }
+
+    pub fn slice(self: BufferRegion, data: anytype) @TypeOf(data) {
+        return data[self.byte_start..self.byte_end];
+    }
+};
+
 const MeshLayout = struct {
-    interleaved_vertex_stride: u32,
-    index_buffer_start: u32,
-    num_indices: u32,
-    index_buffer_byte_size: u32,
     num_vertices: u32,
+    /// How many bytes per vertex in it's original interleaved form
+    interleaved_vertex_stride: u32,
+    /// The number of indices
+    num_indices: u32,
+    /// The type of index contained within the index buffer
     index_element_type: gpu.IndexElementSize,
+    /// The data region containing the vertex buffer
+    vertex_buffer: BufferRegion,
+    /// The data region containing the index buffer
+    index_buffer: BufferRegion,
+    /// The data region containing the amount of bones a vertex is effected by
+    bone_counts_buffer: BufferRegion,
+    /// The data region containing the bone weights of each vertex
+    bone_weights_buffer: BufferRegion,
+    /// The data region containing the inverse bind poses for each bone
+    inverse_bind_poses_buffer: BufferRegion,
+    /// The data region containing the
+    blend_shapes_buffer: BufferRegion,
 };
 
 const SubMesh = struct {
+    /// The topology of the submesh
     topology: shared.SubmeshTopology,
+    /// The index into the index buffer where indices for this submesh starts
     index_start: u32,
+    /// The amount of indices in this submesh
     index_count: u32,
+    /// The bounding box for this submesh
     bounds: shared.RenderBoundingBox,
 };
 
+const SkinningData = struct {
+    /// The inverse of all the bind poses
+    inverse_bind_poses: []math.Matrix4x4f,
+    /// The amount of bones on the mesh
+    bone_count: u32,
+    /// The buffer storing the bone weights and ids
+    bone_buffer: ?gpu.Buffer,
+    /// The starting index of the vertex weights
+    weights_start_idx: u32,
+    /// The starting index of the vertex bone IDs
+    ids_start_idx: u32,
+};
+
+/// The buffer storing all the vertex data for all submeshes
 vertex_buffer: ?gpu.Buffer,
+/// The capacity of the vertex buffer, eg. how big is the buffer, regardless of how much data is within
 vertex_buffer_capacity: u32,
+/// The buffer storing all the index data for all submeshes
 index_buffer: ?gpu.Buffer,
+/// The capacity of the index buffer, eg. how big is the buffer, regardless of how much data is within
 index_buffer_capacity: u32,
 
+/// The details of all vertex attributes this mesh uses
 vertex_attributes: []const VertexAttribute,
+/// The sub-meshes contained within this mesh, this is used for having different materials or topology per sub-mesh
 submeshes: []const SubMesh,
+/// The layout of the mesh
 mesh_layout: MeshLayout,
+/// Contains all the data related to skinning this mesh
+skinning_data: SkinningData,
 
-bone_count: u32,
-bone_weight_count: u32,
-
+/// Creates a new mesh with some starting data
 pub fn init(
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
@@ -50,6 +103,7 @@ pub fn init(
     data_request: shared.MeshUploadData,
 ) !Mesh {
     var mesh: Mesh = .{
+        // SAFETY: this will always get filled out by the call to setData
         .mesh_layout = undefined,
         .vertex_buffer = null,
         .index_buffer = null,
@@ -57,8 +111,13 @@ pub fn init(
         .submeshes = &.{},
         .index_buffer_capacity = 0,
         .vertex_buffer_capacity = 0,
-        .bone_count = 0,
-        .bone_weight_count = 0,
+        .skinning_data = .{
+            .bone_count = 0,
+            .inverse_bind_poses = &.{},
+            .bone_buffer = null,
+            .ids_start_idx = 0,
+            .weights_start_idx = 0,
+        },
     };
 
     try mesh.setData(gpa, frame_context, accessor, data_request);
@@ -157,15 +216,13 @@ fn uploadVertex(
     data: []const u8,
     data_request: shared.MeshUploadData,
 ) !struct { ?gpu.Buffer, u32, ?TransferBufferContext.PendingUpload } {
-    const vertex_buffer_byte_size = mesh_layout.index_buffer_start;
-
     // No vertex streams
-    if (!hasVertexStreams(data_request.uploadHint._flags) or vertex_buffer_byte_size == 0) {
+    if (!hasVertexStreams(data_request.uploadHint._flags) or mesh_layout.vertex_buffer.len() == 0) {
         return .{ self.vertex_buffer, self.vertex_buffer_capacity, null };
     }
 
-    const src = data[0..vertex_buffer_byte_size];
-    const dst, const transfer_buffer_start_idx = transfer_buffer_context.get(vertex_buffer_byte_size);
+    const src = mesh_layout.vertex_buffer.slice(data);
+    const dst, const transfer_buffer_start_idx = transfer_buffer_context.get(mesh_layout.vertex_buffer.len());
 
     const vertex_stride = mesh_layout.interleaved_vertex_stride;
     const vertex_count = mesh_layout.num_vertices;
@@ -191,7 +248,7 @@ fn uploadVertex(
     }
 
     const vertex_buffer, const vertex_buffer_capacity = get_vertex_buffer: {
-        if (self.vertex_buffer_capacity >= vertex_buffer_byte_size) {
+        if (self.vertex_buffer_capacity >= mesh_layout.vertex_buffer.len()) {
             break :get_vertex_buffer .{ self.vertex_buffer.?, self.vertex_buffer_capacity };
         }
 
@@ -201,12 +258,12 @@ fn uploadVertex(
         }
 
         const vertex_buffer = try frame_context.device.createBuffer(.{
-            .size = vertex_buffer_byte_size,
+            .size = mesh_layout.vertex_buffer.len(),
             .usage = .{ .vertex = true },
         });
         errdefer frame_context.device.releaseBuffer(vertex_buffer);
 
-        break :get_vertex_buffer .{ vertex_buffer, vertex_buffer_byte_size };
+        break :get_vertex_buffer .{ vertex_buffer, mesh_layout.vertex_buffer.len() };
     };
     errdefer frame_context.device.releaseBuffer(vertex_buffer);
 
@@ -215,7 +272,7 @@ fn uploadVertex(
             .transfer_buffer = transfer_buffer_context.transfer_buffer,
             .target = vertex_buffer,
             .transfer_buffer_offset = transfer_buffer_start_idx,
-            .size = vertex_buffer_byte_size,
+            .size = mesh_layout.vertex_buffer.len(),
         },
     };
 }
@@ -230,19 +287,17 @@ fn uploadIndex(
 ) !struct { ?gpu.Buffer, u32, ?TransferBufferContext.PendingUpload } {
     const should_upload_index_buffer = data_request.uploadHint._flags.Geometry or data_request.uploadHint._flags.SubmeshLayout;
 
-    const index_buffer_byte_size = mesh_layout.index_buffer_byte_size;
-
-    if (!should_upload_index_buffer or index_buffer_byte_size == 0) {
+    if (!should_upload_index_buffer or mesh_layout.index_buffer.len() == 0) {
         return .{ self.index_buffer, self.index_buffer_capacity, null };
     }
 
-    const src = data[mesh_layout.index_buffer_start .. mesh_layout.index_buffer_start + index_buffer_byte_size];
-    const dst, const transfer_buffer_start_idx = transfer_buffer_context.get(index_buffer_byte_size);
+    const src = mesh_layout.index_buffer.slice(data);
+    const dst, const transfer_buffer_start_idx = transfer_buffer_context.get(mesh_layout.index_buffer.len());
 
     @memcpy(dst, src);
 
     const index_buffer, const index_buffer_capacity = get_index_buffer: {
-        if (self.index_buffer_capacity >= index_buffer_byte_size) {
+        if (self.index_buffer_capacity >= mesh_layout.index_buffer.len()) {
             break :get_index_buffer .{ self.index_buffer.?, self.index_buffer_capacity };
         }
 
@@ -252,12 +307,12 @@ fn uploadIndex(
         }
 
         const index_buffer = try frame_context.device.createBuffer(.{
-            .size = index_buffer_byte_size,
+            .size = mesh_layout.index_buffer.len(),
             .usage = .{ .index = true },
         });
         errdefer frame_context.device.releaseBuffer(index_buffer);
 
-        break :get_index_buffer .{ index_buffer, index_buffer_byte_size };
+        break :get_index_buffer .{ index_buffer, mesh_layout.index_buffer.len() };
     };
     errdefer frame_context.device.releaseBuffer(index_buffer);
 
@@ -266,11 +321,108 @@ fn uploadIndex(
             .transfer_buffer = transfer_buffer_context.transfer_buffer,
             .target = index_buffer,
             .transfer_buffer_offset = transfer_buffer_start_idx,
-            .size = index_buffer_byte_size,
+            .size = mesh_layout.index_buffer.len(),
         },
     };
 }
 
+fn uploadSkinningData(
+    self: *Mesh,
+    gpa: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
+    data_request: shared.MeshUploadData,
+    mesh_layout: MeshLayout,
+    data: []const u8,
+) !SkinningData {
+    gpa.free(self.skinning_data.inverse_bind_poses);
+    self.skinning_data.inverse_bind_poses = &.{};
+
+    // ME BONES
+    if (self.skinning_data.bone_count == 0) {
+        return .{
+            .bone_buffer = null,
+            .bone_count = 0,
+            .ids_start_idx = 0,
+            .inverse_bind_poses = &.{},
+            .weights_start_idx = 0,
+        };
+    }
+
+    // Upload all the bind poses
+    const incoming_inverse_bind_poses: []align(1) const math.Matrix4x4f = @ptrCast(mesh_layout.inverse_bind_poses_buffer.slice(data));
+    std.debug.assert(incoming_inverse_bind_poses.len == data_request.boneCount);
+
+    const inverse_bind_poses = try gpa.alloc(math.Matrix4x4f, @intCast(data_request.boneCount));
+    errdefer gpa.free(inverse_bind_poses);
+    for (inverse_bind_poses, incoming_inverse_bind_poses) |*inverse_bind_pose, *incoming_inverse_bind_pose| {
+        inverse_bind_pose.* = incoming_inverse_bind_pose.*;
+    }
+
+    const bytes_per_vertex = @sizeOf(math.Vector4f) + @sizeOf(math.Vector4i);
+
+    const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{
+        .size = bytes_per_vertex * mesh_layout.num_vertices,
+        .value = .upload,
+    });
+    defer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
+
+    {
+        const mapped_data = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.value, true);
+        defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
+
+        const vertices_bone_weights_start = @sizeOf(math.Vector4i) * mesh_layout.num_vertices;
+        const vertices_bone_ids: []align(1) math.Vector4i = @ptrCast(mapped_data[0..vertices_bone_weights_start]);
+        const vertices_bone_weights: []align(1) math.Vector4f = @ptrCast(mapped_data[vertices_bone_weights_start .. vertices_bone_weights_start + (@sizeOf(math.Vector4f) * mesh_layout.num_vertices)]);
+
+        const bone_counts = mesh_layout.bone_counts_buffer.slice(data);
+        std.debug.assert(bone_counts.len == mesh_layout.num_vertices);
+
+        const bone_weights: []align(1) const shared.BoneWeight = @ptrCast(mesh_layout.bone_weights_buffer.slice(data));
+        var bone_weight_ptr: [*]align(1) const shared.BoneWeight = bone_weights.ptr;
+        for (bone_counts, vertices_bone_ids, vertices_bone_weights) |bone_count, *vertex_bone_ids, *vertex_bone_weights| {
+            // TODO: actually handle bone counts over 4!
+            const vertex_bone_weights_src: []align(1) const shared.BoneWeight = bone_weight_ptr[0..@min(bone_count, 4)];
+
+            const vertex_bone_weights_array_dst: *align(1) [4]f32 = @ptrCast(vertex_bone_weights);
+            @memset(vertex_bone_weights_array_dst, 0.0);
+            const vertex_bone_ids_array_dst: *align(1) [4]i32 = @ptrCast(vertex_bone_ids);
+            @memset(vertex_bone_ids_array_dst, 0);
+
+            for (vertex_bone_weights_src, 0..) |weight, i| {
+                vertex_bone_weights_array_dst[i] = weight.weight;
+                vertex_bone_ids_array_dst[i] = weight.bone_index;
+            }
+
+            bone_weight_ptr += bone_count;
+        }
+    }
+
+    const bone_buffer = try frame_context.device.createBuffer(.{
+        .size = @intCast(transfer_buffer_entry.key.size),
+        .usage = .{ .vertex = true },
+    });
+    errdefer frame_context.device.releaseBuffer(bone_buffer);
+
+    const copy_pass = try frame_context.getSharedCopyPass();
+    copy_pass.uploadToBuffer(.{
+        .offset = 0,
+        .transfer_buffer = transfer_buffer_entry.value,
+    }, .{
+        .buffer = bone_buffer,
+        .offset = 0,
+        .size = @intCast(transfer_buffer_entry.key.size),
+    }, true);
+
+    return .{
+        .bone_count = @intCast(data_request.boneCount),
+        .inverse_bind_poses = inverse_bind_poses,
+        .bone_buffer = bone_buffer,
+        .ids_start_idx = 0,
+        .weights_start_idx = @sizeOf(math.Vector4i) * mesh_layout.num_vertices,
+    };
+}
+
+/// Sets the data of a mesh, re-using buffers/memory when applicable.
 pub fn setData(
     self: *Mesh,
     gpa: std.mem.Allocator,
@@ -278,7 +430,7 @@ pub fn setData(
     accessor: *renderite.buffer.SharedMemoryAccessor,
     data_request: shared.MeshUploadData,
 ) !void {
-    // log.debug(@src(), "Got mesh upload {any}", .{data_request});
+    log.trace(@src(), "Got mesh upload {any}", .{data_request});
 
     const slice = try accessor.getOrCreate(u8, gpa, data_request.buffer);
     defer slice.release(accessor);
@@ -341,6 +493,14 @@ pub fn setData(
     const vertex_attributes = try convertVertexAttributes(gpa, data_request.vertexAttributes);
     errdefer gpa.free(vertex_attributes);
 
+    const skinning_data = try self.uploadSkinningData(
+        gpa,
+        frame_context,
+        data_request,
+        mesh_layout,
+        data,
+    );
+
     try frame_context.messaging_host.background.sendTimeout(.{
         .MeshUploadResult = .{
             .assetId = data_request.assetId,
@@ -356,8 +516,7 @@ pub fn setData(
         .vertex_attributes = vertex_attributes,
         .submeshes = submeshes,
         .mesh_layout = mesh_layout,
-        .bone_count = @intCast(data_request.boneCount),
-        .bone_weight_count = @intCast(data_request.boneWeightCount),
+        .skinning_data = skinning_data,
     };
 }
 
@@ -374,6 +533,10 @@ pub fn deinit(self: Mesh, gpa: std.mem.Allocator, device: gpu.Device) void {
 }
 
 fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
+    const num_vertices: u32 = @intCast(data_request.vertexCount);
+
+    var idx: u32 = 0;
+
     var interleaved_vertex_stride: u32 = 0;
     for (data_request.vertexAttributes) |attribute| {
         const format = renderiteVertexAttributeDescriptorToVertexElementFormat(attribute) orelse return error.InvalidVertexAttributeDescriptor;
@@ -381,8 +544,9 @@ fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
         interleaved_vertex_stride += format.stride();
     }
 
-    const index_buffer_start = interleaved_vertex_stride * @as(u32, @intCast(data_request.vertexCount));
+    idx += interleaved_vertex_stride * @as(u32, @intCast(data_request.vertexCount));
 
+    const index_buffer_start = idx;
     var num_indices: u32 = 0;
     for (data_request.submeshes) |submesh| {
         num_indices = @max(num_indices, submesh.indexStart + submesh.indexCount);
@@ -391,13 +555,46 @@ fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
     const index_element_type = renderiteIndexBufferFormatToGpu(data_request.indexBufferFormat);
 
     const index_buffer_byte_size = num_indices * index_element_type.byteSize();
+    idx += index_buffer_byte_size;
+
+    const bone_counts_buffer_byte_start = idx;
+    const bone_counts_buffer_byte_size: u32 = @intCast(data_request.vertexCount);
+    idx += bone_counts_buffer_byte_size;
+
+    const bone_weights_buffer_byte_start = idx;
+    const num_bone_weights: u32 = @intCast(data_request.boneWeightCount);
+    const bone_weights_buffer_byte_size = num_bone_weights * @sizeOf(shared.BoneWeight);
+    idx += bone_weights_buffer_byte_size;
+
+    const bind_poses_buffer_byte_start = idx;
+    const num_bones: u32 = @intCast(data_request.boneCount);
+    const bind_poses_buffer_byte_size = num_bones * @sizeOf(math.Matrix4x4f);
+    idx += bone_weights_buffer_byte_size;
+
+    const blendshape_buffer_byte_start = idx;
+    var blendshape_buffer_byte_size: u32 = 0;
+    for (data_request.blendshapeBuffers) |blendshape_buffer| {
+        if (blendshape_buffer.dataFlags.Normals) {
+            blendshape_buffer_byte_size += @sizeOf(math.Vector3f) * num_vertices;
+        }
+        if (blendshape_buffer.dataFlags.Positions) {
+            blendshape_buffer_byte_size += @sizeOf(math.Vector3f) * num_vertices;
+        }
+        if (blendshape_buffer.dataFlags.Tangets) {
+            blendshape_buffer_byte_size += @sizeOf(math.Vector3f) * num_vertices;
+        }
+    }
 
     return .{
+        .vertex_buffer = .{ .byte_start = 0, .byte_end = index_buffer_start },
+        .index_buffer = .{ .byte_start = index_buffer_start, .byte_end = index_buffer_start + index_buffer_byte_size },
+        .bone_counts_buffer = .{ .byte_start = bone_counts_buffer_byte_start, .byte_end = bone_counts_buffer_byte_start + bone_counts_buffer_byte_size },
+        .bone_weights_buffer = .{ .byte_start = bone_weights_buffer_byte_start, .byte_end = bone_counts_buffer_byte_start + bone_counts_buffer_byte_size },
+        .inverse_bind_poses_buffer = .{ .byte_start = bind_poses_buffer_byte_start, .byte_end = bind_poses_buffer_byte_start + bind_poses_buffer_byte_size },
+        .blend_shapes_buffer = .{ .byte_start = blendshape_buffer_byte_start, .byte_end = blendshape_buffer_byte_start + blendshape_buffer_byte_size },
         .interleaved_vertex_stride = interleaved_vertex_stride,
-        .index_buffer_start = index_buffer_start,
         .num_indices = num_indices,
-        .index_buffer_byte_size = index_buffer_byte_size,
-        .num_vertices = @intCast(data_request.vertexCount),
+        .num_vertices = num_vertices,
         .index_element_type = index_element_type,
     };
 }
