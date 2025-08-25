@@ -82,7 +82,7 @@ pub fn init(
     paste_callback: PasteCallback,
 ) !Bootstrap {
     if (args.len > 1 and std.mem.eql(u8, args[1], "-QueueName")) {
-        log.info(@src(), "Launched from renderer, starting up!", .{});
+        log.info(@src(), "Launched from external bootstrapper, skipping our own bootstrapper!", .{});
         // If the renderer is launching us directly, we need no special logic.
         return .initDirect(args, copy_callback, paste_callback);
     } else {

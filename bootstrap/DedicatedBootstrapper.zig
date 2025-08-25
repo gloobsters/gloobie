@@ -162,7 +162,12 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
 
     log.info(@src(), "Renderer spawned!", .{});
 
-    bootstrap.sendRenderitePid(renderer.id) catch @panic("Failed to send renderer PID to FrooxEngine");
+    const renderer_pid = switch (builtin.os.tag) {
+        .windows => @as(*anyopaque, @ptrFromInt(GetProcessId(renderer.id))),
+        else => renderer.id,
+    };
+
+    bootstrap.sendRenderitePid(renderer_pid) catch @panic("Failed to send renderer PID to FrooxEngine");
     bootstrap.receiverLoop(gpa);
 }
 
@@ -200,6 +205,8 @@ fn parseManifestFiles(gpa: std.mem.Allocator) ![]ParsedManifest {
 
     return manifests;
 }
+
+pub extern "kernel32" fn GetProcessId(hProcess: std.os.windows.HANDLE) callconv(.winapi) std.os.windows.DWORD;
 
 fn copy(text: [:0]const u8) anyerror!void {
     try sdl3.clipboard.setText(text);
