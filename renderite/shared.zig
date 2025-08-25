@@ -5,6 +5,7 @@ const math = @import("math");
 
 const buffer = @import("buffer.zig");
 const SharedMemoryBufferDescriptor = buffer.SharedMemoryBufferDescriptor;
+
 const serialization = @import("serialization.zig");
 const IpcDeserializer = serialization.IpcDeserializer;
 const IpcSerializer = serialization.IpcSerializer;
@@ -1544,6 +1545,22 @@ pub const TextureType = enum(i32) {
     Texture3D = 2,
 };
 
+pub const BoneWeight = struct {
+    weight: f32,
+    boneIndex: i32,
+
+    pub fn write(self: BoneWeight, ipc: IpcSerializer) !void {
+        try ipc.write(@TypeOf(self.weight), self.weight);
+        try ipc.write(@TypeOf(self.boneIndex), self.boneIndex);
+    }
+    pub fn read(ipc: IpcDeserializer) !BoneWeight {
+        var self: BoneWeight = undefined;
+        self.weight = try ipc.read(@TypeOf(self.weight));
+        self.boneIndex = try ipc.read(@TypeOf(self.boneIndex));
+        return self;
+    }
+};
+
 pub const HeadOutputDevice = enum(i32) {
     Autodetect = 0,
     Headless = 1,
@@ -3011,11 +3028,6 @@ pub const RenderIntRect = struct {
         self.height = try ipc.read(@TypeOf(self.height));
         return self;
     }
-};
-
-pub const BoneWeight = extern struct {
-    weight: f32,
-    bone_index: i32,
 };
 
 pub const Key = enum(i32) {
