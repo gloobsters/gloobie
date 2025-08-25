@@ -30,6 +30,8 @@ pub fn run(args: []const []const u8, gpa: std.mem.Allocator) !DedicatedBootstrap
         log.debug(@src(), "Read manifest: {f}", .{std.json.fmt(manifest.value, .{})});
     }
 
+    bootstrapper.ready_to_boot = true;
+
     return bootstrapper;
 }
 
@@ -43,7 +45,8 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
     const renderer_pid: u32 = 0;
 
     var bootstrap = renderite.Bootstrap.initBootstrap(&child, renderer_pid, gpa, copy, paste) catch @panic("Failed to bootstrap FrooxEngine");
-    bootstrap.receiverLoop(gpa);
+    _ = &bootstrap;
+    // bootstrap.receiverLoop(gpa);
 }
 
 fn parseManifestFiles(gpa: std.mem.Allocator) ![]ParsedManifest {
@@ -51,6 +54,7 @@ fn parseManifestFiles(gpa: std.mem.Allocator) ![]ParsedManifest {
     try cwd.makePath("Renderers");
 
     const renderers_dir = try cwd.openDir("Renderers", .{ .iterate = true });
+    defer renderers_dir.close();
     var iterator = renderers_dir.iterateAssumeFirstIteration();
 
     var manifest_count: usize = 0;
@@ -71,6 +75,7 @@ fn parseManifestFiles(gpa: std.mem.Allocator) ![]ParsedManifest {
         if (!std.mem.endsWith(u8, entry.name, ".renderer.json")) continue;
 
         const file = try renderers_dir.openFile(entry.name, .{});
+        defer file.close();
 
         manifests[i] = try Manifest.parseFromFile(file, gpa);
         i += 1;

@@ -9,8 +9,9 @@ runInWine: ?bool,
 
 pub fn parseFromFile(file: std.fs.File, gpa: std.mem.Allocator) !std.json.Parsed(Manifest) {
     var buffer: [128]u8 = undefined;
-    var file_reader = file.reader(&buffer);
+    var file_reader = file.readerStreaming(&buffer);
     var reader = std.json.Reader.init(gpa, &file_reader.interface);
+    defer reader.deinit();
 
     return try std.json.parseFromTokenSource(Manifest, gpa, &reader, .{
         .duplicate_field_behavior = .use_first,

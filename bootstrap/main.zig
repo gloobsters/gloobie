@@ -2,6 +2,8 @@ const std = @import("std");
 const build_options = @import("options").build_options;
 const logger = @import("logger");
 
+const log = logger.Scoped(.main);
+
 const DedicatedBootstrapper = @import("DedicatedBootstrapper.zig");
 
 pub fn main() !void {
@@ -32,4 +34,6 @@ pub fn main() !void {
 
     var bootstrapper = try DedicatedBootstrapper.run(args, gpa);
     defer bootstrapper.deinit(gpa);
+
+    log.info(@src(), "Bootstrapper exiting", .{});
 }

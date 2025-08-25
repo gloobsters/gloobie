@@ -145,7 +145,7 @@ pub fn initBootstrap(
 
     const init_settings = try InitSettings.init(parts[0..max_part]);
 
-    log.info(@src(), "Resonite launched, Starting up!", .{});
+    log.info(@src(), "Resonite launched!", .{});
 
     const bootstrap: Bootstrap = .{
         .child = child.*,
