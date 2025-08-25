@@ -173,7 +173,7 @@ public class Writer : IDisposable
     {
         this.Indents();
         this.PubEql(name);
-        this._writer.WriteLine("struct {");
+        this._writer.WriteLine("extern struct {");
         return new Block(this);
     }
 

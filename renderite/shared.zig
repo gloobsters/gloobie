@@ -1545,7 +1545,7 @@ pub const TextureType = enum(i32) {
     Texture3D = 2,
 };
 
-pub const BoneWeight = struct {
+pub const BoneWeight = extern struct {
     weight: f32,
     boneIndex: i32,
 
@@ -1709,7 +1709,7 @@ pub const InputState = struct {
     }
 };
 
-pub const ReflectionProbeChangeRenderResult = struct {
+pub const ReflectionProbeChangeRenderResult = extern struct {
     renderSpaceId: i32,
     renderProbeUniqueId: i32,
     requireReset: bool,
@@ -1728,7 +1728,7 @@ pub const ReflectionProbeChangeRenderResult = struct {
     }
 };
 
-pub const VideoTextureClockErrorState = struct {
+pub const VideoTextureClockErrorState = extern struct {
     assetId: i32,
     currentClockError: f32,
 
@@ -1927,7 +1927,7 @@ pub const IndexBufferFormat = enum(i32) {
     UInt32 = 1,
 };
 
-pub const VertexAttributeDescriptor = struct {
+pub const VertexAttributeDescriptor = extern struct {
     attribute: VertexAttributeType,
     format: VertexAttributeFormat,
     dimensions: i32,
@@ -1946,7 +1946,7 @@ pub const VertexAttributeDescriptor = struct {
     }
 };
 
-pub const SubmeshBufferDescriptor = struct {
+pub const SubmeshBufferDescriptor = extern struct {
     topology: SubmeshTopology,
     indexStart: i32,
     indexCount: i32,
@@ -1968,7 +1968,7 @@ pub const SubmeshBufferDescriptor = struct {
     }
 };
 
-pub const BlendshapeBufferDescriptor = struct {
+pub const BlendshapeBufferDescriptor = extern struct {
     blendshapeIndex: i32,
     frameIndex: i32,
     frameWeight: f32,
@@ -1990,7 +1990,7 @@ pub const BlendshapeBufferDescriptor = struct {
     }
 };
 
-pub const MeshUploadHint = struct {
+pub const MeshUploadHint = extern struct {
     _flags: MeshUploadHint_Flag,
 
     pub fn write(self: MeshUploadHint, ipc: IpcSerializer) !void {
@@ -2003,7 +2003,7 @@ pub const MeshUploadHint = struct {
     }
 };
 
-pub const RenderBoundingBox = struct {
+pub const RenderBoundingBox = extern struct {
     center: math.Vector3f,
     extents: math.Vector3f,
 
@@ -2019,7 +2019,7 @@ pub const RenderBoundingBox = struct {
     }
 };
 
-pub const MaterialPropertyUpdate = struct {
+pub const MaterialPropertyUpdate = extern struct {
     propertyID: i32,
     updateType: MaterialPropertyUpdateType,
 
@@ -2055,7 +2055,7 @@ pub const TextureWrapMode = enum(i32) {
     MirrorOnce = 3,
 };
 
-pub const TextureUploadHint = struct {
+pub const TextureUploadHint = extern struct {
     regionData: RenderIntRect,
     readable: bool,
     hasRegion: bool,
@@ -2083,7 +2083,7 @@ pub const TextureUpdateResultType = packed struct(i32) {
     padding: u29 = 0,
 };
 
-pub const Texture3DUploadHint = struct {
+pub const Texture3DUploadHint = extern struct {
     readable: bool,
 
     pub fn write(self: Texture3DUploadHint, ipc: IpcSerializer) !void {
@@ -2125,7 +2125,7 @@ pub const GaussianSHFormat = enum(i32) {
     Cluster4k = 7,
 };
 
-pub const LightData = struct {
+pub const LightData = extern struct {
     point: math.Vector3f,
     orientation: math.Quaternionf,
     color: math.Vector3f,
@@ -2405,7 +2405,7 @@ pub const VR_OutputState = struct {
     }
 };
 
-pub const RenderTransform = struct {
+pub const RenderTransform = extern struct {
     position: math.Vector3f,
     scale: math.Vector3f,
     rotation: math.Quaternionf,
@@ -2424,7 +2424,7 @@ pub const RenderTransform = struct {
     }
 };
 
-pub const RenderSH2 = struct {
+pub const RenderSH2 = extern struct {
     sh0: math.Vector3f,
     sh1: math.Vector3f,
     sh2: math.Vector3f,
@@ -3008,7 +3008,7 @@ pub const MaterialPropertyUpdateType = enum(u8) {
     UpdateBatchEnd = 11,
 };
 
-pub const RenderIntRect = struct {
+pub const RenderIntRect = extern struct {
     x: i32,
     y: i32,
     width: i32,
@@ -3395,7 +3395,7 @@ pub const VR_ControllerOutputState = struct {
     }
 };
 
-pub const TransformParentUpdate = struct {
+pub const TransformParentUpdate = extern struct {
     transformId: i32,
     newParentId: i32,
 
@@ -3411,7 +3411,7 @@ pub const TransformParentUpdate = struct {
     }
 };
 
-pub const TransformPoseUpdate = struct {
+pub const TransformPoseUpdate = extern struct {
     transformId: i32,
     pose: RenderTransform,
 
@@ -3427,7 +3427,7 @@ pub const TransformPoseUpdate = struct {
     }
 };
 
-pub const MeshRendererState = struct {
+pub const MeshRendererState = extern struct {
     renderableIndex: i32,
     meshAssetId: i32,
     materialCount: i32,
@@ -3458,17 +3458,17 @@ pub const MeshRendererState = struct {
     }
 };
 
-pub const SkinnedMeshBoundsUpdate = struct {
+pub const SkinnedMeshBoundsUpdate = extern struct {
     renderableIndex: i32,
     localBounds: RenderBoundingBox,
 };
 
-pub const SkinnedMeshRealtimeBoundsUpdate = struct {
+pub const SkinnedMeshRealtimeBoundsUpdate = extern struct {
     renderableIndex: i32,
     computedGlobalBounds: RenderBoundingBox,
 };
 
-pub const BoneAssignment = struct {
+pub const BoneAssignment = extern struct {
     renderableIndex: i32,
     rootBoneTransformId: i32,
     boneCount: i32,
@@ -3487,7 +3487,7 @@ pub const BoneAssignment = struct {
     }
 };
 
-pub const BlendshapeUpdateBatch = struct {
+pub const BlendshapeUpdateBatch = extern struct {
     renderableIndex: i32,
     blendshapeUpdateCount: i32,
 
@@ -3503,7 +3503,7 @@ pub const BlendshapeUpdateBatch = struct {
     }
 };
 
-pub const BlendshapeUpdate = struct {
+pub const BlendshapeUpdate = extern struct {
     blendshapeIndex: i32,
     weight: f32,
 
@@ -3519,7 +3519,7 @@ pub const BlendshapeUpdate = struct {
     }
 };
 
-pub const LightState = struct {
+pub const LightState = extern struct {
     renderableIndex: i32,
     intensity: f32,
     range: f32,
@@ -3568,7 +3568,7 @@ pub const LightState = struct {
     }
 };
 
-pub const CameraState = struct {
+pub const CameraState = extern struct {
     renderableIndex: i32,
     fieldOfView: f32,
     orthographicSize: f32,
@@ -3620,7 +3620,7 @@ pub const CameraState = struct {
     }
 };
 
-pub const CameraPortalState = struct {
+pub const CameraPortalState = extern struct {
     renderableIndex: i32,
     meshRendererIndex: i32,
     planeNormal: math.Vector3f,
@@ -3665,7 +3665,7 @@ pub const CameraPortalState = struct {
     }
 };
 
-pub const ReflectionProbeChangeRenderTask = struct {
+pub const ReflectionProbeChangeRenderTask = extern struct {
     renderableIndex: i32,
     uniqueId: i32,
 
@@ -3681,7 +3681,7 @@ pub const ReflectionProbeChangeRenderTask = struct {
     }
 };
 
-pub const ReflectionProbeState = struct {
+pub const ReflectionProbeState = extern struct {
     renderableIndex: i32,
     importance: i32,
     intensity: f32,
@@ -3736,7 +3736,7 @@ pub const ReflectionProbeState = struct {
     }
 };
 
-pub const ReflectionProbeSH2Task = struct {
+pub const ReflectionProbeSH2Task = extern struct {
     renderableIndex: i32,
     reflectionProbeRenderableIndex: i32,
     result: ComputeResult,
@@ -3748,7 +3748,7 @@ pub const LayerType = enum(u8) {
     Overlay = 1,
 };
 
-pub const BillboardRenderBufferState = struct {
+pub const BillboardRenderBufferState = extern struct {
     renderableIndex: i32,
     pointRenderBufferAssetId: i32,
     materialAssetId: i32,
@@ -3779,7 +3779,7 @@ pub const BillboardRenderBufferState = struct {
     }
 };
 
-pub const MeshRenderBufferState = struct {
+pub const MeshRenderBufferState = extern struct {
     renderableIndex: i32,
     pointRenderBufferAssetId: i32,
     materialAssetId: i32,
@@ -3804,7 +3804,7 @@ pub const MeshRenderBufferState = struct {
     }
 };
 
-pub const TrailsRendererState = struct {
+pub const TrailsRendererState = extern struct {
     renderableIndex: i32,
     trailsRenderBufferAssetId: i32,
     materialAssetId: i32,
@@ -3832,7 +3832,7 @@ pub const TrailsRendererState = struct {
     }
 };
 
-pub const LightsBufferRendererState = struct {
+pub const LightsBufferRendererState = extern struct {
     renderableIndex: i32,
     globalUniqueId: i32,
     shadowStrength: f32,
@@ -3872,7 +3872,7 @@ pub const LightsBufferRendererState = struct {
     }
 };
 
-pub const RenderTransformOverrideState = struct {
+pub const RenderTransformOverrideState = extern struct {
     renderableIndex: i32,
     positionOverride: math.Vector3f,
     rotationOverride: math.Quaternionf,
@@ -3905,12 +3905,12 @@ pub const RenderTransformOverrideState = struct {
     }
 };
 
-pub const MaterialOverrideState = struct {
+pub const MaterialOverrideState = extern struct {
     materialSlotIndex: i32,
     materialAssetId: i32,
 };
 
-pub const RenderMaterialOverrideState = struct {
+pub const RenderMaterialOverrideState = extern struct {
     renderableIndex: i32,
     packedMeshRendererIndex: i32,
     materrialOverrideCount: i16,
@@ -3932,7 +3932,7 @@ pub const RenderMaterialOverrideState = struct {
     }
 };
 
-pub const BlitToDisplayState = struct {
+pub const BlitToDisplayState = extern struct {
     renderableIndex: i32,
     textureId: i32,
     backgroundColor: math.Vector4f,
@@ -3957,20 +3957,20 @@ pub const BlitToDisplayState = struct {
     }
 };
 
-pub const LODState = struct {
+pub const LODState = extern struct {
     screenRelativeTransitionHeight: f32,
     fadeTransitionWidth: f32,
     rendererCount: i32,
 };
 
-pub const LODGroupState = struct {
+pub const LODGroupState = extern struct {
     renderableIndex: i32,
     lodCount: i32,
     crossFade: bool,
     animateCrossFading: bool,
 };
 
-pub const GaussianSplatRendererState = struct {
+pub const GaussianSplatRendererState = extern struct {
     renderableIndex: i32,
     gaussianSplatAssetId: i32,
     sizeScale: f32,
@@ -4610,7 +4610,7 @@ pub const ViveHandState = struct {
     }
 };
 
-pub const HapticPointState = struct {
+pub const HapticPointState = extern struct {
     force: f32,
     temperature: f32,
     pain: f32,
@@ -4657,7 +4657,7 @@ pub const ShadowType = enum(u8) {
     Soft = 2,
 };
 
-pub const RenderRect = struct {
+pub const RenderRect = extern struct {
     x: f32,
     y: f32,
     width: f32,
