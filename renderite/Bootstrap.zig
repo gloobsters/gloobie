@@ -28,7 +28,7 @@ pub const ChildInfo = struct {
     queue_out: Queue,
     child: std.process.Child,
 
-    pub fn init(gpa: std.mem.Allocator) !ChildInfo {
+    pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !ChildInfo {
         log.info(@src(), "Bootstrapping Resonite...", .{});
         var prefix: [16]u8 = undefined;
         try initPrefix(&prefix);
@@ -52,7 +52,7 @@ pub const ChildInfo = struct {
             .side = .Publisher,
         });
 
-        const child = try startResonite(&prefix, gpa);
+        const child = try startResonite(&prefix, args, gpa);
 
         return .{
             .queue_in = queue_in,
@@ -86,8 +86,14 @@ pub fn init(
         // If the renderer is launching us directly, we need no special logic.
         return .initDirect(args, copy_callback, paste_callback);
     } else {
-        var child = try ChildInfo.init(gpa);
-        return .initBootstrap(&child, args, gpa, copy_callback, paste_callback);
+        var child = try ChildInfo.init(args, gpa);
+
+        const pid = switch (builtin.target.os.tag) {
+            .windows => std.os.windows.GetCurrentProcessId(),
+            else => std.os.linux.getpid(),
+        };
+
+        return .initBootstrap(&child, pid, gpa, copy_callback, paste_callback);
     }
 }
 
@@ -109,18 +115,11 @@ pub fn initDirect(
 
 pub fn initBootstrap(
     child: *ChildInfo,
-    args: []const []const u8,
+    pid: u32,
     gpa: std.mem.Allocator,
     copy_callback: CopyCallback,
     paste_callback: PasteCallback,
 ) !Bootstrap {
-    _ = args; // TODO: pass args to frooxengine
-
-    const pid = switch (builtin.target.os.tag) {
-        .windows => std.os.windows.GetCurrentProcessId(),
-        else => std.os.linux.getpid(),
-    };
-
     var msg_buf: [32]u8 = undefined;
     const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{pid});
 
@@ -175,7 +174,7 @@ const Commands = enum {
     SETTEXT,
 };
 
-fn receiverLoop(self: *Bootstrap, gpa: std.mem.Allocator) void {
+pub fn receiverLoop(self: *Bootstrap, gpa: std.mem.Allocator) void {
     var receive_arena_impl: std.heap.ArenaAllocator = .init(gpa);
     defer receive_arena_impl.deinit();
 
@@ -251,7 +250,8 @@ fn initPrefix(prefix: *[16]u8) !void {
     }
 }
 
-fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child {
+fn startResonite(prefix: []const u8, args: []const []const u8, gpa: std.mem.Allocator) !std.process.Child {
+    _ = args; // TODO: pass args into frooxengine
     const dotnet_path = switch (builtin.target.os.tag) {
         .windows => "dotnet", // dotnet runtime is globally installed on Windows
         else => "dotnet-runtime/dotnet",
