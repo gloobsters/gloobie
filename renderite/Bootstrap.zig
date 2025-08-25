@@ -117,6 +117,7 @@ pub fn initBootstrap(
     copy_callback: CopyCallback,
     paste_callback: PasteCallback,
 ) !Bootstrap {
+    std.debug.print("{any}\n", .{pid});
     var msg_buf: [32]u8 = undefined;
     const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{switch (@typeInfo(std.posix.pid_t)) {
         .pointer => @intFromPtr(pid),

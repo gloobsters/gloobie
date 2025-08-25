@@ -52,6 +52,14 @@ pub fn render() void {
     return c.igRender();
 }
 
+pub fn setNextWindowPos(pos: ImVec2) void {
+    return c.igSetNextWindowPos(pos, 0, .{ .x = 0, .y = 0 });
+}
+
+pub fn setNextWindowSize(size: ImVec2) void {
+    return c.igSetNextWindowSize(size, 0);
+}
+
 pub fn begin(name: [:0]const u8, open: *bool, flags: c.ImGuiWindowFlags) bool {
     return c.igBegin(name.ptr, open, flags);
 }
