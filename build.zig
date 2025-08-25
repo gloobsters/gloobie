@@ -767,6 +767,13 @@ pub fn build(b: *std.Build) !void {
         .use_llvm = build_options.use_llvm,
     });
 
+    const imgui_test_exe = b.addTest(.{
+        .name = "imgui",
+        .root_module = imgui_mod,
+        .use_lld = build_options.use_lld,
+        .use_llvm = build_options.use_llvm,
+    });
+
     const renderite_test_exe = b.addTest(.{
         .name = "renderite",
         .root_module = renderite_mod,
@@ -776,6 +783,9 @@ pub fn build(b: *std.Build) !void {
 
     const gloobie_test_exe_run = b.addRunArtifact(gloobie_test_exe);
     test_step.dependOn(&gloobie_test_exe_run.step);
+
+    const imgui_test_exe_run = b.addRunArtifact(imgui_test_exe);
+    test_step.dependOn(&imgui_test_exe_run.step);
 
     const renderite_test_exe_run = b.addRunArtifact(renderite_test_exe);
     test_step.dependOn(&renderite_test_exe_run.step);

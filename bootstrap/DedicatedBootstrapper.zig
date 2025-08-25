@@ -1,6 +1,7 @@
 const std = @import("std");
 const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
+const imgui = @import("imgui");
 const logger = @import("logger");
 
 const Manifest = @import("Manifest.zig");
@@ -9,30 +10,42 @@ const ParsedManifest = std.json.Parsed(Manifest);
 const DedicatedBootstrapper = @This();
 const log = logger.Scoped(.bootstrap);
 
-thread: std.Thread,
+engine_init_thread: std.Thread,
 ready_to_boot: bool,
 manifests: []ParsedManifest,
 
-pub fn run(args: []const []const u8, gpa: std.mem.Allocator) !DedicatedBootstrapper {
+pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !DedicatedBootstrapper {
     var bootstrapper: DedicatedBootstrapper = .{
         .ready_to_boot = false,
-        .thread = undefined,
+        .engine_init_thread = undefined,
         .manifests = undefined,
     };
 
     const thread = try std.Thread.spawn(.{}, bootstrapEngine, .{ &bootstrapper, args, gpa });
-    defer thread.join();
-
-    bootstrapper.thread = thread;
+    bootstrapper.engine_init_thread = thread;
 
     bootstrapper.manifests = try parseManifestFiles(gpa);
     for (bootstrapper.manifests) |manifest| {
         log.debug(@src(), "Read manifest: {f}", .{std.json.fmt(manifest.value, .{})});
     }
 
-    bootstrapper.ready_to_boot = true;
-
     return bootstrapper;
+}
+
+pub fn run(self: *DedicatedBootstrapper) !void {
+    const window = try sdl3.video.Window.init("title: [:0]const u8", 800, 600, .{});
+    defer window.deinit();
+    const renderer = try sdl3.render.Renderer.init(window, null);
+    defer renderer.deinit();
+
+    const imgui_ctx = try imgui.Context.create(null);
+    defer imgui_ctx.destroy();
+
+    imgui.sdl3.initForSdlRenderer(window, renderer);
+    imgui.sdl_renderer.init(renderer);
+
+    sdl3.render.Renderer.setVSync(renderer, .adaptive);
+    self.ready_to_boot = true;
 }
 
 fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: std.mem.Allocator) void {
@@ -45,15 +58,14 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
     const renderer_pid: u32 = 0;
 
     var bootstrap = renderite.Bootstrap.initBootstrap(&child, renderer_pid, gpa, copy, paste) catch @panic("Failed to bootstrap FrooxEngine");
-    _ = &bootstrap;
-    // bootstrap.receiverLoop(gpa);
+    bootstrap.receiverLoop(gpa);
 }
 
 fn parseManifestFiles(gpa: std.mem.Allocator) ![]ParsedManifest {
     const cwd = std.fs.cwd();
     try cwd.makePath("Renderers");
 
-    const renderers_dir = try cwd.openDir("Renderers", .{ .iterate = true });
+    var renderers_dir = try cwd.openDir("Renderers", .{ .iterate = true });
     defer renderers_dir.close();
     var iterator = renderers_dir.iterateAssumeFirstIteration();
 

@@ -1,6 +1,7 @@
 const std = @import("std");
-const build_options = @import("options").build_options;
 const logger = @import("logger");
+const sdl3 = @import("sdl3");
+const build_options = @import("options").build_options;
 
 const log = logger.Scoped(.main);
 
@@ -32,7 +33,18 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(gpa);
     defer std.process.argsFree(gpa, args);
 
-    var bootstrapper = try DedicatedBootstrapper.run(args, gpa);
+    try sdl3.init(.{
+        .video = true,
+    });
+    defer sdl3.shutdown();
+    defer if (sdl3.getNumAllocations()) |num_allocations| {
+        if (num_allocations > 0) {
+            std.debug.panic("SDL memory leak! {d} outstanding allocations.", .{num_allocations});
+        }
+    };
+
+    var bootstrapper = try DedicatedBootstrapper.init(args, gpa);
+    defer bootstrapper.engine_init_thread.join();
     defer bootstrapper.deinit(gpa);
 
     log.info(@src(), "Bootstrapper exiting", .{});

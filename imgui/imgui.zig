@@ -103,6 +103,11 @@ pub const sdl3 = struct {
         return if (c.ImGui_ImplSDL3_InitForOther(@ptrCast(window.value))) {} else error.FailedToInitSdl3Backend;
     }
 
+    pub fn initForSdlRenderer(window: sdl3_t.video.Window, renderer: sdl3_t.render.Renderer) !void {
+        // SAFETY: These should be compatible values of "window" and "renderer"
+        return if (c.ImGui_ImplSDL3_InitForSDLRenderer(@ptrCast(window.value), @ptrCast(renderer.value))) {} else error.FailedToInitSdl3Backend;
+    }
+
     pub fn shutdown() void {
         c.ImGui_ImplSDL3_Shutdown();
     }
@@ -159,3 +164,29 @@ pub const gpu = struct {
         );
     }
 };
+
+pub const sdl_renderer = struct {
+    pub fn init(renderer: sdl3_t.render.Renderer) !void {
+        // SAFETY: These should be compatible values of "renderer"
+        return if (c.ImGui_ImplSDLRenderer3_Init(@ptrCast(renderer.value))) {} else error.FailedToInitSdlRenderer3Backend;
+    }
+
+    pub fn shutdown() void {
+        c.ImGui_ImplSDLRenderer3_Shutdown();
+    }
+
+    pub fn newFrame() void {
+        c.ImGui_ImplSDLRenderer3_NewFrame();
+    }
+
+    pub fn renderDrawData(draw_data: *c.ImDrawData, renderer: sdl3_t.render.Renderer) !void {
+        // SAFETY: These should be compatible values of "renderer"
+        c.ImGui_ImplSDLRenderer3_RenderDrawData(draw_data, @ptrCast(renderer));
+    }
+};
+
+test {
+    std.testing.refAllDecls(sdl3);
+    std.testing.refAllDecls(gpu);
+    std.testing.refAllDecls(sdl_renderer);
+}
