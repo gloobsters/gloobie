@@ -212,7 +212,7 @@ fn meshRendererFinishUpdates(
         mesh_renderer.shared.shadow_cast_mode = mesh_renderer_state.shadowCastMode;
         mesh_renderer.shared.motion_vector_mode = mesh_renderer_state.motionVectorMode;
         // SAFETY: unity defines this to be within a 16-bit signed integer range, so let's cast directly down to that
-        mesh_renderer.shared.sorting_order = @intCast(mesh_renderer_state.sortingOrder);
+        mesh_renderer.shared.sorting_order = std.math.lossyCast(i16, mesh_renderer_state.sortingOrder);
 
         // fill out materials and property blocks
         if (mesh_renderer_state.materialCount >= 0) {
