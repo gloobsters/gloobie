@@ -113,13 +113,15 @@ pub fn FenceManager(comptime FenceHandlers: []const type) type {
             for (self.entries.items) |entry| {
                 defer self.device.releaseFence(entry.fence);
 
-                // deinit the handler
-                switch (entry.handler) {
-                    inline else => |handler| {
-                        const Handler = @TypeOf(handler);
+                if (FenceHandlers.len > 0) {
+                    // deinit the handler
+                    switch (entry.handler) {
+                        inline else => |handler| {
+                            const Handler = @TypeOf(handler);
 
-                        Handler.deinit_function(handler.context);
-                    },
+                            Handler.deinit_function(handler.context);
+                        },
+                    }
                 }
             }
 
@@ -147,14 +149,16 @@ pub fn FenceManager(comptime FenceHandlers: []const type) type {
                 if (self.device.queryFence(entry.fence)) {
                     defer self.device.releaseFence(entry.fence);
 
-                    switch (entry.handler) {
-                        inline else => |handler| {
-                            const Handler = @TypeOf(handler);
+                    if (FenceHandlers.len > 0) {
+                        switch (entry.handler) {
+                            inline else => |handler| {
+                                const Handler = @TypeOf(handler);
 
-                            defer Handler.deinit_function(handler.context);
+                                defer Handler.deinit_function(handler.context);
 
-                            try Handler.function(handler.context);
-                        },
+                                try Handler.function(handler.context);
+                            },
+                        }
                     }
 
                     _ = self.entries.orderedRemove(i);
@@ -173,54 +177,57 @@ pub const FrameContext = struct {
     copy_pass: ?gpu.CopyPass,
     transfer_buffer_pool: *TransferBufferPool,
     assets: *Assets,
-    texture_readiness_queue: std.ArrayListUnmanaged(Assets.TextureHandle),
+    texture_readiness_queue: std.ArrayListUnmanaged(struct { handle: Assets.TextureHandle, nonce: u64 }),
+    mesh_readiness_queue: std.ArrayListUnmanaged(struct { handle: Assets.Id, nonce: u64 }),
     main_thread: bool,
     fence_manager: *App.FenceManager,
     messaging_host: *App.MessagingHost,
     arena: std.mem.Allocator,
+    upload_nonce: *std.atomic.Value(u64),
 
     pub fn initMain(
-        device: gpu.Device,
-        transfer_buffer_pool: *TransferBufferPool,
-        assets: *Assets,
+        app: *App,
         command_buffer: gpu.CommandBuffer,
-        fence_manager: *App.FenceManager,
-        messaging_host: *App.MessagingHost,
         arena: std.mem.Allocator,
     ) FrameContext {
         return .{
-            .device = device,
+            .device = app.graphics_data.device,
             .command_buffer = command_buffer,
             .copy_pass = null,
-            .transfer_buffer_pool = transfer_buffer_pool,
-            .assets = assets,
+            .transfer_buffer_pool = &app.graphics_data.transfer_buffer_pool,
+            .assets = &app.assets,
             .texture_readiness_queue = .empty,
+            .mesh_readiness_queue = .empty,
             .main_thread = true,
-            .fence_manager = fence_manager,
-            .messaging_host = messaging_host,
+            .fence_manager = &app.graphics_data.fence_manager,
+            .messaging_host = &app.messaging.host,
             .arena = arena,
+            .upload_nonce = &app.graphics_data.upload_nonce,
         };
     }
 
+    pub fn deinit(self: *FrameContext, gpa: std.mem.Allocator) void {
+        self.texture_readiness_queue.deinit(gpa);
+        self.mesh_readiness_queue.deinit(gpa);
+    }
+
     pub fn init(
-        device: gpu.Device,
-        transfer_buffer_pool: *TransferBufferPool,
-        assets: *Assets,
-        fence_manager: *App.FenceManager,
-        messaging_host: *App.MessagingHost,
+        app: *App,
         arena: std.mem.Allocator,
     ) FrameContext {
         return .{
-            .device = device,
+            .device = app.graphics_data.device,
             .command_buffer = null,
             .copy_pass = null,
-            .transfer_buffer_pool = transfer_buffer_pool,
-            .assets = assets,
+            .transfer_buffer_pool = &app.graphics_data.transfer_buffer_pool,
+            .assets = &app.assets,
             .texture_readiness_queue = .empty,
+            .mesh_readiness_queue = .empty,
             .main_thread = false,
-            .fence_manager = fence_manager,
-            .messaging_host = messaging_host,
+            .fence_manager = &app.graphics_data.fence_manager,
+            .messaging_host = &app.messaging.host,
             .arena = arena,
+            .upload_nonce = &app.graphics_data.upload_nonce,
         };
     }
 
@@ -257,6 +264,35 @@ pub const FrameContext = struct {
         return self.copy_pass != null;
     }
 
+    pub fn pushReadyAssets(self: *FrameContext, gpa: std.mem.Allocator) !void {
+        // if we have textures that will be ready after this data is submit, mark them as ready now, all future passes will have access
+        for (self.texture_readiness_queue.items) |ready_texture| {
+            // Ignore textures that have been deleted
+            const texture = self.assets.textures.getPtr(ready_texture.handle) orelse continue;
+
+            if (texture.graphics_data) |*graphics_data| {
+                // Ignore textures that have been changed since!
+                if (graphics_data.upload_nonce != ready_texture.nonce) {
+                    continue;
+                }
+
+                graphics_data.ready = true;
+            }
+        }
+
+        for (self.mesh_readiness_queue.items) |ready_mesh| {
+            // Ignore textures that have been deleted
+            const mesh = self.assets.meshes.getPtr(ready_mesh.handle) orelse continue;
+
+            if (mesh.upload_nonce == ready_mesh.nonce) {
+                mesh.ready = true;
+            }
+        }
+
+        self.texture_readiness_queue.clearAndFree(gpa);
+        self.mesh_readiness_queue.clearAndFree(gpa);
+    }
+
     pub fn end(self: *FrameContext, gpa: std.mem.Allocator) !void {
         defer self.texture_readiness_queue.clearAndFree(gpa);
 
@@ -264,35 +300,16 @@ pub const FrameContext = struct {
             copy_pass.end();
         }
 
-        // we don't submit the main thread's command buffer!
         if (self.main_thread) {
-            if (self.texture_readiness_queue.items.len > 0) {
-                // on the main thread, this copy pass is guarenteed to end before any render pass takes place, so let's do it immediately
-                try Assets.TextureReadyFenceHandler.function(.{
-                    .gpa = gpa,
-                    .assets = self.assets,
-                    .textures = self.texture_readiness_queue.items,
-                });
-            }
+            // we don't submit the main thread's command buffer!
         } else if (self.command_buffer) |command_buffer| {
             if (self.commandBufferUsed()) {
-                // if we have textures that will be ready after this data is submit,
-                // then we need to acquire the fence and ship it off to the asset manager so it gets polled by the main thread
-                if (self.texture_readiness_queue.items.len > 0) {
-                    const fence = try command_buffer.submitAndAcquireFence();
-                    errdefer self.device.releaseFence(fence);
+                self.assets.lock.lock();
+                defer self.assets.lock.unlock();
 
-                    const textures = try self.texture_readiness_queue.toOwnedSlice(gpa);
-                    errdefer gpa.free(textures);
+                try command_buffer.submit();
 
-                    try self.fence_manager.enqueue(gpa, fence, Assets.TextureReadyFenceHandler, .{
-                        .gpa = gpa,
-                        .assets = self.assets,
-                        .textures = textures,
-                    });
-                } else {
-                    try command_buffer.submit();
-                }
+                try self.pushReadyAssets(gpa);
             } else {
                 try command_buffer.cancel();
             }

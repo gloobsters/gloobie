@@ -24,6 +24,7 @@ const GraphicsData = struct {
     binding: gpu.TextureSamplerBinding,
     /// Stores whether a mipmap has data, all mipmaps must have valid data before texture can be used
     data_available: []bool,
+    upload_nonce: u64,
     ready: bool,
 
     pub fn deinit(self: GraphicsData, gpa: std.mem.Allocator, device: gpu.Device) void {
@@ -233,6 +234,7 @@ pub fn setFormat2d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         },
         .data_available = data_available,
         .ready = false,
+        .upload_nonce = 0,
     };
 
     try frame_context.messaging_host.background.sendTimeout(.{
@@ -315,6 +317,7 @@ pub fn setFormat3d(self: *Texture, gpa: std.mem.Allocator, frame_context: *graph
         },
         .data_available = data_available,
         .ready = false,
+        .upload_nonce = 0,
     };
 
     try frame_context.messaging_host.background.sendTimeout(.{
@@ -401,6 +404,7 @@ pub fn setFormatCubemap(self: *Texture, gpa: std.mem.Allocator, frame_context: *
         },
         .data_available = data_available,
         .ready = false,
+        .upload_nonce = 0,
     };
 
     try frame_context.messaging_host.background.sendTimeout(.{
@@ -525,9 +529,16 @@ pub fn setData2d(
         }
 
         if (all_ready) {
+            const nonce = frame_context.upload_nonce.fetchAdd(1, .seq_cst);
+
+            graphics_data.upload_nonce = nonce;
+
             try frame_context.texture_readiness_queue.append(gpa, .{
-                .id = .from(data.assetId),
-                .type = .Texture2D,
+                .nonce = nonce,
+                .handle = .{
+                    .id = .from(data.assetId),
+                    .type = .Texture2D,
+                },
             });
         }
     }
@@ -608,9 +619,16 @@ pub fn setData3d(
 
     try frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry);
 
+    const nonce = frame_context.upload_nonce.fetchAdd(1, .seq_cst);
+
+    graphics_data.upload_nonce = nonce;
+
     try frame_context.texture_readiness_queue.append(gpa, .{
-        .id = .from(data.assetId),
-        .type = .Texture3D,
+        .handle = .{
+            .id = .from(data.assetId),
+            .type = .Texture3D,
+        },
+        .nonce = nonce,
     });
     try frame_context.messaging_host.background.sendTimeout(.{
         .SetTexture3DResult = .{
@@ -765,9 +783,16 @@ pub fn setDataCubemap(
         }
 
         if (all_ready) {
+            const nonce = frame_context.upload_nonce.fetchAdd(1, .seq_cst);
+
+            graphics_data.upload_nonce = nonce;
+
             try frame_context.texture_readiness_queue.append(gpa, .{
-                .id = .from(data.assetId),
-                .type = .Cubemap,
+                .handle = .{
+                    .id = .from(data.assetId),
+                    .type = .Cubemap,
+                },
+                .nonce = nonce,
             });
         }
     }

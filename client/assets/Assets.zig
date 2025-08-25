@@ -20,33 +20,6 @@ pub const TextureHandle = packed struct(u64) {
     type: Texture.Type,
 };
 
-const TextureReadyFenceHandlerContext = struct {
-    gpa: std.mem.Allocator,
-    assets: *Assets,
-    textures: []const TextureHandle,
-};
-
-fn textureReadyHandler(context: TextureReadyFenceHandlerContext) !void {
-    context.assets.lock.lock();
-    defer context.assets.lock.unlock();
-
-    for (context.textures) |texture_info| {
-        // SAFETY: textures should never be de-init by this moment!
-        const texture = context.assets.textures.getPtr(texture_info).?;
-
-        // SAFETY: texture should have graphics data right now!
-        texture.graphics_data.?.ready = true;
-
-        log.debug(@src(), "{s} {d} is now ready!", .{ @tagName(texture_info.type), texture_info.id.to() });
-    }
-}
-
-fn deinitTextureReadyHandler(context: TextureReadyFenceHandlerContext) void {
-    context.gpa.free(context.textures);
-}
-
-pub const TextureReadyFenceHandler = graphics.FenceHandler(TextureReadyFenceHandlerContext, textureReadyHandler, deinitTextureReadyHandler, "texture_ready_handler");
-
 lock: std.Thread.RwLock,
 textures: std.AutoHashMapUnmanaged(TextureHandle, Texture),
 meshes: std.AutoHashMapUnmanaged(Id, Mesh),

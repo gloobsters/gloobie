@@ -38,7 +38,7 @@ const XrData = struct {
     }
 };
 
-pub const FenceManager = graphics.FenceManager(&.{Assets.TextureReadyFenceHandler});
+pub const FenceManager = graphics.FenceManager(&.{});
 
 const GraphicsData = struct {
     device: gpu.Device,
@@ -53,6 +53,8 @@ const GraphicsData = struct {
     fence_manager: FenceManager,
 
     window_test_pipeline: GraphicsPipeline,
+
+    upload_nonce: std.atomic.Value(u64),
 
     pub fn deinit(
         self: *GraphicsData,
@@ -413,6 +415,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .window_test_pipeline = window_test_pipeline,
             .depth_texture = null,
             .depth_texture_size = .{ .x = 0, .y = 0 },
+            .upload_nonce = .init(0),
         };
     };
     errdefer graphics_data.deinit(gpa);
@@ -847,14 +850,9 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
             var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
             defer arena_impl.deinit();
 
-            var frame_context: graphics.FrameContext = .init(
-                self.graphics_data.device,
-                &self.graphics_data.transfer_buffer_pool,
-                &self.assets,
-                &self.graphics_data.fence_manager,
-                &self.messaging.host,
-                arena_impl.allocator(),
-            );
+            var frame_context: graphics.FrameContext = .init(self, arena_impl.allocator());
+            defer frame_context.deinit(self.gpa);
+
             defer frame_context.end(self.gpa) catch |err| std.debug.panic("Failed to end frame context: {s}", .{@errorName(err)});
 
             self.handleRendererCommand(message, &frame_context, queue_type) catch |err| {
@@ -958,14 +956,8 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
     var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
     defer arena_impl.deinit();
 
-    var frame_context: graphics.FrameContext = .init(
-        self.graphics_data.device,
-        &self.graphics_data.transfer_buffer_pool,
-        &self.assets,
-        &self.graphics_data.fence_manager,
-        &self.messaging.host,
-        arena_impl.allocator(),
-    );
+    var frame_context: graphics.FrameContext = .init(self, arena_impl.allocator());
+    defer frame_context.deinit(self.gpa);
 
     // SAFETY: only this message should be sent to the engine thread
     const frame_submit_data = message.command.FrameSubmitData;
@@ -1276,18 +1268,10 @@ pub fn frameLoop(self: *App) !void {
         try self.graphics_data.fence_manager.tick();
 
         const command_buffer = try self.graphics_data.device.acquireCommandBuffer();
+        var frame_context: graphics.FrameContext = .initMain(self, command_buffer, arena);
+        defer frame_context.deinit(self.gpa);
 
         {
-            var frame_context: graphics.FrameContext = .initMain(
-                self.graphics_data.device,
-                &self.graphics_data.transfer_buffer_pool,
-                &self.assets,
-                command_buffer,
-                &self.graphics_data.fence_manager,
-                &self.messaging.host,
-                arena,
-            );
-
             const swapchain_texture_result = acquire_swapchain_texture: {
                 const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
                 defer trace.end();
@@ -1438,7 +1422,14 @@ pub fn frameLoop(self: *App) !void {
             const trace = tracy.traceNamed(@src(), "Submit Command Buffer");
             defer trace.end();
 
+            // lock assets in preparation to upload
+            self.assets.lock.lock();
+            defer self.assets.lock.unlock();
+
             try command_buffer.submit();
+
+            // Now that command buffers are submit, we need to update the readyness states
+            try frame_context.pushReadyAssets(self.gpa);
         }
 
         self.graphics_data.transfer_buffer_pool.frameTick();

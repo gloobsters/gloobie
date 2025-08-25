@@ -105,6 +105,11 @@ mesh_layout: MeshLayout,
 /// Contains all the data related to skinning this mesh
 skinning_data: SkinningData,
 
+/// Whether or not this is ready for use
+ready: bool,
+/// The upload nonce unique for this upload
+upload_nonce: u64,
+
 /// Creates a new mesh with some starting data
 pub fn init(
     gpa: std.mem.Allocator,
@@ -129,6 +134,8 @@ pub fn init(
             .weights_start_idx = 0,
             .blendshape_buffer = null,
         },
+        .ready = false,
+        .upload_nonce = 0,
     };
 
     try mesh.setData(gpa, frame_context, accessor, data_request);
@@ -611,6 +618,8 @@ pub fn setData(
         },
     }, std.time.ns_per_s * 10);
 
+    const nonce = frame_context.upload_nonce.fetchAdd(1, .seq_cst);
+
     self.* = .{
         .vertex_buffer = vertex_upload[0],
         .vertex_buffer_capacity = vertex_upload[1],
@@ -620,7 +629,14 @@ pub fn setData(
         .submeshes = submeshes,
         .mesh_layout = mesh_layout,
         .skinning_data = skinning_data,
+        .ready = false,
+        .upload_nonce = nonce,
     };
+
+    try frame_context.mesh_readiness_queue.append(gpa, .{
+        .handle = .from(data_request.assetId),
+        .nonce = nonce,
+    });
 }
 
 pub fn deinit(self: Mesh, gpa: std.mem.Allocator, device: gpu.Device) void {

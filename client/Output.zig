@@ -81,7 +81,7 @@ fn renderSharedMeshRenderer(
     }
 
     const mesh = assets.meshes.get(mesh_renderer.mesh) orelse return;
-    if (mesh.vertex_buffer == null or mesh.index_buffer == null) {
+    if (mesh.vertex_buffer == null or mesh.index_buffer == null or !mesh.ready) {
         return;
     }
 
