@@ -1,10 +1,12 @@
 const std = @import("std");
-const renderite = @import("renderite");
-const sdl3 = @import("sdl3");
+
 const imgui = @import("imgui");
 const logger = @import("logger");
+const renderite = @import("renderite");
+const sdl3 = @import("sdl3");
 
 const Manifest = @import("Manifest.zig");
+
 const ParsedManifest = std.json.Parsed(Manifest);
 
 const DedicatedBootstrapper = @This();
@@ -55,7 +57,7 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
         std.Thread.sleep(100 * std.time.ns_per_ms);
     }
 
-    const renderer_pid: u32 = 0;
+    const renderer_pid: std.posix.pid_t = undefined;
 
     var bootstrap = renderite.Bootstrap.initBootstrap(&child, renderer_pid, gpa, copy, paste) catch @panic("Failed to bootstrap FrooxEngine");
     bootstrap.receiverLoop(gpa);

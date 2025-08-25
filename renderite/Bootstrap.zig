@@ -88,10 +88,7 @@ pub fn init(
     } else {
         var child = try ChildInfo.init(args, gpa);
 
-        const pid = switch (builtin.target.os.tag) {
-            .windows => std.os.windows.GetCurrentProcessId(),
-            else => std.os.linux.getpid(),
-        };
+        const pid = std.c.getpid();
 
         return .initBootstrap(&child, pid, gpa, copy_callback, paste_callback);
     }
@@ -115,13 +112,16 @@ pub fn initDirect(
 
 pub fn initBootstrap(
     child: *ChildInfo,
-    pid: u32,
+    pid: std.posix.pid_t,
     gpa: std.mem.Allocator,
     copy_callback: CopyCallback,
     paste_callback: PasteCallback,
 ) !Bootstrap {
     var msg_buf: [32]u8 = undefined;
-    const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{pid});
+    const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{switch (@typeInfo(std.posix.pid_t)) {
+        .pointer => @intFromPtr(pid),
+        else => pid,
+    }});
 
     log.trace(@src(), "Sending init message: {s}", .{msg});
     try child.queue_out.enqueue(msg);
