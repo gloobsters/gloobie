@@ -18,10 +18,12 @@ This also covers how bootstrappers should implement things when reading them.
 
 "Bootstrapper" refers to a program that starts both FrooxEngine and a Renderer.
 
-## Location and naming
+## Location, format, and naming
 
 The renderer manifest file is a JSON file with the extension of ".renderer.json". It MUST placed in a folder under Resonite's installation directory named "Renderers".
 As an example, Gloobie's manifest is stored as "Renderers/Gloobie.renderer.json".
+
+This file and the contents within MUST be encoded as either UTF-8 or WTF-8, with no Byte Order Mark (BOM).
 
 ## Versioning
 
@@ -40,15 +42,36 @@ The bootstrapper MAY warn the user if the manifest version is higher than expect
 
 The word `optional` below means that the field MAY be excluded or left as `null`. A RECOMMENDED fallback path is provided for these fields.
 
-### Version 1
+## Version 1
 
-`string` `name`: A user-friendly name of the renderer. This can be any text, but MUST NOT be over 64 bytes.
-Example: `Gloobie`
+### `string` `name`
 
-`string` `winExecutablePath`: The path to the renderer to run on Windows. This SHOULD be relative to the Installation Directory, but MAY be a full path for the purposes of development.
-Example: `Renderers/Gloobie/Gloobie.exe`
+A user-friendly name of the renderer. This can be any text, but MUST NOT be over 64 bytes.
 
-`string` `unixExecutablePath`: The path to the renderer to run on Linux/Mac/other unix-like platforms. This SHOULD be relative to the Installation Directory, but MAY be a full path for the purposes of development.
-Example: `Renderers/Gloobie/Renderite.Gloobie`
+Example: `"Gloobie"`
 
-`optional` `bool` `runInWine`: When true on unix-like platforms, the Renderer should be executed under a Wine context. Default: `false`
+### `string` `winExecutablePath`
+
+The path to the renderer to run on Windows.
+
+This SHOULD be relative to the Installation Directory, but MAY be a full path for the purposes of development.
+
+This path MUST be a valid UTF-8/WTF-8 sequence that when represented as WTF-16 does not exceed the maximum path length on Windows.
+
+Example: `"Renderers/Gloobie/Gloobie.exe"`
+
+### `string` `unixExecutablePath`
+
+The path to the renderer to run on Linux/Mac/other unix-like platforms.
+
+This SHOULD be relative to the Installation Directory, but MAY be a full path for the purposes of development.
+
+This path MUST be a valid UTF-8/WTF-8 sequence, and the length when represented as bytes MUST not exceed the maximum path length on Linux.
+
+Example: `"Renderers/Gloobie/Renderite.Gloobie"`
+
+### `optional` `bool` `runInWine`
+
+When true on unix-like platforms, the Renderer should be executed under a Wine context. 
+
+Default: `false`
