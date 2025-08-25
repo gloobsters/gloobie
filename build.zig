@@ -543,7 +543,7 @@ pub fn build(b: *std.Build) !void {
     const zinterprocess_mod = create_zinterprocess_mod: {
         const zinterprocess_root = b.path("zinterprocess/");
 
-        const zinterprocess_mod = b.createModule(.{
+        const zinterprocess_mod = b.addModule("zinterprocess", .{
             .target = target,
             .optimize = optimize,
 
