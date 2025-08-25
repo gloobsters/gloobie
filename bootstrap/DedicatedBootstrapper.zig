@@ -14,11 +14,13 @@ const log = logger.Scoped(.bootstrap);
 
 engine_init_thread: std.Thread,
 ready_to_boot: bool,
+shutdown: bool,
 manifests: []ParsedManifest,
 
 pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !DedicatedBootstrapper {
     var bootstrapper: DedicatedBootstrapper = .{
         .ready_to_boot = false,
+        .shutdown = false,
         .engine_init_thread = undefined,
         .manifests = undefined,
     };
@@ -40,20 +42,58 @@ pub fn run(self: *DedicatedBootstrapper) !void {
     const renderer = try sdl3.render.Renderer.init(window, null);
     defer renderer.deinit();
 
+    try sdl3.render.Renderer.setVSync(renderer, .{ .on_each_num_refresh = 1 });
+
     const imgui_ctx = try imgui.Context.create(null);
     defer imgui_ctx.destroy();
 
-    imgui.sdl3.initForSdlRenderer(window, renderer);
-    imgui.sdl_renderer.init(renderer);
+    try imgui.sdl3.initForSdlRenderer(window, renderer);
+    defer imgui.sdl3.shutdown();
 
-    sdl3.render.Renderer.setVSync(renderer, .adaptive);
-    self.ready_to_boot = true;
+    try imgui.sdl_renderer.init(renderer);
+    defer imgui.sdl_renderer.shutdown();
+
+    while (!self.shutdown) {
+        try self.frame(renderer);
+    }
+
+    self.ready_to_boot = false; // true
+}
+
+fn frame(self: *DedicatedBootstrapper, renderer: sdl3.render.Renderer) !void {
+    while (sdl3.events.poll()) |event| {
+        _ = imgui.sdl3.processEvent(event);
+        switch (event) {
+            inline .quit, .window_close_requested => {
+                self.shutdown = true;
+            },
+            // .window_close_requested => |window| if (window.id == self.window.window.getId() catch unreachable) {
+            //     self.window_open = false;
+            // },
+            else => {},
+        }
+    }
+
+    imgui.sdl_renderer.newFrame();
+    imgui.sdl3.newFrame();
+    imgui.newFrame();
+
+    var b = true;
+    imgui.showDemoWindow(&b);
+
+    imgui.render();
+    try renderer.clear();
+    try imgui.sdl_renderer.renderDrawData(imgui.getDrawData(), renderer);
+    try renderer.present();
 }
 
 fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: std.mem.Allocator) void {
     var child = renderite.Bootstrap.ChildInfo.init(args, gpa) catch @panic("Failed to start FrooxEngine");
 
     while (!self.ready_to_boot) {
+        if (self.shutdown)
+            return;
+
         std.Thread.sleep(100 * std.time.ns_per_ms);
     }
 

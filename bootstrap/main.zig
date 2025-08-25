@@ -30,6 +30,8 @@ pub fn main() !void {
     try logger.init(env_vars, default_log_level);
     defer logger.deinit();
 
+    sdl3.errors.error_callback = sdl3ErrorCallback;
+
     const args = try std.process.argsAlloc(gpa);
     defer std.process.argsFree(gpa, args);
 
@@ -44,8 +46,17 @@ pub fn main() !void {
     };
 
     var bootstrapper = try DedicatedBootstrapper.init(args, gpa);
-    defer bootstrapper.engine_init_thread.join();
+    try bootstrapper.run();
+    defer {
+        log.debug(@src(), "Waiting for engine init thread to exit...", .{});
+        bootstrapper.engine_init_thread.join();
+        log.debug(@src(), "Engine init thread exited", .{});
+    }
     defer bootstrapper.deinit(gpa);
 
     log.info(@src(), "Bootstrapper exiting", .{});
+}
+
+fn sdl3ErrorCallback(err: ?[:0]const u8) void {
+    log.err(@src(), "Got SDL error {?s}", .{err});
 }

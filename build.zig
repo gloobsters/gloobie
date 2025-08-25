@@ -589,6 +589,7 @@ pub fn build(b: *std.Build) !void {
             .imports = &.{
                 .{ .name = "sdl3", .module = sdl3_mod },
                 .{ .name = "gpu", .module = gpu_mod },
+                .{ .name = "imgui", .module = imgui_mod },
                 .{ .name = "renderite", .module = renderite_mod },
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
                 .{ .name = "options", .module = options_module },
