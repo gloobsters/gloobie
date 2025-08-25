@@ -499,6 +499,7 @@ pub fn build(b: *std.Build) !void {
                 "cimgui.cpp",
                 "imgui_impl_gpu.cpp",
                 "imgui_impl_sdl3.cpp",
+                "imgui_impl_sdlrenderer3.cpp",
             },
             .language = .cpp,
             .flags = cpp_flags,

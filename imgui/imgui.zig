@@ -181,7 +181,7 @@ pub const sdl_renderer = struct {
 
     pub fn renderDrawData(draw_data: *c.ImDrawData, renderer: sdl3_t.render.Renderer) !void {
         // SAFETY: These should be compatible values of "renderer"
-        c.ImGui_ImplSDLRenderer3_RenderDrawData(draw_data, @ptrCast(renderer));
+        c.ImGui_ImplSDLRenderer3_RenderDrawData(draw_data, @ptrCast(renderer.value));
     }
 };
 
