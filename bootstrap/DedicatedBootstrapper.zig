@@ -16,6 +16,7 @@ engine_init_thread: std.Thread,
 ready_to_boot: bool,
 shutdown: bool,
 manifests: []ParsedManifest,
+selected_manifest_idx: i32,
 
 pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !DedicatedBootstrapper {
     var bootstrapper: DedicatedBootstrapper = .{
@@ -23,6 +24,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !DedicatedBootstra
         .shutdown = false,
         .engine_init_thread = undefined,
         .manifests = undefined,
+        .selected_manifest_idx = 0,
     };
 
     const thread = try std.Thread.spawn(.{}, bootstrapEngine, .{ &bootstrapper, args, gpa });
@@ -81,10 +83,34 @@ fn frame(self: *DedicatedBootstrapper, renderer: sdl3.render.Renderer) !void {
     var b = true;
     imgui.showDemoWindow(&b);
 
+    self.selectionWindow();
+
     imgui.render();
     try renderer.clear();
     try imgui.sdl_renderer.renderDrawData(imgui.getDrawData(), renderer);
     try renderer.present();
+}
+
+fn selectionWindow(self: *DedicatedBootstrapper) void {
+    var open = true;
+    const draw = imgui.begin("Select Renderer", &open, 0);
+    defer imgui.end();
+    if (!draw) return;
+
+    for (self.manifests, 0..) |manifest, i| {
+        _ = imgui.radioButton(manifest.value.name, &self.selected_manifest_idx, @intCast(i));
+    }
+
+    imgui.separator();
+    if (imgui.button("OK")) {
+        self.shutdown = true;
+        self.ready_to_boot = true;
+    }
+    imgui.sameLine();
+    if (imgui.button("Cancel")) {
+        self.shutdown = true;
+        self.ready_to_boot = false;
+    }
 }
 
 fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: std.mem.Allocator) void {

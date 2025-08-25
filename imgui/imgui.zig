@@ -68,12 +68,24 @@ pub fn separator() void {
     return c.igSeparator();
 }
 
+pub fn sameLine() void {
+    return c.igSameLine(0, -1);
+}
+
 pub fn text(str: [:0]const u8) void {
     return c.igText(str.ptr);
 }
 
 pub fn progressBar(fraction: f32, size_arg: ImVec2, overlay: [:0]const u8) void {
     return c.igProgressBar(fraction, size_arg, overlay.ptr);
+}
+
+pub fn radioButton(label: [:0]const u8, v: *i32, v_button: i32) bool {
+    return c.igRadioButton_IntPtr(label, v, v_button);
+}
+
+pub fn button(label: [:0]const u8) bool {
+    return c.igButton(label, .{ .x = 0, .y = 0 });
 }
 
 pub fn getDrawData() *DrawData {
@@ -186,6 +198,7 @@ pub const sdl_renderer = struct {
 };
 
 test {
+    std.testing.refAllDecls(@This());
     std.testing.refAllDecls(sdl3);
     std.testing.refAllDecls(gpu);
     std.testing.refAllDecls(sdl_renderer);
