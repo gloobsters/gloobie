@@ -228,8 +228,8 @@ pub fn renderScene(
 
     defer self.views.clearRetainingCapacity();
 
-    app.game.render_spaces_lock.lock();
-    defer app.game.render_spaces_lock.unlock();
+    app.game.render_spaces_lock.lockShared();
+    defer app.game.render_spaces_lock.unlockShared();
 
     app.assets.lock.lockShared();
     defer app.assets.lock.unlockShared();

@@ -173,7 +173,7 @@ const GameData = struct {
 
     displays: std.ArrayListUnmanaged(renderite.shared.DisplayState),
 
-    render_spaces_lock: std.Thread.Mutex,
+    render_spaces_lock: std.Thread.RwLock,
     render_spaces: std.AutoArrayHashMapUnmanaged(RenderSpace.Id, RenderSpace),
 
     input: Input,
@@ -889,13 +889,20 @@ pub fn sendLetterToEngine(self: *App, letter: ToEngineLetter) !void {
     try self.game.to_engine_mailbox.send(envelope);
 }
 
-fn updateRenderSpaces(self: *App, updates: []const renderite.shared.RenderSpaceUpdate) !void {
+fn updateRenderSpaces(
+    self: *App,
+    frame_context: *graphics.FrameContext,
+    updates: []const renderite.shared.RenderSpaceUpdate,
+) !void {
     self.game.render_spaces_lock.lock();
     defer self.game.render_spaces_lock.unlock();
 
     for (self.game.render_spaces.values()) |*render_space| {
         render_space.clearUpdated();
     }
+
+    self.assets.lock.lockShared();
+    defer self.assets.lock.unlockShared();
 
     // SAFETY: messaging accessor should always be available by now!
     const accessor = &self.messaging.accessor.?;
@@ -914,7 +921,7 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.shared.RenderSpaceU
             break :create_render_space self.game.render_spaces.getPtr(.from(update.id)).?;
         };
 
-        try render_space.handleUpdate(self.gpa, self.graphics_data.device, accessor, update);
+        try render_space.handleUpdateLocked(self.gpa, frame_context, accessor, update);
 
         if (render_space.properties.active and !render_space.properties.overlay) {
             if (active_render_space != .invalid) {
@@ -947,6 +954,18 @@ fn updateRenderSpaces(self: *App, updates: []const renderite.shared.RenderSpaceU
 fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !void {
     defer message.arena.deinit();
 
+    var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
+    defer arena_impl.deinit();
+
+    var frame_context: graphics.FrameContext = .init(
+        self.graphics_data.device,
+        &self.graphics_data.transfer_buffer_pool,
+        &self.assets,
+        &self.graphics_data.fence_manager,
+        &self.messaging.host,
+        arena_impl.allocator(),
+    );
+
     // SAFETY: only this message should be sent to the engine thread
     const frame_submit_data = message.command.FrameSubmitData;
 
@@ -957,10 +976,15 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
     self.game.last_frame_index = frame_submit_data.frameIndex;
     log.trace(@src(), "Frame {d} completion", .{frame_submit_data.frameIndex});
 
-    try self.updateRenderSpaces(frame_submit_data.renderSpaces);
+    try self.updateRenderSpaces(
+        &frame_context,
+        frame_submit_data.renderSpaces,
+    );
     self.game.desktop_fov = frame_submit_data.desktopFOV;
     self.game.near_z = frame_submit_data.nearClip;
     self.game.far_z = frame_submit_data.farClip;
+
+    try frame_context.end(self.gpa);
 
     self.game.engine_thread_ready_for_begin_frame.set();
 }

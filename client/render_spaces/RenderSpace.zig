@@ -4,6 +4,7 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 const tracy = @import("tracy");
 
+const graphics = @import("../graphics.zig");
 const mesh_renderer_managers = @import("mesh_renderer_manager.zig");
 const RendererManager = @import("renderer_manager.zig").RendererManager;
 const Transforms = @import("Transforms.zig");
@@ -72,10 +73,10 @@ fn loadProperties(update: renderite.shared.RenderSpaceUpdate) Properties {
     };
 }
 
-pub fn handleUpdate(
+pub fn handleUpdateLocked(
     self: *RenderSpace,
     gpa: std.mem.Allocator,
-    device: gpu.Device,
+    frame_context: *graphics.FrameContext,
     accessor: *renderite.buffer.SharedMemoryAccessor,
     update: renderite.shared.RenderSpaceUpdate,
 ) !void {
@@ -105,11 +106,15 @@ pub fn handleUpdate(
     }
 
     if (update.meshRenderersUpdate) |mesh_renderer_update| {
-        try self.mesh_renderer_manager.handleUpdate(gpa, device, accessor, self, mesh_renderer_update);
+        try self.mesh_renderer_manager.handleUpdate(gpa, frame_context.device, accessor, self, mesh_renderer_update);
     }
 
     if (update.skinnedMeshRenderersUpdate) |skinned_mesh_renderers_update| {
-        try self.skinned_mesh_renderer_manager.handleUpdate(gpa, device, accessor, self, skinned_mesh_renderers_update);
+        try self.skinned_mesh_renderer_manager.handleUpdate(gpa, frame_context.device, accessor, self, skinned_mesh_renderers_update);
+    }
+
+    for (self.skinned_mesh_renderer_manager.contents.items) |*skinned_mesh_renderer| {
+        try skinned_mesh_renderer.tryPushDataAssetsLocked(gpa, frame_context);
     }
 }
 

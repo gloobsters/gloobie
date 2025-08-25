@@ -4,7 +4,9 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const Assets = @import("../assets/Assets.zig");
+const Mesh = @import("../assets/Mesh.zig");
 const graphics = @import("../graphics.zig");
+const lazy_array_list = @import("../lazy_array_list.zig");
 const Transforms = @import("Transforms.zig");
 
 const log = @import("logger").Scoped(.render_space);
@@ -63,15 +65,9 @@ const SkinnedMeshRenderable = struct {
 
     /// The CPU sided copy of the bone transforms
     bones: []Transforms.Transform.Id,
-    /// The GPU sided copy of the bone transforms, it is UB to access this when `capacity` == 0!
-    bone_transforms_buffer: gpu.Buffer,
-    /// The size of the bone transform GPU buffer, in bytes
-    bone_transforms_buffer_capacity: u32,
-    /// Whether the CPU sided bone transform buffer has been updated
-    bone_transforms_updated: bool,
 
     /// The CPU sided copy of the blend shape values
-    blend_shape_values: []f32,
+    blend_shape_values: lazy_array_list.LazyArrayList(f32),
     /// The GPU sided copy of the blend shape values, it is UB to access this when `capacity` == 0!
     blend_shape_values_buffer: gpu.Buffer,
     /// The size of the blend shape GPU buffer, in bytes
@@ -89,29 +85,88 @@ const SkinnedMeshRenderable = struct {
             .root_bone = .invalid,
 
             .bones = &.{},
-            .bone_transforms_updated = false,
-            .bone_transforms_buffer = undefined,
-            .bone_transforms_buffer_capacity = 0,
 
-            .blend_shape_values = &.{},
+            .blend_shape_values = .empty,
             .blend_shape_values_updated = false,
             .blend_shape_values_buffer = undefined,
             .blend_shape_values_buffer_capacity = 0,
         };
     }
 
-    pub fn tryPushDataAssetsLocked(
-        self: SkinnedMeshRenderable,
+    fn uploadBlendshapeData(
+        self: *SkinnedMeshRenderable,
+        gpa: std.mem.Allocator,
         frame_context: *graphics.FrameContext,
-        assets: *Assets,
+        mesh: *Mesh,
     ) !void {
-        _ = frame_context; // autofix
+        const needed_buffer_size = mesh.mesh_layout.num_blendshapes * @sizeOf(f32);
+
+        // Resize directly to the number of blendshapes
+        try self.blend_shape_values.resizeTo(gpa, mesh.mesh_layout.num_blendshapes, 0.0);
+
+        // Nothing to do
+        if (mesh.mesh_layout.num_blendshapes == 0) {
+            return;
+        }
+
+        if (self.blend_shape_values_buffer_capacity < needed_buffer_size) {
+            if (self.blend_shape_values_buffer_capacity > 0)
+                frame_context.device.releaseBuffer(self.blend_shape_values_buffer);
+
+            self.blend_shape_values_buffer = try frame_context.device.createBuffer(.{
+                .usage = .{ .graphics_storage_read = true },
+                .size = needed_buffer_size,
+            });
+            self.blend_shape_values_buffer_capacity = needed_buffer_size;
+        }
+        errdefer {
+            if (self.blend_shape_values_buffer_capacity > 0)
+                frame_context.device.releaseBuffer(self.blend_shape_values_buffer);
+
+            self.blend_shape_values_buffer_capacity = 0;
+        }
+
+        const transfer_buffer_entry = try frame_context.transfer_buffer_pool.acquire(.{
+            .size = needed_buffer_size,
+            .value = .upload,
+        });
+        defer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_entry) catch @panic("OOM");
+
+        {
+            const mapped_data = try frame_context.device.mapTransferBuffer(transfer_buffer_entry.value, true);
+            defer frame_context.device.unmapTransferBuffer(transfer_buffer_entry.value);
+
+            const dst: []align(1) f32 = @ptrCast(mapped_data[0..needed_buffer_size]);
+
+            @memcpy(dst, self.blend_shape_values.contents[0..mesh.mesh_layout.num_blendshapes]);
+        }
+
+        const copy_pass = try frame_context.getSharedCopyPass();
+
+        copy_pass.uploadToBuffer(.{
+            .transfer_buffer = transfer_buffer_entry.value,
+            .offset = 0,
+        }, .{
+            .buffer = self.blend_shape_values_buffer,
+            .offset = 0,
+            .size = needed_buffer_size,
+        }, true);
+    }
+
+    pub fn tryPushDataAssetsLocked(
+        self: *SkinnedMeshRenderable,
+        gpa: std.mem.Allocator,
+        frame_context: *graphics.FrameContext,
+    ) !void {
         if (self.shared.mesh == .invalid) {
             return;
         }
 
-        const mesh = assets.meshes.getPtr(self.shared.mesh) orelse return;
-        _ = mesh; // autofix
+        const mesh = frame_context.assets.meshes.getPtr(self.shared.mesh) orelse return;
+
+        if (self.blend_shape_values_updated) {
+            try self.uploadBlendshapeData(gpa, frame_context, mesh);
+        }
     }
 
     pub fn deinit(
@@ -121,11 +176,9 @@ const SkinnedMeshRenderable = struct {
     ) void {
         self.shared.deinit(gpa);
         // Non-zero capacity means it's valid
-        if (self.bone_transforms_buffer_capacity > 0)
-            device.releaseBuffer(self.bone_transforms_buffer);
         if (self.blend_shape_values_buffer_capacity > 0)
             device.releaseBuffer(self.blend_shape_values_buffer);
-        gpa.free(self.blend_shape_values);
+        gpa.free(self.blend_shape_values.contents);
         gpa.free(self.bones);
     }
 };
@@ -277,8 +330,6 @@ fn skinnedMeshRendererFinishUpdates(
         }
 
         renderable.root_bone = if (bone_assignment.rootBoneTransformId < 0) .invalid else .from(bone_assignment.rootBoneTransformId);
-
-        renderable.bone_transforms_updated = true;
     }
 
     const blendshape_update_batches = try accessor.getOrCreate(renderite.shared.BlendshapeUpdateBatch, gpa, update.blendshapeUpdateBatches);
@@ -294,12 +345,16 @@ fn skinnedMeshRendererFinishUpdates(
 
         const renderable = &contents[@intCast(blendshape_update_batch.renderableIndex)];
 
-        // TODO: handle blendshape updates
         for (0..@intCast(blendshape_update_batch.blendshapeUpdateCount)) |_| {
             const blendshape_update = blendshape_updates.data[next_blendshape_update_index];
             next_blendshape_update_index += 1;
 
-            _ = blendshape_update;
+            const blendshape_index: u32 = @intCast(blendshape_update.blendshapeIndex);
+            if ((blendshape_index + 1) >= renderable.blend_shape_values.contents.len) {
+                try renderable.blend_shape_values.resizeTo(gpa, lazy_array_list.roundUpTo(blendshape_index + 1, 16), 0.0);
+            }
+
+            renderable.blend_shape_values.contents[blendshape_index] = blendshape_update.weight;
         }
 
         renderable.blend_shape_values_updated = true;

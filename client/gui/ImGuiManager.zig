@@ -278,8 +278,8 @@ fn fillMeshes(self: *ImGuiManager) void {
 }
 
 fn fillRenderSpaces(self: *ImGuiManager) void {
-    self.app.game.render_spaces_lock.lock();
-    defer self.app.game.render_spaces_lock.unlock();
+    self.app.game.render_spaces_lock.lockShared();
+    defer self.app.game.render_spaces_lock.unlockShared();
 
     const render_spaces = self.app.game.render_spaces.values();
 
