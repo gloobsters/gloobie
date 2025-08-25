@@ -45,10 +45,10 @@ The word `optional` below means that the field MAY be excluded or left as `null`
 `string` `name`: A user-friendly name of the renderer. This can be any text, but MUST NOT be over 64 bytes.
 Example: `Gloobie`
 
-`string` `winExecutablePath`: The path to the renderer to run on Windows. This MUST be relative to the Installation Directory.
+`string` `winExecutablePath`: The path to the renderer to run on Windows. This SHOULD be relative to the Installation Directory, but MAY be a full path for the purposes of development.
 Example: `Renderers/Gloobie/Gloobie.exe`
 
-`string` `unixExecutablePath`: The path to the renderer to run on Linux/Mac/other unix-like platforms. This MUST be relative to the Installation Directory.
+`string` `unixExecutablePath`: The path to the renderer to run on Linux/Mac/other unix-like platforms. This SHOULD be relative to the Installation Directory, but MAY be a full path for the purposes of development.
 Example: `Renderers/Gloobie/Renderite.Gloobie`
 
 `optional` `bool` `runInWine`: When true on unix-like platforms, the Renderer should be executed under a Wine context. Default: `false`
