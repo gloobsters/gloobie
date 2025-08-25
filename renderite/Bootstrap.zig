@@ -88,9 +88,9 @@ pub fn init(
     } else {
         var child = try ChildInfo.init(args, gpa);
 
-        const pid = std.c.getpid();
-
-        return .initBootstrap(&child, pid, gpa, copy_callback, paste_callback);
+        const bootstrap: Bootstrap = try .initBootstrap(&child, gpa, copy_callback, paste_callback);
+        try bootstrap.sendRenderitePid(std.c.getpid());
+        return bootstrap;
     }
 }
 
@@ -112,21 +112,10 @@ pub fn initDirect(
 
 pub fn initBootstrap(
     child: *ChildInfo,
-    pid: std.posix.pid_t,
     gpa: std.mem.Allocator,
     copy_callback: CopyCallback,
     paste_callback: PasteCallback,
 ) !Bootstrap {
-    std.debug.print("{any}\n", .{pid});
-    var msg_buf: [32]u8 = undefined;
-    const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{switch (@typeInfo(std.posix.pid_t)) {
-        .pointer => @intFromPtr(pid),
-        else => pid,
-    }});
-
-    log.trace(@src(), "Sending init message: {s}", .{msg});
-    try child.queue_out.enqueue(msg);
-
     log.info(@src(), "Waiting for Resonite to say hello...", .{});
     const message = try child.queue_in.dequeue(gpa);
     defer gpa.free(message);
@@ -159,6 +148,20 @@ pub fn initBootstrap(
     };
 
     return bootstrap;
+}
+
+pub fn sendRenderitePid(
+    self: Bootstrap,
+    pid: std.posix.pid_t,
+) !void {
+    var msg_buf: [32]u8 = undefined;
+    const msg = try std.fmt.bufPrint(&msg_buf, "RENDERITE_STARTED:{d}", .{switch (@typeInfo(std.posix.pid_t)) {
+        .pointer => @intFromPtr(pid),
+        else => pid,
+    }});
+
+    log.trace(@src(), "Sending init message: {s}", .{msg});
+    try self.child.?.queue_out.enqueue(msg);
 }
 
 pub fn startReceiving(self: *Bootstrap, gpa: std.mem.Allocator) !void {

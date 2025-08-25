@@ -47,13 +47,10 @@ pub fn main() !void {
 
     var bootstrapper = try DedicatedBootstrapper.init(args, gpa);
     defer bootstrapper.deinit(gpa);
-    try bootstrapper.run();
-    defer {
-        log.debug(@src(), "Waiting for engine init thread to exit...", .{});
-        bootstrapper.engine_init_thread.join();
-        log.debug(@src(), "Engine init thread exited", .{});
-    }
 
+    try bootstrapper.run();
+
+    bootstrapper.engine_init_thread.join();
     log.info(@src(), "Bootstrapper exiting", .{});
 }
 

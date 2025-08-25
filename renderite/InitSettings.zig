@@ -23,7 +23,7 @@ pub fn init(args: []const []const u8) !InitSettings {
     queue_name.appendSlice(args[1 + offset]) catch @panic("Queue name is too big");
 
     if (!std.mem.eql(u8, args[2 + offset], "-QueueCapacity"))
-        return error.InvalidQueueLength;
+        return error.InvalidQueueCapacity;
 
     const queue_length = try std.fmt.parseInt(u32, args[3 + offset], 10);
 

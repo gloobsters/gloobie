@@ -5,6 +5,7 @@ const imgui = @import("imgui");
 const logger = @import("logger");
 const renderite = @import("renderite");
 const sdl3 = @import("sdl3");
+const bounded_array = @import("bounded_array");
 
 const Manifest = @import("Manifest.zig");
 
@@ -114,6 +115,8 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
     log.info(@src(), "Starting FrooxEngine in the background...", .{});
     var child = renderite.Bootstrap.ChildInfo.init(args, gpa) catch @panic("Failed to start FrooxEngine");
 
+    var bootstrap = renderite.Bootstrap.initBootstrap(&child, gpa, copy, paste) catch @panic("Failed to bootstrap FrooxEngine");
+
     log.info(@src(), "FrooxEngine spawned, waiting for user selection...", .{});
     while (!self.ready_to_boot) {
         if (self.bootstrap_shutdown) {
@@ -138,13 +141,28 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
         },
     };
 
-    log.info(@src(), "Starting renderer '{s}' at {s}", .{ manifest.name, executable });
+    log.info(@src(), "Starting renderer '{s}' at '{s}'", .{ manifest.name, executable });
 
-    var renderer = std.process.Child.init(&.{executable}, gpa);
+    var argv: bounded_array.BoundedArray([]const u8, 5) = .{};
+
+    argv.appendAssumeCapacity(executable);
+    argv.appendAssumeCapacity("-QueueName");
+    argv.appendAssumeCapacity(bootstrap.init_settings.queue_name.constSlice());
+    argv.appendAssumeCapacity("-QueueCapacity");
+
+    // SAFETY: it's big enough
+    var msg_buf: [32]u8 = undefined;
+    const msg = std.fmt.bufPrint(&msg_buf, "{d}", .{bootstrap.init_settings.queue_length}) catch unreachable;
+
+    argv.appendAssumeCapacity(msg);
+
+    var renderer = std.process.Child.init(argv.constSlice(), gpa);
     renderer.spawn() catch @panic("Failed to spawn renderer");
     renderer.waitForSpawn() catch @panic("Failed to wait for renderer to spawn");
 
-    var bootstrap = renderite.Bootstrap.initBootstrap(&child, renderer.id, gpa, copy, paste) catch @panic("Failed to bootstrap FrooxEngine");
+    log.info(@src(), "Renderer spawned!", .{});
+
+    bootstrap.sendRenderitePid(renderer.id) catch @panic("Failed to send renderer PID to FrooxEngine");
     bootstrap.receiverLoop(gpa);
 }
 

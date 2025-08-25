@@ -594,6 +594,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
                 .{ .name = "options", .module = options_module },
                 .{ .name = "logger", .module = logger_mod },
+                .{ .name = "bounded_array", .module = bounded_array_mod },
             },
         });
 
