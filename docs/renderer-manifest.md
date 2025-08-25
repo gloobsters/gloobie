@@ -20,8 +20,8 @@ This also covers how Bootstrappers should implement things when reading them.
 
 ## Location, format, and naming
 
-The Renderer Manifest File MUST reside in the Renderers subdirectory of the Installation Directory.
-As an example, Gloobie's manifest is stored as "Renderers/Gloobie.Renderer.json".
+The Renderer Manifest File MUST reside in the "Renderers" subdirectory of the Installation Directory with an extension of `.renderer.json`.
+As an example, Gloobie's manifest is stored as "Renderers/Gloobie.renderer.json".
 
 This file and the contents within MUST be encoded as either UTF-8 or WTF-8, with no Byte Order Mark (BOM).
 
