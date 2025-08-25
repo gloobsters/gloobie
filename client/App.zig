@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+const bounded_array = @import("bounded_array");
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const imgui = @import("imgui");
@@ -112,7 +113,7 @@ pub const ToEngineLetter = union(enum) {
 const MessagingData = struct {
     host: MessagingHost,
     accessor: ?SharedMemoryAccessor,
-    shmem_prefix: std.BoundedArray(u8, 128),
+    shmem_prefix: bounded_array.BoundedArray(u8, 128),
 
     to_render: ToRenderMailbox,
     to_render_envelope_pool: std.heap.MemoryPool(ToRenderMailbox.Envelope),
@@ -148,8 +149,8 @@ pub const total_load_phases = 25;
 
 const LoadPhase = struct {
     phase_index: u8,
-    phase_name: std.BoundedArray(u8, 128),
-    sub_phase_name: std.BoundedArray(u8, 128),
+    phase_name: bounded_array.BoundedArray(u8, 128),
+    sub_phase_name: bounded_array.BoundedArray(u8, 128),
 };
 
 const LoadState = struct {
@@ -1041,8 +1042,8 @@ fn updateDisplays(self: *App) !void {
 
         const dpi: f32 = try display.getContentScale() * dpi_scale;
 
-        const natural_orientation: sdl3.video.DisplayOrientation = display.getNaturalOrientation() orelse .landscape;
-        const current_orientation: sdl3.video.DisplayOrientation = display.getCurrentOrientation() orelse .landscape;
+        const natural_orientation: sdl3.video.Display.Orientation = display.getNaturalOrientation() orelse .landscape;
+        const current_orientation: sdl3.video.Display.Orientation = display.getCurrentOrientation() orelse .landscape;
 
         const renderite_orientation: renderite.shared.RectOrientation = switch (natural_orientation) {
             .landscape => switch (current_orientation) {

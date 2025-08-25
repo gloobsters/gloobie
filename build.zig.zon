@@ -1,10 +1,9 @@
 .{
     .name = .gloobie,
-    .version = "0.15.0-dev.1283+1fcaf90dd",
+    .version = "0.15.1",
     .dependencies = .{
         .sdl3 = .{
-            .url = "git+https://github.com/Gota7/zig-sdl3?ref=zig-master#120a24ff97e77cf1235f97c790481dc4357765eb",
-            .hash = "sdl3-0.0.1-NmT1Q82XIAA_dCjt_VC-iLJkH1wDuyx_4-3mAQHlr2w4",
+            .path = "third-party/zig-sdl3",
         },
         .@"vulkan-headers" = .{
             .url = "git+https://github.com/KhronosGroup/Vulkan-Headers#37057b4756df4009ad85803bd2e06ec8a3bb1bca",
@@ -15,16 +14,15 @@
             .hash = "N-V-__8AAJ5cQwDuoOcGRlc4PfRBBviooF7aLvAGwhxhDZnd",
         },
         .@"vulkan-zig" = .{
-            .url = "git+https://github.com/Snektron/vulkan-zig#ed429842b8ad60966bc3b8b214606d8a5714f99e",
-            .hash = "vulkan-0.0.0-r7Ytx5w-AwC04xBpfzcuIjGyYv2z6xb1i49ZUeNUgT5H",
+            .url = "git+https://github.com/Snektron/vulkan-zig#8322c9593fc2115156ec8743ba4f3b4547e5eb24",
+            .hash = "vulkan-0.0.0-r7Ytx6o-AwBxVL-ZhD8ng7s23CaiQYV4GxOVzkmGdltw",
         },
         .imgui = .{
             .url = "git+https://github.com/ocornut/imgui#44aa9a4b3a6f27d09a4eb5770d095cbd376dfc4b",
             .hash = "N-V-__8AAMSpeAAjIlPRk36GN81oqHOrwAtfmTZdOcDg42BM",
         },
         .mailbox = .{
-            .url = "git+https://github.com/Beyley/mailbox#8b89286b8f50206450dae482b28d3d80409893ed",
-            .hash = "mailbox-0.0.0-eJsHsPZCAAC1iCwMcGdjVQsaUTAQoOEQtBCXA3Nc5sok",
+            .path = "third-party/mailbox",
         },
         .tracy = .{
             .url = "git+https://github.com/wolfpld/tracy?ref=v0.12.2#c556831ddc6fe26d2fce01c14c97205a9dad46d5",
@@ -41,6 +39,10 @@
             // .hash = "zigwin32-25.0.28-preview-AAAAAI0J-wP-8_KKo4Yjr33XLhVhlJmeagGUedByaOnX",
             .url = "git+https://github.com/kcbanner/zigwin32?ref=0.15.x#d53efcf7e94b130fb0e84979aef6e5193ed377f7",
             .hash = "zigwin32-25.0.28-preview-AAAAAGeI5ANWTScxLlUycxTkQN25FlWjLnrYPNBjImlH",
+        },
+        .bounded_array = .{
+            .url = "git+https://github.com/jedisct1/zig-bounded-array#1dc4361da8ee667a2f352b938045e09bda8ea379",
+            .hash = "bounded_array-0.1.0-VF2RKohKAAAnG-uH_4cQr-Vc9eizfnpEgDL9U_g6a2oz",
         },
     },
     .paths = .{

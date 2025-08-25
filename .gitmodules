@@ -1,0 +1,6 @@
+[submodule "third-party/mailbox"]
+	path = third-party/mailbox
+	url = https://github.com/Beyley/mailbox
+[submodule "third-party/zig-sdl3"]
+	path = third-party/zig-sdl3
+	url = https://github.com/Gota7/zig-sdl3

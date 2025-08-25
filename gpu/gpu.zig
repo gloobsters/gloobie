@@ -1010,7 +1010,7 @@ pub const CommandBuffer = packed struct {
     pub fn submitAndAcquireFence(
         self: CommandBuffer,
     ) !Fence {
-        return .{ .value = try errors.wrapNull(*c.GPU_Fence, c.GPU_SubmitCommandBufferAndAcquireFence(self.value)) };
+        return .{ .value = try errors.wrapCallNull(*c.GPU_Fence, c.GPU_SubmitCommandBufferAndAcquireFence(self.value)) };
     }
 
     /// Blocks the thread until a swapchain texture is available to be acquired, and then acquires it.
@@ -1888,7 +1888,7 @@ pub const Device = packed struct {
         self: Device,
     ) !CommandBuffer {
         return .{
-            .value = try errors.wrapNull(*c.GPU_CommandBuffer, c.GPU_AcquireCommandBuffer(self.value)),
+            .value = try errors.wrapCallNull(*c.GPU_CommandBuffer, c.GPU_AcquireCommandBuffer(self.value)),
         };
     }
 
@@ -1956,7 +1956,7 @@ pub const Device = packed struct {
         const group = properties.Group{ .value = create_info_sdl.props };
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(
+            .value = try errors.wrapCallNull(
                 *c.GPU_Buffer,
                 c.GPU_CreateBuffer(self.value, &create_info_sdl),
             ),
@@ -2004,7 +2004,7 @@ pub const Device = packed struct {
         const group = properties.Group{ .value = create_info_sdl.props };
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(*c.GPU_ComputePipeline, c.GPU_CreateComputePipeline(self.value, &create_info_sdl)),
+            .value = try errors.wrapCallNull(*c.GPU_ComputePipeline, c.GPU_CreateComputePipeline(self.value, &create_info_sdl)),
         };
     }
 
@@ -2033,7 +2033,7 @@ pub const Device = packed struct {
         const group = properties.Group{ .value = create_info_sdl.props };
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(*c.GPU_GraphicsPipeline, c.GPU_CreateGraphicsPipeline(
+            .value = try errors.wrapCallNull(*c.GPU_GraphicsPipeline, c.GPU_CreateGraphicsPipeline(
                 self.value,
                 &create_info_sdl,
             )),
@@ -2065,7 +2065,7 @@ pub const Device = packed struct {
         const group = properties.Group{ .value = create_info_sdl.props };
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(*c.GPU_Sampler, c.GPU_CreateSampler(
+            .value = try errors.wrapCallNull(*c.GPU_Sampler, c.GPU_CreateSampler(
                 self.value,
                 &create_info_sdl,
             )),
@@ -2131,7 +2131,7 @@ pub const Device = packed struct {
         const group = properties.Group{ .value = create_info_sdl.props };
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(*c.GPU_Shader, c.GPU_CreateShader(
+            .value = try errors.wrapCallNull(*c.GPU_Shader, c.GPU_CreateShader(
                 self.value,
                 &create_info_sdl,
             )),
@@ -2176,7 +2176,7 @@ pub const Device = packed struct {
         const group = properties.Group{ .value = create_info_sdl.props };
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(*c.GPU_Texture, c.GPU_CreateTexture(
+            .value = try errors.wrapCallNull(*c.GPU_Texture, c.GPU_CreateTexture(
                 self.value,
                 &create_info_sdl,
             )),
@@ -2210,7 +2210,7 @@ pub const Device = packed struct {
         const group = properties.Group{ .value = create_info_sdl.props };
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(*c.GPU_TransferBuffer, c.GPU_CreateTransferBuffer(
+            .value = try errors.wrapCallNull(*c.GPU_TransferBuffer, c.GPU_CreateTransferBuffer(
                 self.value,
                 &create_info_sdl,
             )),
@@ -2362,7 +2362,7 @@ pub const Device = packed struct {
         name: ?[:0]const u8,
     ) !Device {
         return .{
-            .value = try errors.wrapNull(*c.GPU_Device, c.GPU_CreateDevice(
+            .value = try errors.wrapCallNull(*c.GPU_Device, c.GPU_CreateDevice(
                 ShaderFormatFlags.toSdl(shader_format),
                 debug_mode,
                 if (name) |val| val.ptr else null,
@@ -2386,7 +2386,7 @@ pub const Device = packed struct {
         const group = try props.toProperties();
         defer group.deinit();
         return .{
-            .value = try errors.wrapNull(*c.GPU_Device, c.GPU_CreateDeviceWithProperties(
+            .value = try errors.wrapCallNull(*c.GPU_Device, c.GPU_CreateDeviceWithProperties(
                 group.value,
             )),
         };
@@ -2413,7 +2413,7 @@ pub const Device = packed struct {
         transfer_buffer: TransferBuffer,
         cycle: bool,
     ) ![*]u8 {
-        return @alignCast(@ptrCast(try errors.wrapNull(*anyopaque, c.GPU_MapTransferBuffer(
+        return @ptrCast(@alignCast(try errors.wrapCallNull(*anyopaque, c.GPU_MapTransferBuffer(
             self.value,
             transfer_buffer.value,
             cycle,

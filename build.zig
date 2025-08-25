@@ -232,6 +232,9 @@ pub fn build(b: *std.Build) !void {
     const win32_dep = b.dependency("zigwin32", .{});
     const win32_mod = win32_dep.module("win32");
 
+    const bounded_array_dep = b.dependency("bounded_array", .{});
+    const bounded_array_mod = bounded_array_dep.module("bounded_array");
+
     const vulkan_mod = b.dependency("vulkan-zig", .{
         .registry = b.dependency("vulkan-headers", .{}).path("registry/vk.xml"),
     }).module("vulkan-zig");
@@ -566,6 +569,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "tracy", .module = tracy_mod },
                 .{ .name = "math", .module = math_mod },
                 .{ .name = "logger", .module = logger_mod },
+                .{ .name = "bounded_array", .module = bounded_array_mod },
             },
         });
 
@@ -627,6 +631,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "mailbox", .module = mailbox_mod },
                 .{ .name = "tracy", .module = tracy_mod },
                 .{ .name = "logger", .module = logger_mod },
+                .{ .name = "bounded_array", .module = bounded_array_mod },
             },
         });
 
