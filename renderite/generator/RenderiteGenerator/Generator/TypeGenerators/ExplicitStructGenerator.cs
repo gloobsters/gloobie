@@ -11,7 +11,7 @@ public class ExplicitStructGenerator : StructGenerator
     {}
     
     public override bool Pack(Type t, Writer w, FieldInfo[] fields, bool write) => WriteExplicitPackFunction(t, fields, w, !write);
-    
+
     public override Block BeginStruct(Writer w, string name)
     {
         return w.BeginExternStruct(name);
@@ -72,5 +72,28 @@ public class ExplicitStructGenerator : StructGenerator
         }
 
         return written;
+    }
+
+    public override void PackFinish(Type type, Writer w, FieldInfo[] fields)
+    {
+        // Write comptime asserts
+        using Block _ = w.BeginComptime();
+        
+        StructLayoutAttribute? structLayout = type.StructLayoutAttribute;
+        Debug.Assert(structLayout != null);
+
+        int size = structLayout.Size;
+        if (size == 0)
+            size = Marshal.SizeOf(type);
+        
+        w.Any($"std.debug.assert(@sizeOf({type.Name}) == {size});");
+        
+        foreach (FieldInfo field in fields)
+        {
+            FieldOffsetAttribute? fieldOffset = field.GetCustomAttribute<FieldOffsetAttribute>();
+            Debug.Assert(fieldOffset != null);
+
+            w.Any($"std.debug.assert(@offsetOf({type.Name}, \"{field.Name}\") == {fieldOffset.Value});");
+        }
     }
 }

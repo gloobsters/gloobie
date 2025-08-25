@@ -38,11 +38,14 @@ public abstract class StructGenerator : TypeGenerator
                 w.Any("return self;");
             }
         }
+        
+        this.PackFinish(type, w, fields);
     }
 
     protected virtual bool Packable => true;
 
     public abstract bool Pack(Type t, Writer w, FieldInfo[] fields, bool write);
+    public virtual void PackFinish(Type t, Writer w, FieldInfo[] fields) {}
 
     public virtual Block BeginStruct(Writer w, string name)
     {

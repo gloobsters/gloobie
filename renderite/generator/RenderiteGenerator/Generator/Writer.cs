@@ -200,6 +200,13 @@ public class Writer : IDisposable
         return new Block(this, false);
     }
 
+    public Block BeginComptime()
+    {
+        this.Indents();
+        this._writer.WriteLine("comptime {");
+        return new Block(this, false);
+    }
+
     public void StructMember(string name, string type, string? defaultDef = null)
     {
         this.Indents();
