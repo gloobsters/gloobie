@@ -30,5 +30,6 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(gpa);
     defer std.process.argsFree(gpa, args);
 
-    try DedicatedBootstrapper.run(args, gpa);
+    var bootstrapper = try DedicatedBootstrapper.run(args, gpa);
+    defer bootstrapper.deinit(gpa);
 }
