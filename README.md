@@ -42,7 +42,25 @@ You can also replace `Renderer/Renderite.Renderer.exe` with Gloobie and it will 
 
 ## Sub-projects
 
+### Executables & Libraries
+
+These sub-projects are home-grown by us.
+
 - `client/`: The main client.
+- `bootstrap/`: A custom bootstrapper, supporting choosing between custom renderers.
+- `renderite/`: Code and types concerning communication with FrooxEngine.
+  - `renderite/generator/`: Generates type definitions and (de)serialization code from the Renderite DLL file.
+  - `renderite/shared.zig` Automatically generated types from the Renderite DLL file. This should stay in sync with engine updates.
+- `math/`: An xr_linear based math library, with lots of extra routines sprinkled in. Taken from vrshit.
+- `build/`: Misc build scripts.
+- `logger/`: A basic logging system for our needs
+- `zinterprocess/`: Zig implementation of YDMS's fork of Interprocess.
+
+### Third-party abstractions
+
+These are Zig bindings to third-party libraries or the native libraries themselves, either our own or yoinked from somewhere.
+
+- `third-party/`: Third party dependencies pulled in through submodules.
 - `gpu/`: The low level GPU abstraction. Forked off SDL_gpu.
   - `gpu/vulkan/`: The Vulkan GPU backend. Primary target.
   - `gpu/d3d12/`: The D3D12 GPU backend, secondary target.
@@ -52,13 +70,5 @@ You can also replace `Renderer/Renderite.Renderer.exe` with Gloobie and it will 
   - `xr/openxr/`: The OpenXR backend. Primary target.
   - `xr/none/`: A stubbed out backend, used for platforms where no XR infrastructure is available or implemented.
 - `openxr/`: The OpenXR wrapper.
-- `renderite/`: Code and types concerning communication with FrooxEngine.
-  - `renderite/generator/`: Generates type definitions and (de)serialization code from the Renderite DLL file.
-  - `renderite/shared.zig` Automatically generated types from the Renderite DLL file. This should stay in sync with engine updates.
 - `imgui/`: An implementation of an ImGui renderer for our GPU abstraction.
-- `math/`: An xr_linear based math library, with lots of extra routines sprinkled in. Taken from vrshit.
-- `build/`: Misc build scripts.
 - `tracy/`: Zig + Tracy integration
-- `logger/`: A basic logging system for our needs
-- `zinterprocess/`: Zig implementation of YDMS's fork of Interprocess.
-- `third-party/`: Third party dependencies pulled in through submodules.
