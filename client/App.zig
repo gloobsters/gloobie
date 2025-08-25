@@ -890,6 +890,7 @@ pub fn sendLetterToEngine(self: *App, letter: ToEngineLetter) !void {
 
 fn updateRenderSpaces(
     self: *App,
+    arena: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
     updates: []const renderite.shared.RenderSpaceUpdate,
 ) !void {
@@ -920,7 +921,7 @@ fn updateRenderSpaces(
             break :create_render_space self.game.render_spaces.getPtr(.from(update.id)).?;
         };
 
-        try render_space.handleUpdateLocked(self.gpa, frame_context, accessor, update);
+        try render_space.handleUpdateLocked(self.gpa, arena, frame_context, accessor, update);
 
         if (render_space.properties.active and !render_space.properties.overlay) {
             if (active_render_space != .invalid) {
@@ -956,7 +957,9 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
     var arena_impl: std.heap.ArenaAllocator = .init(self.gpa);
     defer arena_impl.deinit();
 
-    var frame_context: graphics.FrameContext = .init(self, arena_impl.allocator());
+    const arena = arena_impl.allocator();
+
+    var frame_context: graphics.FrameContext = .init(self, arena);
     defer frame_context.deinit(self.gpa);
 
     // SAFETY: only this message should be sent to the engine thread
@@ -970,6 +973,7 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
     log.trace(@src(), "Frame {d} completion", .{frame_submit_data.frameIndex});
 
     try self.updateRenderSpaces(
+        arena,
         &frame_context,
         frame_submit_data.renderSpaces,
     );

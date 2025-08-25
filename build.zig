@@ -572,6 +572,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "bounded_array", .module = bounded_array_mod },
             },
         });
+        math_mod.addImport("renderite", renderite_mod);
 
         break :create_renderite_mod renderite_mod;
     };

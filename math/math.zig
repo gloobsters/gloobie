@@ -2,6 +2,7 @@ const std = @import("std");
 
 const openxr = @import("openxr");
 const c = openxr.c;
+const renderite = @import("renderite");
 
 /// Approximately converts an sRGB colour to Linear space
 pub fn srgbToLinear(comptime T: type, srgb: T) f32 {
@@ -666,6 +667,10 @@ pub const Matrix4x4f = extern struct {
         var ret: Matrix4x4f = undefined;
         c.XrMatrix4x4f_CreateTranslationRotationScale(@ptrCast(&ret), @ptrCast(&translation), @ptrCast(&rotation), @ptrCast(&scale));
         return ret;
+    }
+
+    pub inline fn createRenderTransform(render_transform: renderite.shared.RenderTransform) Matrix4x4f {
+        return .createTranslationRotationScale(render_transform.position, render_transform.rotation, render_transform.scale);
     }
 
     pub inline fn createProjectionFov(fov: c.XrFovf, near_z: f32, far_z: f32) Matrix4x4f {

@@ -76,6 +76,7 @@ fn loadProperties(update: renderite.shared.RenderSpaceUpdate) Properties {
 pub fn handleUpdateLocked(
     self: *RenderSpace,
     gpa: std.mem.Allocator,
+    arena: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
     accessor: *renderite.buffer.SharedMemoryAccessor,
     update: renderite.shared.RenderSpaceUpdate,
@@ -99,6 +100,7 @@ pub fn handleUpdateLocked(
     if (update.transformsUpdate) |transforms_update| {
         try self.transforms.handleUpdate(
             gpa,
+            arena,
             accessor,
             self,
             transforms_update,
