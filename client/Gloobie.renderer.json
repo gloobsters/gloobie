@@ -1,0 +1,7 @@
+{
+    "version": 1,
+    "name": "Gloobie",
+    "winExecutablePath": "Renderers/Gloobie/Gloobie.exe",
+    "unixExecutablePath": "Renderers/Gloobie/Renderite.Gloobie",
+    "runInWine": false
+}
