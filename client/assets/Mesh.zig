@@ -414,7 +414,7 @@ fn uploadSkinningData(
 
                 for (vertex_bone_weights_src, 0..) |weight, i| {
                     vertex_bone_weights_array_dst[i] = weight.weight;
-                    vertex_bone_ids_array_dst[i] = weight.bone_index;
+                    vertex_bone_ids_array_dst[i] = weight.boneIndex;
                 }
 
                 bone_weight_ptr += bone_count;
