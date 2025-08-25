@@ -709,6 +709,10 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(gloobie_exe);
 
+    const manifest_file = b.path("client/Gloobie.renderer.json");
+    const manifest_file_step = b.addInstallBinFile(manifest_file, "Renderers/Gloobie.renderer.json");
+    b.getInstallStep().dependOn(&manifest_file_step.step);
+
     const run_step = b.step("run", "Runs the gloobie executable");
 
     const gloobie_exe_run = b.addRunArtifact(gloobie_exe);
