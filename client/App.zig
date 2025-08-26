@@ -170,7 +170,7 @@ const GameData = struct {
     last_frame_index: i32,
     engine_thread: ?std.Thread,
     engine_thread_cancellation: std.Thread.ResetEvent,
-    engine_thread_ready_for_begin_frame: std.Thread.ResetEvent,
+    engine_thread_got_frame: std.Thread.ResetEvent,
     to_engine_mailbox: ToEngineMailbox,
     to_engine_envelope_pool: std.heap.MemoryPool(ToEngineMailbox.Envelope),
 
@@ -480,7 +480,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .last_frame_index = 0,
             .engine_thread = null,
             .engine_thread_cancellation = .{},
-            .engine_thread_ready_for_begin_frame = .{},
+            .engine_thread_got_frame = .{},
             .to_engine_mailbox = .{},
             .to_engine_envelope_pool = .init(gpa),
             .displays = .empty,
@@ -888,15 +888,12 @@ pub fn sendLetterToEngine(self: *App, letter: ToEngineLetter) !void {
     try self.game.to_engine_mailbox.send(envelope);
 }
 
-fn updateRenderSpaces(
+fn updateRenderSpacesLocked(
     self: *App,
     arena: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
     updates: []const renderite.shared.RenderSpaceUpdate,
 ) !void {
-    self.game.render_spaces_lock.lock();
-    defer self.game.render_spaces_lock.unlock();
-
     for (self.game.render_spaces.values()) |*render_space| {
         render_space.clearUpdated();
     }
@@ -972,22 +969,28 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
     self.game.last_frame_index = frame_submit_data.frameIndex;
     log.trace(@src(), "Frame {d} completion", .{frame_submit_data.frameIndex});
 
-    try self.updateRenderSpaces(
-        arena,
-        &frame_context,
-        frame_submit_data.renderSpaces,
-    );
     self.game.desktop_fov = frame_submit_data.desktopFOV;
     self.game.near_z = frame_submit_data.nearClip;
     self.game.far_z = frame_submit_data.farClip;
 
-    try frame_context.end(self.gpa);
+    {
+        self.game.render_spaces_lock.lock();
+        defer self.game.render_spaces_lock.unlock();
 
-    self.game.engine_thread_ready_for_begin_frame.set();
+        self.game.engine_thread_got_frame.set();
+
+        try self.updateRenderSpacesLocked(
+            arena,
+            &frame_context,
+            frame_submit_data.renderSpaces,
+        );
+    }
+
+    try frame_context.end(self.gpa);
 }
 
 fn engineLoop(self: *App) !void {
-    self.game.engine_thread_ready_for_begin_frame.set();
+    self.game.engine_thread_got_frame.set();
 
     while (!self.game.engine_thread_cancellation.isSet()) {
         const message = self.game.to_engine_mailbox.receive(std.time.ns_per_s * 1) catch |err| {
@@ -1285,7 +1288,7 @@ pub fn frameLoop(self: *App) !void {
             const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
 
             // send a frame start if the engine thread is waiting for us to do so
-            if (self.game.load_state.full_init and self.game.engine_thread_ready_for_begin_frame.isSet()) {
+            if (self.game.load_state.full_init and self.game.engine_thread_got_frame.isSet()) {
                 const dropped_files = try self.game.input.takeDroppedFiles(self.gpa);
                 defer if (dropped_files) |files| {
                     for (files.paths) |file| {
@@ -1338,7 +1341,7 @@ pub fn frameLoop(self: *App) !void {
 
                 log.trace(@src(), "Sent frame {d} start", .{self.game.last_frame_index + 1});
 
-                self.game.engine_thread_ready_for_begin_frame.reset();
+                self.game.engine_thread_got_frame.reset();
             }
 
             const wait_on_engine = true;
@@ -1346,7 +1349,7 @@ pub fn frameLoop(self: *App) !void {
                 const trace = tracy.traceNamed(@src(), "Waiting on engine");
                 defer trace.end();
 
-                self.game.engine_thread_ready_for_begin_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
+                self.game.engine_thread_got_frame.timedWait(std.time.ns_per_ms * 100) catch |err| {
                     if (err == error.Timeout) {
                         log.trace(@src(), "FrooxEngine running really slow, no new frame :(", .{});
                     } else {

@@ -128,10 +128,11 @@ fn renderRenderSpace(
     render_pass: gpu.RenderPass,
 ) !void {
     _ = arena; // autofix
+
     const trace = tracy.traceNamed(@src(), "Render Render Space");
     defer trace.end();
 
-    const computed_transforms = render_space.transforms.computed_transforms.items(.matrix);
+    const computed_transforms = render_space.transforms.transforms.items(.matrix);
 
     for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
         try renderSharedMeshRenderer(

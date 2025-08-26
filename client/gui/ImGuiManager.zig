@@ -340,8 +340,10 @@ fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
     }
 
     if (imgui.collapsingHeader("Transforms", 0)) {
-        for (render_space.transforms.transforms.items, 0..) |*transform, i| {
+        for (0..render_space.transforms.transforms.len) |i| {
             defer imgui.separator();
+
+            const transform = render_space.transforms.transforms.get(i);
 
             imgui.c.igText("Transform %d", @as(i32, @intCast(i)));
             if (transform.parent != .invalid) {

@@ -64,7 +64,7 @@ pub fn RendererManager(
                     break;
                 }
 
-                std.debug.assert(transform < render_space.transforms.transforms.items.len);
+                std.debug.assert(transform < render_space.transforms.transforms.len);
 
                 const child: ChildType = .init(Transforms.Transform.Id.from(transform));
 
