@@ -1600,6 +1600,20 @@ pub const BoneWeight = extern struct {
     }
 };
 
+pub const Guid = extern struct {
+    _a: i32,
+    _b: i16,
+    _c: i16,
+    _d: u8,
+    _e: u8,
+    _f: u8,
+    _g: u8,
+    _h: u8,
+    _i: u8,
+    _j: u8,
+    _k: u8,
+};
+
 pub const HeadOutputDevice = enum(i32) {
     Autodetect = 0,
     Headless = 1,

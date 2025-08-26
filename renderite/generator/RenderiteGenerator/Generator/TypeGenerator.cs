@@ -112,7 +112,7 @@ public abstract class TypeGenerator
     {
         if (this.Context.GeneratedTypes.Contains(type) || this.Context.TypeQueue.Contains(type)) return;
 
-        if (type.Assembly == this.Context.Assembly)
+        if (type.Assembly == this.Context.Assembly || type == typeof(Guid))
             this.Context.TypeQueue.Enqueue(type);
     }
 }
