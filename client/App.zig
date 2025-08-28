@@ -59,6 +59,31 @@ const GraphicsData = struct {
 
     upload_nonce: std.atomic.Value(u64),
 
+    pub fn ensureDepthTexture(
+        self: *GraphicsData,
+        swapchain_width: u32,
+        swapchain_height: u32,
+    ) !void {
+        if (swapchain_width != self.depth_texture_size.x or swapchain_height != self.depth_texture_size.y) {
+            if (self.depth_texture) |depth_texture| {
+                self.device.releaseTexture(depth_texture);
+            }
+
+            self.depth_texture = try self.device.createTexture(.{
+                .format = .depth32_float,
+                .width = swapchain_width,
+                .height = swapchain_height,
+                .layer_count_or_depth = 1,
+                .num_levels = 1,
+                .usage = .{ .depth_stencil_target = true },
+            });
+            self.depth_texture_size = .{
+                .x = @intCast(swapchain_width),
+                .y = @intCast(swapchain_height),
+            };
+        }
+    }
+
     pub fn deinit(
         self: *GraphicsData,
         gpa: std.mem.Allocator,
@@ -1170,6 +1195,177 @@ fn applyOutputState(self: *App, output_state: shared.OutputState) !void {
     }
 }
 
+fn pollSdlEvents(self: *App) !void {
+    const trace = tracy.traceNamed(@src(), "Poll SDL events");
+    defer trace.end();
+
+    // Poll SDL3 events
+    while (sdl3.events.poll()) |event| {
+        if (self.imgui_data != null) {
+            // ignore ret, doesnt help us
+            _ = imgui.sdl3.processEvent(event);
+        }
+
+        switch (event) {
+            .quit => {
+                // try not to send duplicate quit messages.
+                // this event usually comes after we've triggered an exit from window_close_requested
+                // if we send 2 quit messages, the engine will force-exit unsafely.
+                if (!self.game.exiting) {
+                    self.beginExit();
+                }
+            },
+            .window_close_requested => |window| {
+                // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
+                if (window.id == self.window.window.getId() catch unreachable) {
+                    self.beginExit();
+                }
+            },
+            .display_added,
+            .display_content_scale_changed,
+            .display_current_mode_changed,
+            .display_desktop_mode_changed,
+            .display_moved,
+            .display_orientation,
+            .display_removed,
+            => {
+                self.updateDisplays() catch |err| {
+                    log.err(@src(), "Failed to update displays, got err {s}", .{@errorName(err)});
+                };
+            },
+            .window_enter_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                self.window.fullscreen = true;
+            },
+            .window_leave_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                self.window.fullscreen = false;
+            },
+            .window_focus_gained => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                self.window.focus = true;
+            },
+            .window_focus_lost => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                self.window.focus = false;
+            },
+            .window_mouse_enter => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                self.window.mouse_active = true;
+            },
+            .window_mouse_leave => |window| if (window.id == self.window.window.getId() catch unreachable) {
+                self.window.mouse_active = false;
+            },
+            .key_down => |key_down| if (key_down.window_id == self.window.window.getId() catch unreachable) {
+                self.game.input.handleKeyEvent(key_down);
+
+                const key = key_down.key orelse return;
+                var imgui_data = &(self.imgui_data orelse return);
+
+                if (key_down.mod.altDown() and !key_down.mod.shiftDown() and !key_down.mod.controlDown() and key == .func3) {
+                    imgui_data.open = !imgui_data.open;
+                }
+            },
+            .key_up => |key_up| {
+                if (key_up.window_id == self.window.window.getId() catch unreachable) {
+                    self.game.input.handleKeyEvent(key_up);
+                }
+            },
+            .text_input => |text_input| {
+                if (text_input.window_id == self.window.window.getId() catch unreachable) {
+                    try self.game.input.handleTextInputUtf8(self.gpa, text_input.text);
+                }
+            },
+            .mouse_button_down => |mouse_down| {
+                if (mouse_down.window_id == self.window.window.getId() catch unreachable) {
+                    self.game.input.handleMouseButtonEvent(mouse_down);
+                }
+            },
+            .mouse_button_up => |mouse_up| {
+                if (mouse_up.window_id == self.window.window.getId() catch unreachable) {
+                    self.game.input.handleMouseButtonEvent(mouse_up);
+                }
+            },
+            .mouse_wheel => |mouse_wheel| {
+                if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
+                    self.game.input.handleMouseScrollEvent(mouse_wheel);
+                }
+            },
+            .mouse_motion => |mouse_motion| {
+                if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
+                    self.game.input.handleMouseMotionEvent(mouse_motion);
+                }
+            },
+            .drop_file => |file| {
+                try self.game.input.handleDroppedFile(self.gpa, file);
+            },
+            .drop_text => |text| {
+                try self.game.input.handleTextInputUtf8(self.gpa, text.text);
+            },
+            else => {},
+        }
+    }
+}
+
+fn sendNewEngineFrame(
+    self: *App,
+    swapchain_width: u32,
+    swapchain_height: u32,
+) !void {
+    if (!self.game.load_state.full_init or !self.game.engine_thread_got_frame.isSet()) {
+        return;
+    }
+
+    const dropped_files = try self.game.input.takeDroppedFiles(self.gpa);
+    defer if (dropped_files) |files| {
+        for (files.paths) |file| {
+            self.gpa.free(file);
+        }
+        self.gpa.free(files.paths);
+    };
+
+    try self.messaging.host.primary.sendTimeout(.{
+        .FrameStartData = .{
+            .lastFrameIndex = self.game.last_frame_index,
+            .inputs = .{
+                .displays = self.game.displays.items,
+                .gamepads = &.{},
+                .keyboard = .{
+                    .heldKeys = self.game.input.held_keys.keys(),
+                    .typeDelta = self.game.input.takeTypedDelta(),
+                },
+                .mouse = .{
+                    .leftButtonState = self.game.input.left_click_held,
+                    .middleButtonState = self.game.input.middle_click_held,
+                    .rightButtonState = self.game.input.right_click_held,
+                    .button4State = self.game.input.x1_click_held,
+                    .button5State = self.game.input.x2_click_held,
+                    .desktopPosition = self.game.input.mouse_desktop_pos,
+                    .directDelta = self.game.input.takeMouseDelta(),
+                    .isActive = self.window.mouse_active,
+                    .scrollWheelDelta = self.game.input.takeScrollDelta(),
+                    .windowPosition = self.game.input.mouse_window_pos,
+                },
+                .touches = &.{},
+                .vr = null,
+                .window = .{
+                    .isFullscreen = self.window.fullscreen,
+                    .isWindowFocused = self.window.focus,
+                    .dragAndDropEvent = dropped_files,
+                    // TODO: should this be window size or swapchain size?
+                    .windowResolution = .{
+                        .x = @intCast(swapchain_width),
+                        .y = @intCast(swapchain_height),
+                    },
+                    .resolutionSettingsApplied = self.window.takeResolutionUpdate(),
+                },
+            },
+            .performance = self.game.perf.state,
+            .renderedReflectionProbes = &.{},
+            .videoClockErrors = &.{},
+        },
+    }, std.time.ns_per_s);
+
+    log.trace(@src(), "Sent frame {d} start", .{self.game.last_frame_index + 1});
+
+    self.game.engine_thread_got_frame.reset();
+}
+
 pub fn frameLoop(self: *App) !void {
     self.game.engine_thread = try .spawn(.{}, engineLoop, .{self});
 
@@ -1191,112 +1387,7 @@ pub fn frameLoop(self: *App) !void {
         // keep 10mb in the arena
         defer _ = arena_impl.reset(.{ .retain_with_limit = 10 * 1000 * 1000 });
 
-        {
-            const trace = tracy.traceNamed(@src(), "Poll SDL events");
-            defer trace.end();
-
-            // Poll SDL3 events
-            while (sdl3.events.poll()) |event| {
-                if (self.imgui_data != null) {
-                    // ignore ret, doesnt help us
-                    _ = imgui.sdl3.processEvent(event);
-                }
-
-                switch (event) {
-                    .quit => {
-                        // try not to send duplicate quit messages.
-                        // this event usually comes after we've triggered an exit from window_close_requested
-                        // if we send 2 quit messages, the engine will force-exit unsafely.
-                        if (!self.game.exiting) {
-                            self.beginExit();
-                        }
-                    },
-                    .window_close_requested => |window| {
-                        // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
-                        if (window.id == self.window.window.getId() catch unreachable) {
-                            self.beginExit();
-                        }
-                    },
-                    .display_added,
-                    .display_content_scale_changed,
-                    .display_current_mode_changed,
-                    .display_desktop_mode_changed,
-                    .display_moved,
-                    .display_orientation,
-                    .display_removed,
-                    => {
-                        self.updateDisplays() catch |err| {
-                            log.err(@src(), "Failed to update displays, got err {s}", .{@errorName(err)});
-                        };
-                    },
-                    .window_enter_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                        self.window.fullscreen = true;
-                    },
-                    .window_leave_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                        self.window.fullscreen = false;
-                    },
-                    .window_focus_gained => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                        self.window.focus = true;
-                    },
-                    .window_focus_lost => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                        self.window.focus = false;
-                    },
-                    .window_mouse_enter => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                        self.window.mouse_active = true;
-                    },
-                    .window_mouse_leave => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                        self.window.mouse_active = false;
-                    },
-                    .key_down => |key_down| if (key_down.window_id == self.window.window.getId() catch unreachable) {
-                        self.game.input.handleKeyEvent(key_down);
-
-                        const key = key_down.key orelse return;
-                        var imgui_data = &(self.imgui_data orelse return);
-
-                        if (key_down.mod.altDown() and !key_down.mod.shiftDown() and !key_down.mod.controlDown() and key == .func3) {
-                            imgui_data.open = !imgui_data.open;
-                        }
-                    },
-                    .key_up => |key_up| {
-                        if (key_up.window_id == self.window.window.getId() catch unreachable) {
-                            self.game.input.handleKeyEvent(key_up);
-                        }
-                    },
-                    .text_input => |text_input| {
-                        if (text_input.window_id == self.window.window.getId() catch unreachable) {
-                            try self.game.input.handleTextInputUtf8(self.gpa, text_input.text);
-                        }
-                    },
-                    .mouse_button_down => |mouse_down| {
-                        if (mouse_down.window_id == self.window.window.getId() catch unreachable) {
-                            self.game.input.handleMouseButtonEvent(mouse_down);
-                        }
-                    },
-                    .mouse_button_up => |mouse_up| {
-                        if (mouse_up.window_id == self.window.window.getId() catch unreachable) {
-                            self.game.input.handleMouseButtonEvent(mouse_up);
-                        }
-                    },
-                    .mouse_wheel => |mouse_wheel| {
-                        if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
-                            self.game.input.handleMouseScrollEvent(mouse_wheel);
-                        }
-                    },
-                    .mouse_motion => |mouse_motion| {
-                        if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
-                            self.game.input.handleMouseMotionEvent(mouse_motion);
-                        }
-                    },
-                    .drop_file => |file| {
-                        try self.game.input.handleDroppedFile(self.gpa, file);
-                    },
-                    .drop_text => |text| {
-                        try self.game.input.handleTextInputUtf8(self.gpa, text.text);
-                    },
-                    else => {},
-                }
-            }
-        }
+        try self.pollSdlEvents();
 
         if (self.xr) |xr| {
             const trace = tracy.traceNamed(@src(), "XR event handling");
@@ -1322,61 +1413,7 @@ pub fn frameLoop(self: *App) !void {
             const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
 
             // send a frame start if the engine thread is waiting for us to do so
-            if (self.game.load_state.full_init and self.game.engine_thread_got_frame.isSet()) {
-                const dropped_files = try self.game.input.takeDroppedFiles(self.gpa);
-                defer if (dropped_files) |files| {
-                    for (files.paths) |file| {
-                        self.gpa.free(file);
-                    }
-                    self.gpa.free(files.paths);
-                };
-
-                try self.messaging.host.primary.sendTimeout(.{
-                    .FrameStartData = .{
-                        .lastFrameIndex = self.game.last_frame_index,
-                        .inputs = .{
-                            .displays = self.game.displays.items,
-                            .gamepads = &.{},
-                            .keyboard = .{
-                                .heldKeys = self.game.input.held_keys.keys(),
-                                .typeDelta = self.game.input.takeTypedDelta(),
-                            },
-                            .mouse = .{
-                                .leftButtonState = self.game.input.left_click_held,
-                                .middleButtonState = self.game.input.middle_click_held,
-                                .rightButtonState = self.game.input.right_click_held,
-                                .button4State = self.game.input.x1_click_held,
-                                .button5State = self.game.input.x2_click_held,
-                                .desktopPosition = self.game.input.mouse_desktop_pos,
-                                .directDelta = self.game.input.takeMouseDelta(),
-                                .isActive = self.window.mouse_active,
-                                .scrollWheelDelta = self.game.input.takeScrollDelta(),
-                                .windowPosition = self.game.input.mouse_window_pos,
-                            },
-                            .touches = &.{},
-                            .vr = null,
-                            .window = .{
-                                .isFullscreen = self.window.fullscreen,
-                                .isWindowFocused = self.window.focus,
-                                .dragAndDropEvent = dropped_files,
-                                // TODO: should this be window size or swapchain size?
-                                .windowResolution = .{
-                                    .x = @intCast(swapchain_width),
-                                    .y = @intCast(swapchain_height),
-                                },
-                                .resolutionSettingsApplied = self.window.takeResolutionUpdate(),
-                            },
-                        },
-                        .performance = self.game.perf.state,
-                        .renderedReflectionProbes = &.{},
-                        .videoClockErrors = &.{},
-                    },
-                }, std.time.ns_per_s);
-
-                log.trace(@src(), "Sent frame {d} start", .{self.game.last_frame_index + 1});
-
-                self.game.engine_thread_got_frame.reset();
-            }
+            try self.sendNewEngineFrame(swapchain_width, swapchain_height);
 
             const wait_on_engine = true;
             if (wait_on_engine) {
@@ -1413,24 +1450,7 @@ pub fn frameLoop(self: *App) !void {
                 const render_trace = tracy.traceNamed(@src(), "Render Frame");
                 defer render_trace.end();
 
-                if (swapchain_width != self.graphics_data.depth_texture_size.x or swapchain_height != self.graphics_data.depth_texture_size.y) {
-                    if (self.graphics_data.depth_texture) |depth_texture| {
-                        self.graphics_data.device.releaseTexture(depth_texture);
-                    }
-
-                    self.graphics_data.depth_texture = try self.graphics_data.device.createTexture(.{
-                        .format = .depth32_float,
-                        .width = swapchain_width,
-                        .height = swapchain_height,
-                        .layer_count_or_depth = 1,
-                        .num_levels = 1,
-                        .usage = .{ .depth_stencil_target = true },
-                    });
-                    self.graphics_data.depth_texture_size = .{
-                        .x = @intCast(swapchain_width),
-                        .y = @intCast(swapchain_height),
-                    };
-                }
+                try self.graphics_data.ensureDepthTexture(swapchain_width, swapchain_height);
 
                 try self.game.head_output.addDesktopView(
                     self.gpa,
