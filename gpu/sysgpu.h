@@ -1101,7 +1101,6 @@ struct GPU_Device
         GPU_SampleCount desiredSampleCount);
 
     // !GLOOBIE! Add OpenXR support
-#ifdef XR_OPENXR
     // OpenXR
     XrResult (*CreateXRSession)(GPU_Renderer *driverData, const XrSessionCreateInfo *createinfo,
                                 XrSession *session);
@@ -1113,7 +1112,6 @@ struct GPU_Device
                                   GPU_Texture ***textures);
 
     XrResult (*DestroyXRSwapchain)(GPU_Renderer *driverData, XrSwapchain swapchain, GPU_Texture **swapchainImages);
-#endif
 
     // Opaque pointer for the Driver
     GPU_Renderer *driverData;
@@ -1130,14 +1128,6 @@ struct GPU_Device
 
 #define ASSIGN_DRIVER_FUNC(func, name) \
     result->func = name##_##func;
-
-// !GLOOBIE! Add OpenXR support
-#ifdef XR_OPENXR
-#define ASSIGN_DRIVER_FUNC_OPENXR(func, name) \
-    result->func = name##_##func;
-#else
-#define ASSIGN_DRIVER_FUNC_OPENXR(func, name)
-#endif
 
 #define ASSIGN_DRIVER(name)                                  \
     ASSIGN_DRIVER_FUNC(DestroyDevice, name)                  \
@@ -1223,9 +1213,9 @@ struct GPU_Device
     ASSIGN_DRIVER_FUNC(ReleaseFence, name)                   \
     ASSIGN_DRIVER_FUNC(SupportsTextureFormat, name)          \
     ASSIGN_DRIVER_FUNC(SupportsSampleCount, name)            \
-    ASSIGN_DRIVER_FUNC_OPENXR(CreateXRSession, name)         \
-    ASSIGN_DRIVER_FUNC_OPENXR(CreateXRSwapchain, name)       \
-    ASSIGN_DRIVER_FUNC_OPENXR(DestroyXRSwapchain, name)
+    ASSIGN_DRIVER_FUNC(CreateXRSession, name)                \
+    ASSIGN_DRIVER_FUNC(CreateXRSwapchain, name)              \
+    ASSIGN_DRIVER_FUNC(DestroyXRSwapchain, name)
 // !GLOOBIE! Add OpenXR support (see 3 lines above)
 
 typedef struct GPU_Bootstrap

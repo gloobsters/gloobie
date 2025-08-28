@@ -27,10 +27,8 @@
 
 #include "../sysgpu.h"
 
-#ifdef XR_OPENXR
 #include "../xr/gpu_openxr.h"
 #include "../xr/gpu_openxrdyn.h"
-#endif
 
 #include <SDL3/SDL_vulkan.h>
 
@@ -239,7 +237,6 @@ static TextureFormatPair SDLToVK_TextureFormat_SrgbOnly[] = {
     {VK_FORMAT_ASTC_12x10_SRGB_BLOCK, GPU_TEXTUREFORMAT_ASTC_12x10_UNORM_SRGB},
     {VK_FORMAT_ASTC_12x12_SRGB_BLOCK, GPU_TEXTUREFORMAT_ASTC_12x12_UNORM_SRGB},
 };
-
 #endif
 
 static VkComponentMapping SwizzleForSDLFormat(GPU_TextureFormat format)
@@ -11766,12 +11763,12 @@ static bool VULKAN_SupportsTextureFormat(
 
 // OpenXR
 
-#ifdef XR_OPENXR
 static XrResult VULKAN_CreateXRSession(
     GPU_Renderer *driverData,
     const XrSessionCreateInfo *createinfo,
     XrSession *session)
 {
+#ifdef XR_OPENXR
     VulkanRenderer *renderer = (VulkanRenderer *)driverData;
 
     /* Copy out the existing next ptr so that we can append it to the end of the chain we create */
@@ -11791,8 +11788,12 @@ static XrResult VULKAN_CreateXRSession(
     sessionCreateInfo.next = &graphicsBinding;
 
     return renderer->xr->xrCreateSession(renderer->xrInstance, &sessionCreateInfo, session);
+#else
+    return XR_ERROR_FEATURE_UNSUPPORTED;
+#endif // XR_OPENXR
 }
 
+#ifdef XR_OPENXR
 static bool VULKAN_INTERNAL_FindXRSrgbSwapchain(int64_t *supportedFormats, Uint32 numFormats, GPU_TextureFormat *sdlFormat, int64_t *vkFormat)
 {
     for (Uint32 i = 0; i < SDL_arraysize(SDLToVK_TextureFormat_SrgbOnly); i++)
@@ -11810,6 +11811,7 @@ static bool VULKAN_INTERNAL_FindXRSrgbSwapchain(int64_t *supportedFormats, Uint3
 
     return false;
 }
+#endif // XR_OPENXR
 
 static XrResult VULKAN_CreateXRSwapchain(
     GPU_Renderer *driverData,
@@ -11819,6 +11821,7 @@ static XrResult VULKAN_CreateXRSwapchain(
     XrSwapchain *swapchain,
     GPU_Texture ***textures)
 {
+#ifdef XR_OPENXR
     XrResult result;
     Uint32 i, j, num_supported_formats;
     int64_t *supported_formats;
@@ -11993,6 +11996,9 @@ static XrResult VULKAN_CreateXRSwapchain(
 
     SDL_free(swapchainImages);
     return XR_SUCCESS;
+#else
+    return XR_ERROR_FEATURE_UNSUPPORTED;
+#endif // XR_OPENXR
 }
 
 static XrResult VULKAN_DestroyXRSwapchain(
@@ -12000,6 +12006,7 @@ static XrResult VULKAN_DestroyXRSwapchain(
     XrSwapchain swapchain,
     GPU_Texture **swapchainImages)
 {
+#ifdef XR_OPENXR
     XrResult result;
     VulkanRenderer *renderer = (VulkanRenderer *)driverData;
 
@@ -12032,8 +12039,10 @@ static XrResult VULKAN_DestroyXRSwapchain(
     SDL_free(swapchainImages);
 
     return renderer->xr->xrDestroySwapchain(swapchain);
-}
+#else
+    return XR_ERROR_FEATURE_UNSUPPORTED;
 #endif // XR_OPENXR
+}
 
 // Device instantiation
 

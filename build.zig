@@ -392,13 +392,14 @@ pub fn build(b: *std.Build) !void {
             .flags = c_flags,
         });
 
+        // Always add OpenXR headers, since the types are required for compilation
+        translate_c.addIncludePath(openxr_headers_inc);
+        gpu_mod.addIncludePath(openxr_headers_inc);
+
         switch (build_options.xr_backend) {
             .none => {},
             .openxr => {
                 gpu_mod.addImport("openxr", openxr_mod);
-
-                translate_c.addIncludePath(openxr_headers_inc);
-                gpu_mod.addIncludePath(openxr_headers_inc);
 
                 gpu_mod.addCSourceFiles(.{
                     .root = gpu_root.path(b, "xr"),
@@ -468,13 +469,8 @@ pub fn build(b: *std.Build) !void {
             translate_c.addIncludePath(vulkan_headers_inc);
         }
 
-        switch (build_options.xr_backend) {
-            .none => {},
-            .openxr => {
-                imgui_mod.addIncludePath(openxr_headers_inc);
-                translate_c.addIncludePath(openxr_headers_inc);
-            },
-        }
+        imgui_mod.addIncludePath(openxr_headers_inc);
+        translate_c.addIncludePath(openxr_headers_inc);
 
         imgui_mod.addIncludePath(imgui_inc);
         imgui_mod.addIncludePath(gpu_inc);

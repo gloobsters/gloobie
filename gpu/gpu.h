@@ -380,8 +380,6 @@
 #include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_video.h>
 
-#ifdef XR_OPENXR
-
 #ifdef GPU_VULKAN
 #include <vulkan/vulkan.h>
 
@@ -390,8 +388,6 @@
 
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
-
-#endif
 
 #include <SDL3/SDL_begin_code.h>
 #ifdef __cplusplus
@@ -4536,8 +4532,7 @@ extern "C"
 
 #endif /* SDL_PLATFORM_GDK */
 
-// !GLOOBIE! Add OpenXR API functions
-#ifdef XR_OPENXR
+    // !GLOOBIE! Add OpenXR API functions
     /**
      * Creates an OpenXR session. The OpenXR system ID is pulled from the passed GPU context.
      *
@@ -4591,7 +4586,6 @@ extern "C"
      * \sa GPU_CreateXRSwapchain
      */
     extern SDL_DECLSPEC XrResult SDLCALL GPU_DestroyXRSwapchain(GPU_Device *device, XrSwapchain swapchain, GPU_Texture **swapchainImages);
-#endif
 
 #ifdef __cplusplus
 }
