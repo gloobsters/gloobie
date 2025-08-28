@@ -5,7 +5,7 @@ const gpu = @import("gpu");
 
 pub const name = "None";
 
-const Backend = void;
+pub const Backend = void;
 
 pub const InitError = error{Unimplemented};
 
