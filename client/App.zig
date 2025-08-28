@@ -990,9 +990,9 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
             &frame_context,
             frame_submit_data.renderSpaces,
         );
-    }
 
-    try frame_context.end(self.gpa);
+        try frame_context.end(self.gpa);
+    }
 }
 
 fn engineLoop(self: *App) !void {
