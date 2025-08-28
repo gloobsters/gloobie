@@ -149,7 +149,7 @@ pub fn draw(draw_data: *imgui.DrawData, command_buffer: gpu.CommandBuffer, rende
 }
 
 fn fillMaterials(self: *ImGuiManager) void {
-    var material_iter = self.app.assets.materials.materials.iterator();
+    var material_iter = self.app.assets.material_manager.materials.iterator();
     while (material_iter.next()) |material_entry| {
         defer imgui.separator();
 
@@ -164,7 +164,7 @@ fn fillMaterials(self: *ImGuiManager) void {
 }
 
 fn fillPropertyBlocks(self: *ImGuiManager) void {
-    var property_block_iter = self.app.assets.materials.property_blocks.iterator();
+    var property_block_iter = self.app.assets.material_manager.property_blocks.iterator();
     while (property_block_iter.next()) |material_entry| {
         defer imgui.separator();
 

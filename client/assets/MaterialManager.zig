@@ -9,7 +9,7 @@ const shared = renderite.shared;
 const graphics = @import("../graphics.zig");
 const Assets = @import("Assets.zig");
 
-const Materials = @This();
+const MaterialManager = @This();
 
 const Material = struct {
     pub const RenderType = enum(i32) {
@@ -109,7 +109,7 @@ const PropertyBlock = struct {
     }
 };
 
-pub const empty: Materials = .{
+pub const empty: MaterialManager = .{
     .materials = .empty,
     .property_blocks = .empty,
 };
@@ -117,7 +117,7 @@ pub const empty: Materials = .{
 materials: std.AutoHashMapUnmanaged(Assets.Id, Material),
 property_blocks: std.AutoHashMapUnmanaged(Assets.Id, PropertyBlock),
 
-pub fn deinit(self: *Materials, gpa: std.mem.Allocator) void {
+pub fn deinit(self: *MaterialManager, gpa: std.mem.Allocator) void {
     self.materials.deinit(gpa);
     self.property_blocks.deinit(gpa);
 }
@@ -278,7 +278,7 @@ const MaterialUpdateReader = struct {
 };
 
 pub fn handleUpdate(
-    self: *Materials,
+    self: *MaterialManager,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
     accessor: *SharedMemoryAccessor,
@@ -375,4 +375,12 @@ pub fn handleUpdate(
     try frame_context.messaging_host.background.sendTimeout(.{ .MaterialsUpdateBatchResult = .{
         .updateBatchId = update.updateBatchId,
     } }, std.time.ns_per_s * 10);
+}
+
+pub fn unloadMaterial(self: *MaterialManager, request: renderite.shared.UnloadMaterial) void {
+    _ = self.materials.remove(.from(request.assetId));
+}
+
+pub fn unloadMaterialPropertyBlock(self: *MaterialManager, request: renderite.shared.UnloadMaterialPropertyBlock) void {
+    _ = self.property_blocks.remove(.from(request.assetId));
 }

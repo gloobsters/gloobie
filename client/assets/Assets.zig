@@ -5,7 +5,7 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const graphics = @import("../graphics.zig");
-const Materials = @import("Materials.zig");
+const MaterialManager = @import("MaterialManager.zig");
 const Mesh = @import("Mesh.zig");
 const Texture = @import("Texture.zig");
 
@@ -23,20 +23,20 @@ pub const TextureHandle = packed struct(u64) {
 lock: std.Thread.RwLock,
 textures: std.AutoHashMapUnmanaged(TextureHandle, Texture),
 meshes: std.AutoHashMapUnmanaged(Id, Mesh),
-materials: Materials,
+material_manager: MaterialManager,
 
 pub const empty: Assets = .{
     .lock = .{},
     .textures = .empty,
     .meshes = .empty,
-    .materials = .empty,
+    .material_manager = .empty,
 };
 
 pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
     self.lock.lock();
     defer self.lock.unlock();
 
-    self.materials.deinit(gpa);
+    self.material_manager.deinit(gpa);
 
     var tex_iter = self.textures.valueIterator();
     while (tex_iter.next()) |texture| {
@@ -316,5 +316,21 @@ pub fn handleMaterialUpdate(
     self.lock.lock();
     defer self.lock.unlock();
 
-    try self.materials.handleUpdate(gpa, frame_context, accessor, update);
+    try self.material_manager.handleUpdate(gpa, frame_context, accessor, update);
+}
+
+pub fn unloadMaterial(self: *Assets, request: renderite.shared.UnloadMaterial) void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    self.material_manager.unloadMaterial(request);
+    log.debug(@src(), "Unloaded Material {d}", .{request.assetId});
+}
+
+pub fn unloadMaterialPropertyBlock(self: *Assets, request: renderite.shared.UnloadMaterialPropertyBlock) void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    self.material_manager.unloadMaterialPropertyBlock(request);
+    log.debug(@src(), "Unloaded Material Property Block {d}", .{request.assetId});
 }

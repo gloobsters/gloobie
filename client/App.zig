@@ -768,6 +768,12 @@ fn handleRendererCommand(
         .MaterialsUpdateBatch => |materials_update_batch| {
             try self.assets.handleMaterialUpdate(self.gpa, frame_context, &self.messaging.accessor.?, materials_update_batch);
         },
+        .UnloadMaterial => |request| {
+            self.assets.unloadMaterial(request);
+        },
+        .UnloadMaterialPropertyBlock => |request| {
+            self.assets.unloadMaterialPropertyBlock(request);
+        },
         .SetRenderTextureFormat => |set_render_target_format| {
             // TODO: actually create render targets
             try self.messaging.host.background.sendTimeout(
