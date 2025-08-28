@@ -540,6 +540,25 @@ fn beginExit(self: *App) void {
     }
 }
 
+fn determineHeadOutput(self: *App, head_output: renderite.shared.HeadOutputDevice) renderite.shared.HeadOutputDevice {
+    return switch (head_output) {
+        // If we're autodetecting head output, pick based on whether VR is init
+        .Autodetect => if (self.xr == null)
+            .Screen
+        else
+            .SteamVR,
+
+        // Any VR runtime should boot up as VR
+        .SteamVR => .SteamVR,
+        .Oculus => .SteamVR,
+        .OculusQuest => .SteamVR,
+        .WindowsMR => .SteamVR,
+
+        // Anything unknown we should handle as a screen output
+        else => .Screen,
+    };
+}
+
 fn handleRendererCommand(
     self: *App,
     renderer_command: renderite.messaging.ParsedCommand,
@@ -565,10 +584,13 @@ fn handleRendererCommand(
             try self.window.window.setTitle(title);
             try self.window.window.raise();
 
-            self.game.head_output_device = renderer_init_data.outputDevice;
+            self.game.head_output_device = self.determineHeadOutput(renderer_init_data.outputDevice);
             self.game.main_process_pid = renderer_init_data.mainProcessId;
 
-            log.debug(@src(), "Head output device updated to {s}", .{@tagName(self.game.head_output_device)});
+            log.debug(@src(), "Attempting to initialize head output to {s}. Engine told us {s}", .{
+                @tagName(self.game.head_output_device),
+                @tagName(renderer_init_data.outputDevice),
+            });
             log.debug(@src(), "Main process PID {d}", .{renderer_init_data.mainProcessId});
 
             const formats = comptime std.enums.values(renderite.shared.TextureFormat);
