@@ -7,7 +7,7 @@ const tracy = @import("tracy");
 const graphics = @import("../graphics.zig");
 const mesh_renderer_managers = @import("mesh_renderer_manager.zig");
 const RendererManager = @import("renderer_manager.zig").RendererManager;
-const Transforms = @import("Transforms.zig");
+const TransformManager = @import("TransformManager.zig");
 
 const RenderSpace = @This();
 
@@ -37,7 +37,7 @@ imgui_data: ImGuiData,
 id: Id,
 properties: Properties,
 updated: bool,
-transforms: Transforms,
+transform_manager: TransformManager,
 mesh_renderer_manager: mesh_renderer_managers.MeshRendererManager,
 skinned_mesh_renderer_manager: mesh_renderer_managers.SkinnedMeshRendererManager,
 
@@ -46,7 +46,7 @@ pub fn init(update: renderite.shared.RenderSpaceUpdate) !RenderSpace {
         .id = .from(update.id),
         .properties = loadProperties(update),
         .updated = false,
-        .transforms = .init(),
+        .transform_manager = .init(),
         .imgui_data = .default,
         .mesh_renderer_manager = .init(),
         .skinned_mesh_renderer_manager = .init(),
@@ -98,7 +98,7 @@ pub fn handleUpdateLocked(
     }
 
     if (update.transformsUpdate) |transforms_update| {
-        try self.transforms.handleUpdate(
+        try self.transform_manager.handleUpdate(
             gpa,
             arena,
             accessor,
@@ -125,7 +125,7 @@ pub fn deinit(
     gpa: std.mem.Allocator,
     device: gpu.Device,
 ) void {
-    self.transforms.deinit(gpa);
+    self.transform_manager.deinit(gpa);
     self.mesh_renderer_manager.deinit(gpa, device);
     self.skinned_mesh_renderer_manager.deinit(gpa, device);
 }

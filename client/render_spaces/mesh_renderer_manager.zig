@@ -7,7 +7,7 @@ const Assets = @import("../assets/Assets.zig");
 const Mesh = @import("../assets/Mesh.zig");
 const graphics = @import("../graphics.zig");
 const lazy_array_list = @import("../lazy_array_list.zig");
-const Transforms = @import("Transforms.zig");
+const TransformManager = @import("TransformManager.zig");
 
 const log = @import("logger").Scoped(.render_space);
 
@@ -17,14 +17,14 @@ const MaterialPropertyBlockPair = packed struct(u64) {
 };
 
 pub const SharedMeshRenderable = struct {
-    transform: Transforms.Transform.Id,
+    transform: TransformManager.Transform.Id,
     mesh: Assets.Id,
     shadow_cast_mode: renderite.shared.ShadowCastMode,
     motion_vector_mode: renderite.shared.MotionVectorMode,
     sorting_order: i16,
     material_pairs: []MaterialPropertyBlockPair,
 
-    pub fn init(transform: Transforms.Transform.Id) SharedMeshRenderable {
+    pub fn init(transform: TransformManager.Transform.Id) SharedMeshRenderable {
         return .{
             .transform = transform,
             .mesh = .invalid,
@@ -43,7 +43,7 @@ pub const SharedMeshRenderable = struct {
 const MeshRenderable = struct {
     shared: SharedMeshRenderable,
 
-    pub fn init(transform: Transforms.Transform.Id) MeshRenderable {
+    pub fn init(transform: TransformManager.Transform.Id) MeshRenderable {
         return .{
             .shared = .init(transform),
         };
@@ -61,10 +61,10 @@ const SkinnedMeshRenderable = struct {
     update_when_offscreen: bool,
     bounds: renderite.shared.RenderBoundingBox,
 
-    root_bone: Transforms.Transform.Id,
+    root_bone: TransformManager.Transform.Id,
 
-    /// The CPU sided copy of the bone transforms
-    bones: []Transforms.Transform.Id,
+    /// The CPU sided copy of the bone TransformManager
+    bones: []TransformManager.Transform.Id,
 
     /// The CPU sided copy of the blend shape values
     blend_shape_values: lazy_array_list.LazyArrayList(f32),
@@ -75,7 +75,7 @@ const SkinnedMeshRenderable = struct {
     /// Whether the CPU sided blend shapes buffer has been updated
     blend_shape_values_updated: bool,
 
-    pub fn init(transform: Transforms.Transform.Id) SkinnedMeshRenderable {
+    pub fn init(transform: TransformManager.Transform.Id) SkinnedMeshRenderable {
         return .{
             .shared = .init(transform),
 
@@ -317,7 +317,7 @@ fn skinnedMeshRendererFinishUpdates(
             if (renderable.bones.len != bone_assignment.boneCount) {
                 gpa.free(renderable.bones);
 
-                renderable.bones = try gpa.alloc(Transforms.Transform.Id, @intCast(bone_assignment.boneCount));
+                renderable.bones = try gpa.alloc(TransformManager.Transform.Id, @intCast(bone_assignment.boneCount));
             }
             errdefer @compileError("Cannot error! bones may not be set to a value!");
 

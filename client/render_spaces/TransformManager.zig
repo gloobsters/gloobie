@@ -18,6 +18,7 @@ pub const Transform = struct {
     checked: bool,
     computed: bool,
     matrix: math.Matrix4x4f,
+    updated: bool,
 };
 
 transforms: std.MultiArrayList(Transform),
@@ -121,6 +122,7 @@ fn handleAdditions(
     @memset(slice.items(.parent), .invalid);
     @memset(slice.items(.render_transform), .{ .position = .zero, .rotation = .identity, .scale = .one });
     @memset(slice.items(.computed), false);
+    @memset(slice.items(.updated), false);
 }
 
 fn handleParentUpdates(
@@ -253,9 +255,13 @@ fn compute(
 
     const slice = self.transforms.slice();
     const computed_slice = slice.items(.computed);
+    const updated_slice = slice.items(.updated);
     const matrix_slice = slice.items(.matrix);
     const parent_slice = slice.items(.parent);
     const render_transform_slice = slice.items(.render_transform);
+
+    // Mark them all as non-updated
+    @memset(updated_slice, false);
 
     var stack: std.ArrayListUnmanaged(Transform.Id) = try .initCapacity(arena, 64);
     defer stack.deinit(arena);
@@ -300,6 +306,7 @@ fn compute(
                 const index: usize = @intCast(top.to());
 
                 computed_slice[index] = true;
+                updated_slice[index] = true;
                 matrix_slice[index] = uppermost_matrix;
                 num_computed += 1;
 
@@ -311,6 +318,7 @@ fn compute(
             parent_matrix = parent_matrix.mult(&.createRenderTransform(render_transform_slice[child_index]));
 
             computed_slice[child_index] = true;
+            updated_slice[child_index] = true;
             matrix_slice[child_index] = parent_matrix;
             num_computed += 1;
         }

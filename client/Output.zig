@@ -10,7 +10,7 @@ const Assets = @import("assets/Assets.zig");
 const graphics = @import("graphics.zig");
 const mesh_renderer_manager = @import("render_spaces/mesh_renderer_manager.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
-const Transforms = @import("render_spaces/Transforms.zig");
+const TransformManager = @import("render_spaces/TransformManager.zig");
 
 const Output = @This();
 
@@ -132,7 +132,7 @@ fn renderRenderSpace(
     const trace = tracy.traceNamed(@src(), "Render Render Space");
     defer trace.end();
 
-    const computed_transforms = render_space.transforms.transforms.items(.matrix);
+    const computed_transforms = render_space.transform_manager.transforms.items(.matrix);
 
     for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
         try renderSharedMeshRenderer(
