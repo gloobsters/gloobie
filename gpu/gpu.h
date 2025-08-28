@@ -4548,6 +4548,12 @@ extern "C"
         const XrSessionCreateInfo *createinfo,
         XrSession *session);
 
+    extern SDL_DECLSPEC XrResult SDLCALL GPU_EnumerateXRSwapchainFormats(
+        GPU_Device *device,
+        XrSession session,
+        Uint32 *formatCount,
+        GPU_TextureFormat *formatsOutput);
+
     /**
      * Creates an OpenXR swapchain.
      *
@@ -4563,7 +4569,6 @@ extern "C"
      * \sa GPU_CreateXRSession
      * \sa GPU_DestroyXRSwapchain
      */
-
     /* TODO: figure out then document what usageFlags are actually possible to be supported by SDL_gpu */
     extern SDL_DECLSPEC XrResult SDLCALL GPU_CreateXRSwapchain(
         GPU_Device *device,

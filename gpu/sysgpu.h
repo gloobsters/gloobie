@@ -1105,6 +1105,12 @@ struct GPU_Device
     XrResult (*CreateXRSession)(GPU_Renderer *driverData, const XrSessionCreateInfo *createinfo,
                                 XrSession *session);
 
+    XrResult (*EnumerateXRSwapchainFormats)(
+        GPU_Renderer *driverData,
+        XrSession session,
+        Uint32 *formatCount,
+        GPU_TextureFormat *formatsOutput);
+
     XrResult (*CreateXRSwapchain)(GPU_Renderer *driverData, XrSession session,
                                   const XrSwapchainCreateInfo *createinfo,
                                   GPU_TextureFormat *textureFormat,
@@ -1214,6 +1220,7 @@ struct GPU_Device
     ASSIGN_DRIVER_FUNC(SupportsTextureFormat, name)          \
     ASSIGN_DRIVER_FUNC(SupportsSampleCount, name)            \
     ASSIGN_DRIVER_FUNC(CreateXRSession, name)                \
+    ASSIGN_DRIVER_FUNC(EnumerateXRSwapchainFormats, name)    \
     ASSIGN_DRIVER_FUNC(CreateXRSwapchain, name)              \
     ASSIGN_DRIVER_FUNC(DestroyXRSwapchain, name)
 // !GLOOBIE! Add OpenXR support (see 3 lines above)

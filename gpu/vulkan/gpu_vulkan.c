@@ -11813,6 +11813,73 @@ static bool VULKAN_INTERNAL_FindXRSrgbSwapchain(int64_t *supportedFormats, Uint3
 }
 #endif // XR_OPENXR
 
+static XrResult VULKAN_EnumerateXRSwapchainFormats(
+    GPU_Renderer *driverData,
+    XrSession session,
+    Uint32 *formatCount,
+    GPU_TextureFormat *formatsOutput)
+{
+#ifdef XR_OPENXR
+    XrResult result;
+
+    int64_t *supported_formats;
+    Uint32 num_supported_formats;
+
+    VulkanRenderer *renderer = (VulkanRenderer *)driverData;
+
+    result = renderer->xr->xrEnumerateSwapchainFormats(session, 0, &num_supported_formats, NULL);
+    if (result != XR_SUCCESS)
+    {
+        return result;
+    }
+
+    supported_formats = SDL_stack_alloc(int64_t, num_supported_formats);
+    result = renderer->xr->xrEnumerateSwapchainFormats(session, num_supported_formats, &num_supported_formats, supported_formats);
+    if (result != XR_SUCCESS)
+    {
+        SDL_stack_free(supported_formats);
+        return result;
+    }
+
+    *formatCount = 0;
+    for (Uint32 i = 0; i < num_supported_formats; i++)
+    {
+        for (Uint32 j = 0; j < SDL_arraysize(SDLToVK_TextureFormat); j++)
+        {
+            if (SDLToVK_TextureFormat[j] == supported_formats[i])
+            {
+                (*formatCount)++;
+                break;
+            }
+        }
+    }
+
+    if (formatsOutput == NULL)
+    {
+        SDL_stack_free(supported_formats);
+        return XR_SUCCESS;
+    }
+
+    Uint32 index = 0;
+    for (Uint32 i = 0; i < num_supported_formats; i++)
+    {
+        for (Uint32 j = 0; j < SDL_arraysize(SDLToVK_TextureFormat); j++)
+        {
+            if (SDLToVK_TextureFormat[j] == supported_formats[i])
+            {
+                formatsOutput[index++] = (GPU_TextureFormat)j;
+                break;
+            }
+        }
+    }
+
+    SDL_stack_free(supported_formats);
+    return XR_SUCCESS;
+#else
+    return XR_ERROR_FEATURE_UNSUPPORTED;
+#endif // XR_OPENXR
+}
+
 static XrResult VULKAN_CreateXRSwapchain(
     GPU_Renderer *driverData,
     XrSession session,
@@ -11827,39 +11894,56 @@ static XrResult VULKAN_CreateXRSwapchain(
     int64_t *supported_formats;
     VulkanRenderer *renderer = (VulkanRenderer *)driverData;
 
-    result = renderer->xr->xrEnumerateSwapchainFormats(session, 0, &num_supported_formats, NULL);
-    if (result != XR_SUCCESS)
-        return result;
-    supported_formats = SDL_stack_alloc(int64_t, num_supported_formats);
-    result = renderer->xr->xrEnumerateSwapchainFormats(session, num_supported_formats, &num_supported_formats, supported_formats);
-    if (result != XR_SUCCESS)
-    {
-        SDL_stack_free(supported_formats);
-        return result;
-    }
-
     int64_t vkFormat = VK_FORMAT_UNDEFINED;
-    /* The OpenXR spec reccomends applications not submit linear data, so let's try to explicitly find an sRGB swapchain before we search the whole list */
-    if (!VULKAN_INTERNAL_FindXRSrgbSwapchain(supported_formats, num_supported_formats, textureFormat, &vkFormat))
+    if (oldCreateInfo->format != 0)
     {
-        /* Iterate over all formats the runtime support */
-        for (i = 0; i < num_supported_formats && vkFormat == VK_FORMAT_UNDEFINED; i++)
+        // If the user specified a format, convert back to a VK format, and use it
+        for (j = 0; j < SDL_arraysize(SDLToVK_TextureFormat); j++)
         {
-            /* Iterate over all formats we support */
-            for (j = 0; j < SDL_arraysize(SDLToVK_TextureFormat); j++)
+            if (SDLToVK_TextureFormat[j] == oldCreateInfo->format)
             {
-                /* Pick the first format the runtime wants that we also support, the runtime should return these in order of preference */
-                if (SDLToVK_TextureFormat[j] == supported_formats[j])
-                {
-                    vkFormat = supported_formats[j];
-                    *textureFormat = j;
-                    break;
-                }
+                *textureFormat = (GPU_TextureFormat)j;
+                vkFormat = SDLToVK_TextureFormat[j];
+                break;
             }
         }
     }
+    else
+    {
+        // If the user did not specify a format, we need to pick an sRGB format that both we and the runtime support
+        result = renderer->xr->xrEnumerateSwapchainFormats(session, 0, &num_supported_formats, NULL);
+        if (result != XR_SUCCESS)
+            return result;
+        supported_formats = SDL_stack_alloc(int64_t, num_supported_formats);
+        result = renderer->xr->xrEnumerateSwapchainFormats(session, num_supported_formats, &num_supported_formats, supported_formats);
+        if (result != XR_SUCCESS)
+        {
+            SDL_stack_free(supported_formats);
+            return result;
+        }
 
-    SDL_stack_free(supported_formats);
+        /* The OpenXR spec reccomends applications not submit linear data, so let's try to explicitly find an sRGB swapchain before we search the whole list */
+        if (!VULKAN_INTERNAL_FindXRSrgbSwapchain(supported_formats, num_supported_formats, textureFormat, &vkFormat))
+        {
+            /* Iterate over all formats the runtime support */
+            for (i = 0; i < num_supported_formats && vkFormat == VK_FORMAT_UNDEFINED; i++)
+            {
+                /* Iterate over all formats we support */
+                for (j = 0; j < SDL_arraysize(SDLToVK_TextureFormat); j++)
+                {
+                    /* Pick the first format the runtime wants that we also support, the runtime should return these in order of preference */
+                    if (SDLToVK_TextureFormat[j] == supported_formats[j])
+                    {
+                        vkFormat = supported_formats[j];
+                        *textureFormat = j;
+                        break;
+                    }
+                }
+            }
+        }
+
+        SDL_stack_free(supported_formats);
+    }
 
     if (vkFormat == VK_FORMAT_UNDEFINED)
     {
