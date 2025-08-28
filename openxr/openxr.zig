@@ -629,6 +629,9 @@ pub const InstanceFnPtrs = struct {
     xrPollEvent: c.PFN_xrPollEvent,
     xrDestroySession: c.PFN_xrDestroySession,
     xrDestroyInstance: c.PFN_xrDestroyInstance,
+    xrBeginSession: c.PFN_xrBeginSession,
+    xrEndSession: c.PFN_xrEndSession,
+    xrRequestExitSession: c.PFN_xrRequestExitSession,
 };
 
 pub fn loadFnPtrs(get_proc_addr: c.PFN_xrGetInstanceProcAddr, instance: c.XrInstance, comptime T: type) ResultError!T {
@@ -650,6 +653,13 @@ pub const SessionState = enum(c.XrSessionState) {
     stopping = 6,
     loss_pending = 7,
     exiting = 8,
+};
+
+pub const ViewConfigurationType = enum(c.XrViewConfigurationType) {
+    primary_mono = 1,
+    primary_stereo = 2,
+    primary_stereo_with_foveated_inset = 1000037000,
+    secondary_mono_first_person_observer_msft = 1000054000,
 };
 
 pub const Event = extern union {
@@ -693,6 +703,28 @@ pub const DestroySessionError = error{error_handle_invalid};
 
 pub const DestroyInstanceError = error{error_handle_invalid};
 
+pub const BeginSessionError = error{
+    session_loss_pending,
+    error_validation_failure,
+    error_runtime_failure,
+    error_handle_invalid,
+    error_instance_lost,
+    error_session_lost,
+    error_view_configuration_type_unsupported,
+    error_session_running,
+    error_session_not_ready,
+};
+
+pub const RequestExitSessionError = error{
+    session_loss_pending,
+    error_validation_failure,
+    error_runtime_failure,
+    error_handle_invalid,
+    error_instance_lost,
+    error_session_lost,
+    error_session_not_running,
+};
+
 pub const Instance = struct {
     value: c.XrInstance,
 
@@ -700,18 +732,12 @@ pub const Instance = struct {
 
     pub fn pollEvent(self: Instance, out: *Event) PollEventError!bool {
         convertResult(self.fn_ptrs.xrPollEvent.?(self.value, out.to())) catch |err| {
-            switch (err) {
-                ResultError.event_unavailable => return false,
-
-                ResultError.error_runtime_failure,
-                ResultError.error_instance_lost,
-                ResultError.error_handle_invalid,
-                ResultError.error_validation_failure,
-                => |caught_err| return caught_err,
+            return switch (err) {
+                ResultError.event_unavailable => false,
 
                 // SAFETY: according to the specification, no other errors are reachable
-                else => unreachable,
-            }
+                else => @errorCast(err),
+            };
         };
 
         return true;
@@ -719,21 +745,33 @@ pub const Instance = struct {
 
     pub fn destroySession(self: Instance, session: Session) DestroySessionError!void {
         return convertResult(self.fn_ptrs.xrDestroySession.?(session.value)) catch |err| {
-            if (err == DestroySessionError.error_handle_invalid)
-                return DestroySessionError.error_handle_invalid;
+            // SAFETY: according to the specification, no other errors are reachable
+            return @errorCast(err);
+        };
+    }
 
-            // SAFETY: spec says no other errors are possible
-            unreachable;
+    pub fn beginSession(
+        self: Instance,
+        session: Session,
+        begin_info: Session.BeginInfo,
+    ) BeginSessionError!void {
+        return convertResult(self.fn_ptrs.xrBeginSession.?(session.value, &begin_info.to())) catch |err| {
+            // SAFETY: according to the specification, no other errors are reachable
+            return @errorCast(err);
+        };
+    }
+
+    pub fn requestExitSession(self: Instance, session: Session) RequestExitSessionError!void {
+        return convertResult(self.fn_ptrs.xrRequestExitSession.?(session.value)) catch |err| {
+            // SAFETY: according to the specification, no other errors are reachable
+            return @errorCast(err);
         };
     }
 
     pub fn deinit(self: Instance) DestroyInstanceError!void {
         return convertResult(self.fn_ptrs.xrDestroyInstance.?(self.value)) catch |err| {
-            if (err == DestroyInstanceError.error_handle_invalid)
-                return DestroyInstanceError.error_handle_invalid;
-
-            // SAFETY: spec says no other errors are possible
-            unreachable;
+            // SAFETY: according to the specification, no other errors are reachable
+            return @errorCast(err);
         };
     }
 };
@@ -773,6 +811,24 @@ pub const Session = extern struct {
 
         pub fn to(create_info: CreateInfo) c.XrSessionCreateInfo {
             return @bitCast(create_info);
+        }
+    };
+
+    pub const BeginInfo = extern struct {
+        type: StructureType = .session_begin_info,
+        next: ?*anyopaque = null,
+        primary_view_configuration_type: ViewConfigurationType,
+
+        // ABI asserts
+        comptime {
+            std.debug.assert(@sizeOf(Session.BeginInfo) == @sizeOf(c.XrSessionBeginInfo));
+            std.debug.assert(@offsetOf(Session.CreateInfo, "type") == @offsetOf(c.XrSessionBeginInfo, "type"));
+            std.debug.assert(@offsetOf(Session.CreateInfo, "next") == @offsetOf(c.XrSessionBeginInfo, "next"));
+            std.debug.assert(@offsetOf(Session.CreateInfo, "primary_view_configuration_type") == @offsetOf(c.XrSessionBeginInfo, "primaryViewConfigurationType"));
+        }
+
+        pub fn to(begin_info: BeginInfo) c.XrSessionBeginInfo {
+            return @bitCast(begin_info);
         }
     };
 

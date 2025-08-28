@@ -3,19 +3,38 @@ const std = @import("std");
 const build_options = @import("options").build_options;
 const gpu = @import("gpu");
 const openxr = @import("openxr");
+pub const CreateSessionError = openxr.ResultError;
+pub const BeginSessionError = openxr.BeginSessionError;
+pub const RequestSessionExitError = openxr.RequestExitSessionError;
 const sdl3 = @import("sdl3");
+
+const xr = @import("../xr.zig");
 
 const log = @import("logger").Scoped(.openxr);
 
 pub const name = "OpenXR";
 
-const Backend = struct {
+const SessionData = struct {
+    session: openxr.Session,
+    state: openxr.SessionState,
+
+    pub fn deinit(self: SessionData, instance: openxr.Instance) void {
+        // SAFETY: None of the errors are reachable since session is always valid
+        instance.destroySession(self.session) catch unreachable;
+    }
+
+    pub fn handleStateChange(self: *SessionData, new_state: openxr.SessionState) void {
+        log.info(@src(), "Session state has changed to {s}, was {s}", .{ @tagName(new_state), @tagName(self.state) });
+        self.state = new_state;
+    }
+};
+
+pub const Backend = struct {
     gpu_device: gpu.Device,
     instance: openxr.Instance,
     system_id: openxr.SystemId,
-    session: openxr.Session,
 
-    session_state: openxr.SessionState,
+    session_data: ?SessionData,
 };
 
 pub const InitError = error{
@@ -57,13 +76,6 @@ pub fn init(gpa: std.mem.Allocator) InitError!*Backend {
 
     instance.fn_ptrs = try openxr.loadFnPtrs(xr_get_proc_addr, instance.value, openxr.InstanceFnPtrs);
 
-    const session = try gpu_device.createXrSession(.{
-        .system_id = system_id,
-        .flags = .{},
-    });
-    // SAFETY: only error is handle invalid but that's not possible by here
-    errdefer instance.destroySession(session) catch unreachable;
-
     const backend = try gpa.create(Backend);
     errdefer gpa.destroy(backend);
 
@@ -71,18 +83,15 @@ pub fn init(gpa: std.mem.Allocator) InitError!*Backend {
         .gpu_device = gpu_device,
         .instance = instance,
         .system_id = system_id,
-        .session = session,
 
-        // According to spec, sessions always start in "idle" state
-        .session_state = .idle,
+        .session_data = null,
     };
 
     return backend;
 }
 
 pub fn deinit(gpa: std.mem.Allocator, backend: *Backend) void {
-    // SAFETY: only error is handle invalid but that's not possible by here
-    backend.instance.destroySession(backend.session) catch unreachable;
+    if (backend.session_data) |session_data| session_data.deinit(backend.instance);
     backend.instance.deinit() catch unreachable;
 
     gpa.destroy(backend);
@@ -104,10 +113,61 @@ pub fn handleEvents(self: *Backend) HandleEventsError!void {
             .event_data_session_state_changed => {
                 const session_state_changed = event.session_state_changed;
 
-                log.info(@src(), "Session state has changed to {s}, was {s}", .{ @tagName(session_state_changed.state), @tagName(self.session_state) });
-                self.session_state = session_state_changed.state;
+                const session_data = &self.session_data.?;
+                std.debug.assert(session_data.session.value == session_state_changed.session);
+
+                session_data.handleStateChange(session_state_changed.state);
             },
             else => {},
         }
     }
+}
+
+pub fn sessionState(self: *Backend) xr.State {
+    if (self.session_data) |session_data|
+        return switch (session_data.state) {
+            .idle => .idle,
+            .ready => .ready,
+            .synchronized, .visible, .focused => .active,
+            .stopping => .stopping,
+            .exiting => .idle,
+        }
+    else
+        return .no_session;
+}
+
+pub fn createSession(self: *Backend) CreateSessionError!void {
+    std.debug.assert(self.session_data == null);
+
+    const session = try self.gpu.createXrSession(.{
+        .system_id = self.system_id,
+        .flags = .{},
+    });
+    errdefer self.instance.destroySession(session) catch unreachable;
+
+    self.session_data = .{
+        .session = session,
+
+        // NOTE: According to the specification, all session start in idle
+        .state = .idle,
+    };
+}
+
+pub fn beginSession(self: *Backend) BeginSessionError!void {
+    const session_data = &self.session_data.?;
+
+    std.debug.assert(session_data.state == .ready);
+
+    // TODO: don't have *only* primary stereo
+    try self.instance.beginSession(session_data.session, .{
+        .primary_view_configuration_type = .primary_stereo,
+    });
+}
+
+pub fn requestSessionExit(self: *Backend) RequestSessionExitError!void {
+    const session_data = &self.session_data.?;
+
+    std.debug.assert(session_data.state == .synchronized or session_data.state == .visible or session_data.state == .focused);
+
+    try self.instance.requestExitSession(session_data.session);
 }

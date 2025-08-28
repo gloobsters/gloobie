@@ -8,6 +8,7 @@ const imgui = @import("imgui");
 const mailbox = @import("mailbox");
 const math = @import("math");
 const renderite = @import("renderite");
+const shared = renderite.shared;
 const SharedMemoryAccessor = renderite.buffer.SharedMemoryAccessor;
 const InitSettings = renderite.InitSettings;
 const sdl3 = @import("sdl3");
@@ -31,6 +32,8 @@ const log = @import("logger").Scoped(.app);
 const App = @This();
 
 const XrData = struct {
+    lock: std.Thread.Mutex,
+
     backend: *xr_t.Backend,
 
     pub fn deinit(self: XrData, gpa: std.mem.Allocator) void {
@@ -42,8 +45,8 @@ pub const FenceManager = graphics.FenceManager(&.{});
 
 const GraphicsData = struct {
     device: gpu.Device,
-    sampler_supported_formats: std.enums.EnumSet(renderite.shared.TextureFormat),
-    cubemap_supported_formats: std.enums.EnumSet(renderite.shared.TextureFormat),
+    sampler_supported_formats: std.enums.EnumSet(shared.TextureFormat),
+    cubemap_supported_formats: std.enums.EnumSet(shared.TextureFormat),
 
     depth_texture: ?gpu.Texture,
     depth_texture_size: math.Vector2i,
@@ -103,7 +106,7 @@ pub const ToRenderLetter = union(enum) {
         command: renderite.messaging.ParsedCommand,
         queue_type: MessagingHost.QueueManager.Type,
     },
-    handle_output_state: renderite.shared.OutputState,
+    handle_output_state: shared.OutputState,
 };
 
 pub const ToEngineMailbox = mailbox.MailBox(ToEngineLetter);
@@ -164,7 +167,7 @@ const LoadState = struct {
 const GameData = struct {
     run_loop: bool,
     exiting: bool,
-    head_output_device: renderite.shared.HeadOutputDevice,
+    head_output_device: shared.HeadOutputDevice,
     main_process_pid: ?i32,
     load_state: LoadState,
     last_frame_index: i32,
@@ -174,7 +177,7 @@ const GameData = struct {
     to_engine_mailbox: ToEngineMailbox,
     to_engine_envelope_pool: std.heap.MemoryPool(ToEngineMailbox.Envelope),
 
-    displays: std.ArrayListUnmanaged(renderite.shared.DisplayState),
+    displays: std.ArrayListUnmanaged(shared.DisplayState),
 
     render_spaces_lock: std.Thread.RwLock,
     render_spaces: std.AutoArrayHashMapUnmanaged(RenderSpace.Id, RenderSpace),
@@ -262,7 +265,10 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             log.warn(@src(), "Failed to initialize XR backend {s}, will be starting in desktop-only mode. Restart will be required to begin a VR session.", .{xr_t.name});
         }
 
-        break :create_xr_data if (xr_backend) |backend| .{ .backend = backend } else null;
+        break :create_xr_data if (xr_backend) |backend| .{
+            .lock = .{},
+            .backend = backend,
+        } else null;
     };
     errdefer if (xr_data) |xr| xr.deinit(gpa);
 
@@ -302,9 +308,9 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         });
         errdefer if (xr_data == null) gpu_device.deinit();
 
-        var sampler_supported_formats: std.EnumSet(renderite.shared.TextureFormat) = .initEmpty();
-        var cubemap_supported_formats: std.EnumSet(renderite.shared.TextureFormat) = .initEmpty();
-        for (std.enums.values(renderite.shared.TextureFormat)) |renderite_format| {
+        var sampler_supported_formats: std.EnumSet(shared.TextureFormat) = .initEmpty();
+        var cubemap_supported_formats: std.EnumSet(shared.TextureFormat) = .initEmpty();
+        for (std.enums.values(shared.TextureFormat)) |renderite_format| {
             const srgb_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .sRGB) orelse continue;
             const linear_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .Linear) orelse continue;
 
@@ -540,7 +546,7 @@ fn beginExit(self: *App) void {
     }
 }
 
-fn determineHeadOutput(self: *App, head_output: renderite.shared.HeadOutputDevice) renderite.shared.HeadOutputDevice {
+fn determineHeadOutput(self: *App, head_output: shared.HeadOutputDevice) shared.HeadOutputDevice {
     return switch (head_output) {
         // If we're autodetecting head output, pick based on whether VR is init
         .Autodetect => if (self.xr == null)
@@ -593,12 +599,12 @@ fn handleRendererCommand(
             });
             log.debug(@src(), "Main process PID {d}", .{renderer_init_data.mainProcessId});
 
-            const formats = comptime std.enums.values(renderite.shared.TextureFormat);
+            const formats = comptime std.enums.values(shared.TextureFormat);
 
             const supported_formats = self.graphics_data.sampler_supported_formats.unionWith(self.graphics_data.cubemap_supported_formats);
             const supported_formats_len = supported_formats.count();
 
-            var supported_formats_buf: [formats.len]renderite.shared.TextureFormat = undefined;
+            var supported_formats_buf: [formats.len]shared.TextureFormat = undefined;
             var i: usize = 0;
             for (formats) |format| {
                 if (supported_formats.contains(format)) {
@@ -920,7 +926,7 @@ fn updateRenderSpacesLocked(
     self: *App,
     arena: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
-    updates: []const renderite.shared.RenderSpaceUpdate,
+    updates: []const shared.RenderSpaceUpdate,
 ) !void {
     for (self.game.render_spaces.values()) |*render_space| {
         render_space.clearUpdated();
@@ -1072,7 +1078,7 @@ fn updateDisplays(self: *App) !void {
         const natural_orientation: sdl3.video.Display.Orientation = display.getNaturalOrientation() orelse .landscape;
         const current_orientation: sdl3.video.Display.Orientation = display.getCurrentOrientation() orelse .landscape;
 
-        const renderite_orientation: renderite.shared.RectOrientation = switch (natural_orientation) {
+        const renderite_orientation: shared.RectOrientation = switch (natural_orientation) {
             .landscape => switch (current_orientation) {
                 .landscape => .Default,
                 .landscape_flipped => .UpsideDown180,
@@ -1101,7 +1107,7 @@ fn updateDisplays(self: *App) !void {
 
         const display_mode = try display.getDesktopMode();
 
-        const renderite_display: renderite.shared.DisplayState = .{
+        const renderite_display: shared.DisplayState = .{
             .offset = .{ .x = bounds.x, .y = bounds.y },
             .displayIndex = @intCast(index),
             .dpi = .{ .x = dpi, .y = dpi },
@@ -1116,7 +1122,7 @@ fn updateDisplays(self: *App) !void {
     }
 }
 
-fn getPrimaryDisplay(self: *App) ?renderite.shared.DisplayState {
+fn getPrimaryDisplay(self: *App) ?shared.DisplayState {
     for (self.game.displays.items) |display| {
         if (display.isPrimary)
             return display;
@@ -1142,7 +1148,7 @@ fn updateVSync(self: *App, vsync: bool) !void {
     self.window.present_mode = present_mode;
 }
 
-fn applyOutputState(self: *App, output_state: renderite.shared.OutputState) !void {
+fn applyOutputState(self: *App, output_state: shared.OutputState) !void {
     if (sdl3.keyboard.textInputActive(self.window.window) != output_state.keyboardInputActive) {
         if (output_state.keyboardInputActive) {
             try sdl3.keyboard.startTextInput(self.window.window);
