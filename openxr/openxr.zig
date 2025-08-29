@@ -725,6 +725,17 @@ pub const RequestExitSessionError = error{
     error_session_not_running,
 };
 
+pub const EndSessionError = error{
+    session_loss_pending,
+    error_validation_failure,
+    error_runtime_failure,
+    error_handle_invalid,
+    error_instance_lost,
+    error_session_lost,
+    error_session_not_stopping,
+    error_session_not_running,
+};
+
 pub const Instance = struct {
     value: c.XrInstance,
 
@@ -744,10 +755,8 @@ pub const Instance = struct {
     }
 
     pub fn destroySession(self: Instance, session: Session) DestroySessionError!void {
-        return convertResult(self.fn_ptrs.xrDestroySession.?(session.value)) catch |err| {
-            // SAFETY: according to the specification, no other errors are reachable
-            return @errorCast(err);
-        };
+        // SAFETY: according to the specification, no other errors are reachable
+        return @errorCast(convertResult(self.fn_ptrs.xrDestroySession.?(session.value)));
     }
 
     pub fn beginSession(
@@ -755,24 +764,23 @@ pub const Instance = struct {
         session: Session,
         begin_info: Session.BeginInfo,
     ) BeginSessionError!void {
-        return convertResult(self.fn_ptrs.xrBeginSession.?(session.value, &begin_info.to())) catch |err| {
-            // SAFETY: according to the specification, no other errors are reachable
-            return @errorCast(err);
-        };
+        // SAFETY: according to the specification, no other errors are reachable
+        return @errorCast(convertResult(self.fn_ptrs.xrBeginSession.?(session.value, &begin_info.to())));
+    }
+
+    pub fn endSession(self: Instance, session: Session) EndSessionError!void {
+        // SAFETY: according to the specification, no other errors are reachable
+        return @errorCast(convertResult(self.fn_ptrs.xrEndSession.?(session.value)));
     }
 
     pub fn requestExitSession(self: Instance, session: Session) RequestExitSessionError!void {
-        return convertResult(self.fn_ptrs.xrRequestExitSession.?(session.value)) catch |err| {
-            // SAFETY: according to the specification, no other errors are reachable
-            return @errorCast(err);
-        };
+        // SAFETY: according to the specification, no other errors are reachable
+        return @errorCast(convertResult(self.fn_ptrs.xrRequestExitSession.?(session.value)));
     }
 
     pub fn deinit(self: Instance) DestroyInstanceError!void {
-        return convertResult(self.fn_ptrs.xrDestroyInstance.?(self.value)) catch |err| {
-            // SAFETY: according to the specification, no other errors are reachable
-            return @errorCast(err);
-        };
+        // SAFETY: according to the specification, no other errors are reachable
+        return @errorCast(convertResult(self.fn_ptrs.xrDestroyInstance.?(self.value)));
     }
 };
 
