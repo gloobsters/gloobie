@@ -190,8 +190,19 @@ const LoadState = struct {
 };
 
 const GameData = struct {
-    run_loop: bool,
-    exiting: bool,
+    pub const RunState = enum {
+        /// App is normally running
+        running,
+        /// Renderer requested an exit, awaiting the engine to tell us to exit
+        renderer_requested_exit,
+        /// We are exiting as soon as we've stopped all systems
+        exiting,
+        /// We need to close ASAP
+        panic,
+    };
+
+    run_state: RunState,
+
     head_output_device: shared.HeadOutputDevice,
     main_process_pid: ?i32,
     load_state: LoadState,
@@ -241,12 +252,21 @@ const GameData = struct {
     }
 };
 
+pub fn runLoop(self: *App) bool {
+    return switch (self.game.run_state) {
+        .running => true,
+        .renderer_requested_exit => true,
+        .exiting => false,
+        .panic => false,
+    };
+}
+
 gpa: std.mem.Allocator,
 
 game: GameData,
 xr: ?XrData,
 graphics_data: GraphicsData,
-window: WindowData,
+window_data: WindowData,
 messaging: MessagingData,
 imgui_data: ?ImGuiManager,
 assets: Assets,
@@ -495,8 +515,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         errdefer input.deinit();
 
         var game_data: GameData = .{
-            .run_loop = true,
-            .exiting = false,
+            .run_state = .running,
             .head_output_device = .UNKNOWN,
             .main_process_pid = null,
             .load_state = .{
@@ -535,7 +554,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         .gpa = gpa,
         .xr = xr_data,
         .graphics_data = graphics_data,
-        .window = window_data,
+        .window_data = window_data,
         .messaging = messaging_data,
         .imgui_data = maybe_imgui_data,
         .game = game_data,
@@ -554,20 +573,27 @@ pub fn deinit(self: *App) void {
     if (self.xr) |xr| xr.deinit(gpa);
     self.assets.deinit(gpa, self.graphics_data.device);
     self.graphics_data.deinit(gpa);
-    self.window.deinit();
+    self.window_data.deinit();
 
     gpa.destroy(self);
 }
 
-fn beginExit(self: *App) void {
+pub fn appRequestSafeExit(self: *App) void {
+    log.info(@src(), "Requested exit. Current run state: {s}", .{@tagName(self.game.run_state)});
+
+    if (self.game.run_state == .exiting) {
+        // already exiting
+        return;
+    }
+
     if (self.game.load_state.full_init) {
-        self.game.exiting = true;
+        self.game.run_state = .renderer_requested_exit;
         self.messaging.host.primary.sendTimeout(.{ .RendererShutdownRequest = .{} }, std.time.ns_per_s) catch {
             log.warn(@src(), "Failed to send shutdown request, exiting without waiting for engine", .{});
-            self.game.run_loop = false;
+            self.game.run_state = .exiting;
         };
     } else {
-        self.game.run_loop = false;
+        self.game.run_state = .exiting;
     }
 }
 
@@ -612,8 +638,8 @@ fn handleRendererCommand(
 
             log.debug(@src(), "Setting window title to {s}", .{title});
 
-            try self.window.window.setTitle(title);
-            try self.window.window.raise();
+            try self.window_data.window.setTitle(title);
+            try self.window_data.window.raise();
 
             self.game.head_output_device = self.determineHeadOutput(renderer_init_data.outputDevice);
             self.game.main_process_pid = renderer_init_data.mainProcessId;
@@ -674,7 +700,7 @@ fn handleRendererCommand(
         },
         .RendererShutdown => |_| {
             log.info(@src(), "Engine is requesting that we shut down, beginning exit", .{});
-            self.game.run_loop = false;
+            self.game.run_state = .exiting;
         },
         .RendererInitFinalizeData => |_| {
             self.game.load_state.full_init = true;
@@ -686,30 +712,30 @@ fn handleRendererCommand(
         .DesktopConfig => |desktop| {
             log.debug(@src(), "Desktop Settings: vsync={any},bg={?d},fg={?d}", .{ desktop.vSync, desktop.maximumBackgroundFramerate, desktop.maximumForegroundFramerate });
 
-            self.window.bg_max_framerate = if (desktop.maximumBackgroundFramerate) |framerate| @intCast(framerate) else null;
+            self.window_data.bg_max_framerate = if (desktop.maximumBackgroundFramerate) |framerate| @intCast(framerate) else null;
 
             // TODO: Read maximum foreground framerate. Depends on https://github.com/Yellow-Dog-Man/Resonite-Issues/issues/5269
             // We can't do so now since the nature of the bug means that it's uninitialized memory.
             // self.window.fg_max_framerate = if (desktop.maximumForegroundFramerate) |framerate| @intCast(framerate) else null;
-            self.window.fg_max_framerate = null;
+            self.window_data.fg_max_framerate = null;
 
             try self.updateVSync(desktop.vSync);
         },
         .ResolutionConfig => |resolution| {
             log.debug(@src(), "Window Settings: res={any},fullscreen={any}", .{ resolution.resolution, resolution.fullscreen });
-            self.window.fullscreen = resolution.fullscreen;
-            try self.window.window.setSize(@intCast(resolution.resolution.x), @intCast(resolution.resolution.y));
-            try self.window.window.setResizable(true);
+            self.window_data.fullscreen = resolution.fullscreen;
+            try self.window_data.window.setSize(@intCast(resolution.resolution.x), @intCast(resolution.resolution.y));
+            try self.window_data.window.setResizable(true);
 
             // If one of the extants matches the primary display resolution, the window was probably maximized on that monitor.
             // Restore that state here, because this is a personal annoyance of mine. -jvy
             if (self.getPrimaryDisplay()) |display| {
                 if (display.resolution.x == resolution.resolution.x or display.resolution.y == resolution.resolution.y) {
-                    try self.window.window.maximize();
+                    try self.window_data.window.maximize();
                 }
             }
 
-            self.window.resolution_updated = true;
+            self.window_data.resolution_updated = true;
         },
         .SetTexture2DProperties => |set_texture_2d_properties| {
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, frame_context, set_texture_2d_properties);
@@ -1157,29 +1183,29 @@ fn getPrimaryDisplay(self: *App) ?shared.DisplayState {
 }
 
 fn updateVSync(self: *App, vsync: bool) !void {
-    const present_mode = if (vsync) .vsync else self.window.default_present_mode;
+    const present_mode = if (vsync) .vsync else self.window_data.default_present_mode;
 
-    if (present_mode == self.window.present_mode)
+    if (present_mode == self.window_data.present_mode)
         return;
 
-    if (!self.window.window.hasSurface())
+    if (!self.window_data.window.hasSurface())
         return;
 
     // SAFETY: The default present mode was guaranteed to be supported on startup
-    if (!self.graphics_data.device.windowSupportsPresentMode(self.window.window, present_mode))
+    if (!self.graphics_data.device.windowSupportsPresentMode(self.window_data.window, present_mode))
         unreachable;
 
-    try self.graphics_data.device.setSwapchainParameters(self.window.window, self.window.composition_mode, present_mode);
-    self.window.present_mode = present_mode;
+    try self.graphics_data.device.setSwapchainParameters(self.window_data.window, self.window_data.composition_mode, present_mode);
+    self.window_data.present_mode = present_mode;
 }
 
 fn applyOutputState(self: *App, output_state: shared.OutputState) !void {
-    if (sdl3.keyboard.textInputActive(self.window.window) != output_state.keyboardInputActive) {
+    if (sdl3.keyboard.textInputActive(self.window_data.window) != output_state.keyboardInputActive) {
         if (output_state.keyboardInputActive) {
-            try sdl3.keyboard.startTextInput(self.window.window);
+            try sdl3.keyboard.startTextInput(self.window_data.window);
             log.debug(@src(), "Starting text input", .{});
         } else {
-            try sdl3.keyboard.stopTextInput(self.window.window);
+            try sdl3.keyboard.stopTextInput(self.window_data.window);
             log.debug(@src(), "Stopping text input", .{});
         }
     }
@@ -1187,11 +1213,11 @@ fn applyOutputState(self: *App, output_state: shared.OutputState) !void {
     const imgui_open = if (self.imgui_data) |imgui_data| imgui_data.open else false;
     const locking_cursor = output_state.lockCursor and !imgui_open;
 
-    try sdl3.mouse.setWindowRelativeMode(self.window.window, locking_cursor);
+    try sdl3.mouse.setWindowRelativeMode(self.window_data.window, locking_cursor);
 
     if (locking_cursor) {
-        const size = try self.window.window.getSize();
-        sdl3.mouse.warpInWindow(self.window.window, @as(f32, @floatFromInt(size.width)) / 2.0, @as(f32, @floatFromInt(size.height)) / 2.0);
+        const size = try self.window_data.window.getSize();
+        sdl3.mouse.warpInWindow(self.window_data.window, @as(f32, @floatFromInt(size.width)) / 2.0, @as(f32, @floatFromInt(size.height)) / 2.0);
     }
 }
 
@@ -1208,17 +1234,12 @@ fn pollSdlEvents(self: *App) !void {
 
         switch (event) {
             .quit => {
-                // try not to send duplicate quit messages.
-                // this event usually comes after we've triggered an exit from window_close_requested
-                // if we send 2 quit messages, the engine will force-exit unsafely.
-                if (!self.game.exiting) {
-                    self.beginExit();
-                }
+                self.appRequestSafeExit();
             },
             .window_close_requested => |window| {
                 // SAFETY: getId error is unreachable if window is valid, which it always should be at this point
-                if (window.id == self.window.window.getId() catch unreachable) {
-                    self.beginExit();
+                if (window.id == self.window_data.window.getId() catch unreachable) {
+                    self.appRequestSafeExit();
                 }
             },
             .display_added,
@@ -1233,25 +1254,25 @@ fn pollSdlEvents(self: *App) !void {
                     log.err(@src(), "Failed to update displays, got err {s}", .{@errorName(err)});
                 };
             },
-            .window_enter_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                self.window.fullscreen = true;
+            .window_enter_fullscreen => |window| if (window.id == self.window_data.window.getId() catch unreachable) {
+                self.window_data.fullscreen = true;
             },
-            .window_leave_fullscreen => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                self.window.fullscreen = false;
+            .window_leave_fullscreen => |window| if (window.id == self.window_data.window.getId() catch unreachable) {
+                self.window_data.fullscreen = false;
             },
-            .window_focus_gained => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                self.window.focus = true;
+            .window_focus_gained => |window| if (window.id == self.window_data.window.getId() catch unreachable) {
+                self.window_data.focus = true;
             },
-            .window_focus_lost => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                self.window.focus = false;
+            .window_focus_lost => |window| if (window.id == self.window_data.window.getId() catch unreachable) {
+                self.window_data.focus = false;
             },
-            .window_mouse_enter => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                self.window.mouse_active = true;
+            .window_mouse_enter => |window| if (window.id == self.window_data.window.getId() catch unreachable) {
+                self.window_data.mouse_active = true;
             },
-            .window_mouse_leave => |window| if (window.id == self.window.window.getId() catch unreachable) {
-                self.window.mouse_active = false;
+            .window_mouse_leave => |window| if (window.id == self.window_data.window.getId() catch unreachable) {
+                self.window_data.mouse_active = false;
             },
-            .key_down => |key_down| if (key_down.window_id == self.window.window.getId() catch unreachable) {
+            .key_down => |key_down| if (key_down.window_id == self.window_data.window.getId() catch unreachable) {
                 self.game.input.handleKeyEvent(key_down);
 
                 const key = key_down.key orelse return;
@@ -1262,32 +1283,32 @@ fn pollSdlEvents(self: *App) !void {
                 }
             },
             .key_up => |key_up| {
-                if (key_up.window_id == self.window.window.getId() catch unreachable) {
+                if (key_up.window_id == self.window_data.window.getId() catch unreachable) {
                     self.game.input.handleKeyEvent(key_up);
                 }
             },
             .text_input => |text_input| {
-                if (text_input.window_id == self.window.window.getId() catch unreachable) {
+                if (text_input.window_id == self.window_data.window.getId() catch unreachable) {
                     try self.game.input.handleTextInputUtf8(self.gpa, text_input.text);
                 }
             },
             .mouse_button_down => |mouse_down| {
-                if (mouse_down.window_id == self.window.window.getId() catch unreachable) {
+                if (mouse_down.window_id == self.window_data.window.getId() catch unreachable) {
                     self.game.input.handleMouseButtonEvent(mouse_down);
                 }
             },
             .mouse_button_up => |mouse_up| {
-                if (mouse_up.window_id == self.window.window.getId() catch unreachable) {
+                if (mouse_up.window_id == self.window_data.window.getId() catch unreachable) {
                     self.game.input.handleMouseButtonEvent(mouse_up);
                 }
             },
             .mouse_wheel => |mouse_wheel| {
-                if (mouse_wheel.window_id == self.window.window.getId() catch unreachable) {
+                if (mouse_wheel.window_id == self.window_data.window.getId() catch unreachable) {
                     self.game.input.handleMouseScrollEvent(mouse_wheel);
                 }
             },
             .mouse_motion => |mouse_motion| {
-                if (mouse_motion.window_id == self.window.window.getId() catch unreachable) {
+                if (mouse_motion.window_id == self.window_data.window.getId() catch unreachable) {
                     self.game.input.handleMouseMotionEvent(mouse_motion);
                 }
             },
@@ -1337,22 +1358,22 @@ fn sendNewEngineFrame(
                     .button5State = self.game.input.x2_click_held,
                     .desktopPosition = self.game.input.mouse_desktop_pos,
                     .directDelta = self.game.input.takeMouseDelta(),
-                    .isActive = self.window.mouse_active,
+                    .isActive = self.window_data.mouse_active,
                     .scrollWheelDelta = self.game.input.takeScrollDelta(),
                     .windowPosition = self.game.input.mouse_window_pos,
                 },
                 .touches = &.{},
                 .vr = null,
                 .window = .{
-                    .isFullscreen = self.window.fullscreen,
-                    .isWindowFocused = self.window.focus,
+                    .isFullscreen = self.window_data.fullscreen,
+                    .isWindowFocused = self.window_data.focus,
                     .dragAndDropEvent = dropped_files,
                     // TODO: should this be window size or swapchain size?
                     .windowResolution = .{
                         .x = @intCast(swapchain_width),
                         .y = @intCast(swapchain_height),
                     },
-                    .resolutionSettingsApplied = self.window.takeResolutionUpdate(),
+                    .resolutionSettingsApplied = self.window_data.takeResolutionUpdate(),
                 },
             },
             .performance = self.game.perf.state,
@@ -1379,7 +1400,7 @@ pub fn frameLoop(self: *App) !void {
     defer arena_impl.deinit();
     const arena = arena_impl.allocator();
 
-    while (self.game.run_loop) {
+    while (self.runLoop()) {
         tracy.frameMark();
         self.game.perf.beginRenderFrame();
         defer self.game.perf.endRenderFrame();
@@ -1408,7 +1429,7 @@ pub fn frameLoop(self: *App) !void {
                 const trace = tracy.traceNamed(@src(), "Acquire Swapchain Texture");
                 defer trace.end();
 
-                break :acquire_swapchain_texture try command_buffer.acquireSwapchainTexture(self.window.window);
+                break :acquire_swapchain_texture try command_buffer.acquireSwapchainTexture(self.window_data.window);
             };
             const maybe_swapchain_texture, const swapchain_width, const swapchain_height = .{ swapchain_texture_result.texture, swapchain_texture_result.width, swapchain_texture_result.height };
 
