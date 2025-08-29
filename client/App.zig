@@ -252,11 +252,17 @@ const GameData = struct {
     }
 };
 
-pub fn runLoop(self: *App) bool {
+pub fn runFrameLoop(self: *App) bool {
     return switch (self.game.run_state) {
         .running => true,
         .renderer_requested_exit => true,
-        .exiting => false,
+        .exiting => if (self.xr) |xr| {
+            if (xr.backend.sessionState() == .closed) {
+                return false;
+            }
+
+            return true;
+        } else false,
         .panic => false,
     };
 }
@@ -1400,7 +1406,7 @@ pub fn frameLoop(self: *App) !void {
     defer arena_impl.deinit();
     const arena = arena_impl.allocator();
 
-    while (self.runLoop()) {
+    while (self.runFrameLoop()) {
         tracy.frameMark();
         self.game.perf.beginRenderFrame();
         defer self.game.perf.endRenderFrame();

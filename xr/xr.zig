@@ -10,17 +10,15 @@ const impl = switch (build_options.xr_backend) {
 
 pub const name = impl.name;
 
-pub const State = enum {
-    /// No session has been created
-    no_session,
-    /// Idle, awaiting some external factor
-    idle,
-    /// Ready to be started
+pub const SessionState = enum {
+    /// The session is closed and can be created
+    closed,
+    /// The session is in a preparatory state
+    preparing,
+    /// The session is ready to be run
     ready,
-    /// VR is active
-    active,
-    /// VR is in the process of transitioning from stopping -> idle
-    stopping,
+    /// The session is actively running
+    running,
 };
 
 pub const Backend = opaque {
@@ -42,24 +40,22 @@ pub const Backend = opaque {
         return impl.handleEvents(backend.to());
     }
 
-    /// Gets the current state of the XR session
-    pub fn sessionState(backend: *Backend) State {
+    pub fn sessionState(backend: *Backend) SessionState {
         return impl.sessionState(backend.to());
     }
 
-    /// Creates an XR session
-    pub fn createSession(backend: *Backend) impl.CreateSessionError!void {
-        return impl.createSession(backend.to());
+    pub fn openSession(backend: *Backend) impl.OpenSessionError!void {
+        return impl.openSession(backend.to());
     }
 
-    /// Begins the XR session, if it's in the `ready` state
+    /// Begin the XR session, only applicable when session is in `ready` state
     pub fn beginSession(backend: *Backend) impl.BeginSessionError!void {
         return impl.beginSession(backend.to());
     }
 
-    /// Requests the session to exit
-    pub fn requestSessionExit(backend: *Backend) impl.RequestSessionExitError!void {
-        return impl.requestSessionExit(backend.to());
+    /// Requests the session to exit the entire app, session must be in `running` sate
+    pub fn requestExit(backend: *Backend) impl.RequestSessionExitError!void {
+        return impl.requestExit(backend.to());
     }
 };
 

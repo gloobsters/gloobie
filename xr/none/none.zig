@@ -17,21 +17,45 @@ pub fn init(gpa: std.mem.Allocator) InitError!*Backend {
     return InitError.Unimplemented;
 }
 
-pub fn deinit(gpa: std.mem.Allocator, backend: *Backend) void {
+pub fn deinit(gpa: std.mem.Allocator, backend: *Backend) noreturn {
     _ = gpa;
     _ = backend;
 
     unreachable;
 }
 
-pub fn getGpuDevice(self: *Backend) gpu.Device {
+pub fn getGpuDevice(self: *Backend) noreturn {
     _ = self;
 
     unreachable;
 }
 
-pub fn handleEvents(self: *Backend) HandleEventsError!void {
+pub fn handleEvents(self: *Backend) noreturn {
     _ = self;
+
+    unreachable;
+}
+
+pub fn sessionState(self: *Backend) noreturn {
+    _ = self;
+
+    unreachable;
+}
+
+pub fn openSession(backend: *Backend) noreturn {
+    _ = backend;
+
+    unreachable;
+}
+
+pub fn beginSession(backend: *Backend) noreturn {
+    _ = backend;
+
+    unreachable;
+}
+
+pub fn requestExit(backend: *Backend) noreturn {
+    _ = backend;
 
     unreachable;
 }
