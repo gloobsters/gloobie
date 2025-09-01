@@ -555,7 +555,7 @@ pub fn build(b: *std.Build) !void {
     const renderite_mod = create_renderite_mod: {
         const renderite_root = b.path("renderite/");
 
-        const renderite_mod = b.createModule(.{
+        const renderite_mod = b.addModule("renderite", .{
             .target = target,
             .optimize = optimize,
 
@@ -610,7 +610,7 @@ pub fn build(b: *std.Build) !void {
             try shader_targets.append(b.allocator, .spirv);
         }
 
-        const gloobie_mod = b.addModule("gloobie", .{
+        const gloobie_mod = b.createModule(.{
             .root_source_file = gloobie_root.path(b, "main.zig"),
 
             .optimize = optimize,
