@@ -89,14 +89,14 @@ public class PackableStructGenerator : StructGenerator
                     case "Write" when callRef.Parameters.Count == 1:
                     case "WriteObject":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"try ipc.write(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
                     }
                     case "Write" when callRef.Parameters.All(p => p.ParameterType.Name == "Boolean"):
                     {
-                        List<string> paramsList = names.Select(n => "self." + n).ToList();
+                        List<string> paramsList = names.Select(n => "self." + n.HumanizeField()).ToList();
                         while (paramsList.Count < 8)
                         {
                             paramsList.Add("false");
@@ -110,14 +110,14 @@ public class PackableStructGenerator : StructGenerator
                     case "Read" when callRef.Parameters.Count == 1:
                     case "ReadObject":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"self.{name} = try ipc.read(@TypeOf(self.{name}));");
                         written = true;
                         break;
                     }
                     case "Read" when callRef.Parameters.All(p => p.ParameterType.Name == "Boolean&"):
                     {
-                        List<string> paramsList = names.Select(n => "self." + n).ToList();
+                        List<string> paramsList = names.Select(n => "self." + n.HumanizeField()).ToList();
                         // TODO: ceil to nearest multiple of 8
                         // FE doesn't pack more than 1 byte at a time so its not particularly important
                         while (paramsList.Count < 8)
@@ -133,7 +133,7 @@ public class PackableStructGenerator : StructGenerator
                     // Time functions
                     case "get_UtcNow":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"self.{name} = std.time.nanoTimestamp();");
                         written = true;
                         break;
@@ -143,21 +143,21 @@ public class PackableStructGenerator : StructGenerator
                     case "WriteObjectList":
                     case "WriteStringList":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"try ipc.writeList(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
                     }
                     case "WriteNestedValueList":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"try ipc.writeNestedList(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
                     }
                     case "WritePolymorphicList":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"try ipc.writePolymorphicList(@TypeOf(self.{name}), self.{name});");
                         written = true;
                         break;
@@ -167,21 +167,21 @@ public class PackableStructGenerator : StructGenerator
                     case "ReadObjectList":
                     case "ReadStringList":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"self.{name} = try ipc.readList(@TypeOf(self.{name}));");
                         written = true;
                         break;
                     }
                     case "ReadNestedValueList":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"self.{name} = try ipc.readNestedList(@TypeOf(self.{name}));");
                         written = true;
                         break;
                     } 
                     case "ReadPolymorphicList":
                     {
-                        string name = names.DequeueLast();
+                        string name = names.DequeueLastHumanizeField();
                         w.Any($"self.{name} = try ipc.readPolymorphicList(@TypeOf(self.{name}));");
                         written = true;
                         break;

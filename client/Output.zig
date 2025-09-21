@@ -88,7 +88,7 @@ fn renderSharedMeshRenderer(
     const position_offset = find_position_offset: {
         var offset: u32 = 0;
         for (mesh.vertex_attributes) |vertex_attribute| {
-            if (vertex_attribute.type == .Position) {
+            if (vertex_attribute.type == .position) {
                 break;
             }
 

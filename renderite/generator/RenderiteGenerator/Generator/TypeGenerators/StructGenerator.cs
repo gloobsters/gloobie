@@ -10,7 +10,9 @@ public abstract class StructGenerator : TypeGenerator
     
     public override void Generate(Type type, Writer w)
     {
-        using Block _ = this.BeginStruct(w, type.Name);
+        string name = type.Name.HumanizeType();
+        
+        using Block _ = this.BeginStruct(w, name);
 
         FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -25,15 +27,15 @@ public abstract class StructGenerator : TypeGenerator
             bool generated = false;
         
             w.Line();
-            using (Block __ = w.BeginFunction("write", "!void", new FuncParam("self", type.Name), new FuncParam("ipc", "IpcSerializer")))
+            using (Block __ = w.BeginFunction("write", "!void", new FuncParam("self", name), new FuncParam("ipc", "IpcSerializer")))
             {
                 generated = Pack(type, w, fields, true);
                 if(!generated) WritePackDiscard(true, w);
             }
             
-            using (Block __ = w.BeginFunction("read", $"!{type.Name}", new FuncParam("ipc", "IpcDeserializer")))
+            using (Block __ = w.BeginFunction("read", $"!{name}", new FuncParam("ipc", "IpcDeserializer")))
             {
-                w.Any($"var self: {type.Name} = undefined;");
+                w.Any($"var self: {name} = undefined;");
                 generated = Pack(type, w, fields, false);
                 if(!generated) WritePackDiscard(false, w);
                 w.Any("return self;");

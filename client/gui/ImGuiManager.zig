@@ -73,15 +73,15 @@ pub fn start(self: *ImGuiManager) !void {
             try self.temporary_graphics_bindings.ensureTotalCapacity(self.app.gpa, self.app.assets.textures.count());
 
             if (imgui.collapsingHeader("Texture 2Ds", 0)) {
-                self.fillTextures(.Texture2D);
+                self.fillTextures(.texture_2d);
             }
 
             if (imgui.collapsingHeader("Texture 3Ds", 0)) {
-                self.fillTextures(.Texture3D);
+                self.fillTextures(.texture_3d);
             }
 
             if (imgui.collapsingHeader("Cubemaps", 0)) {
-                self.fillTextures(.Cubemap);
+                self.fillTextures(.cubemap);
             }
 
             if (imgui.collapsingHeader("Meshes", 0)) {
@@ -204,7 +204,7 @@ fn fillTextures(self: *ImGuiManager, texture_type: Texture.Type) void {
                 const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
 
                 // We can only display 2D textures in ImGui
-                if (texture_type == .Texture2D) {
+                if (texture_type == .texture_2d) {
                     // Put it into a stable array
                     self.temporary_graphics_bindings.appendAssumeCapacity(graphics_data.binding);
 
@@ -429,5 +429,5 @@ fn fillPerformance(self: *ImGuiManager) void {
     const perf = self.app.game.perf.state;
     // TODO: truncate floats so they are prettier
     imgui.c.igText("FPS: %f", perf.fps);
-    imgui.c.igText("Render time: %fms", perf.renderTime);
+    imgui.c.igText("Render time: %fms", perf.render_time);
 }

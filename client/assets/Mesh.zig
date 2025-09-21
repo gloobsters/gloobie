@@ -164,8 +164,8 @@ fn convertSubMeshes(gpa: std.mem.Allocator, renderite_submeshes: []const shared.
     for (submeshes, renderite_submeshes) |*submesh, renderite_submesh| {
         submesh.* = .{
             .bounds = renderite_submesh.bounds,
-            .index_count = @intCast(renderite_submesh.indexCount),
-            .index_start = @intCast(renderite_submesh.indexStart),
+            .index_count = @intCast(renderite_submesh.index_count),
+            .index_start = @intCast(renderite_submesh.index_start),
             .topology = renderite_submesh.topology,
         };
     }
@@ -173,19 +173,19 @@ fn convertSubMeshes(gpa: std.mem.Allocator, renderite_submeshes: []const shared.
     return submeshes;
 }
 
-fn hasVertexStreams(upload_hint: shared.MeshUploadHint_Flag) bool {
-    return upload_hint.Positions or
-        upload_hint.Normals or
-        upload_hint.Tangents or
-        upload_hint.Colors or
-        upload_hint.UV0s or
-        upload_hint.UV1s or
-        upload_hint.UV2s or
-        upload_hint.UV3s or
-        upload_hint.UV4s or
-        upload_hint.UV5s or
-        upload_hint.UV6s or
-        upload_hint.UV7s;
+fn hasVertexStreams(upload_hint: shared.MeshUploadHintFlag) bool {
+    return upload_hint.positions or
+        upload_hint.normals or
+        upload_hint.tangents or
+        upload_hint.colors or
+        upload_hint.uv0s or
+        upload_hint.uv1s or
+        upload_hint.uv2s or
+        upload_hint.uv3s or
+        upload_hint.uv4s or
+        upload_hint.uv5s or
+        upload_hint.uv6s or
+        upload_hint.uv7s;
 }
 
 const TransferBufferContext = struct {
@@ -235,7 +235,7 @@ fn uploadVertex(
     data_request: shared.MeshUploadData,
 ) !struct { ?gpu.Buffer, u32, ?TransferBufferContext.PendingUpload } {
     // No vertex streams
-    if (!hasVertexStreams(data_request.uploadHint._flags) or mesh_layout.vertex_buffer.len() == 0) {
+    if (!hasVertexStreams(data_request.upload_hint.flags) or mesh_layout.vertex_buffer.len() == 0) {
         return .{ self.vertex_buffer, self.vertex_buffer_capacity, null };
     }
 
@@ -247,7 +247,7 @@ fn uploadVertex(
 
     var first_source_element_start_position: u32 = 0;
     var first_destination_element_start_position: u32 = 0;
-    for (data_request.vertexAttributes) |vertex_attribute| {
+    for (data_request.vertex_attributes) |vertex_attribute| {
         const attribute_stride = renderiteVertexAttributeDescriptorToVertexElementFormat(vertex_attribute).?.stride();
 
         for (0..vertex_count) |i| {
@@ -303,7 +303,7 @@ fn uploadIndex(
     data: []const u8,
     data_request: shared.MeshUploadData,
 ) !struct { ?gpu.Buffer, u32, ?TransferBufferContext.PendingUpload } {
-    const should_upload_index_buffer = data_request.uploadHint._flags.Geometry or data_request.uploadHint._flags.SubmeshLayout;
+    const should_upload_index_buffer = data_request.upload_hint.flags.geometry or data_request.upload_hint.flags.submesh_layout;
 
     if (!should_upload_index_buffer or mesh_layout.index_buffer.len() == 0) {
         return .{ self.index_buffer, self.index_buffer_capacity, null };
@@ -380,9 +380,9 @@ fn uploadSkinningData(
 
     // Upload all the bind poses
     const incoming_inverse_bind_poses: []align(1) const math.Matrix4x4f = @ptrCast(mesh_layout.inverse_bind_poses_buffer.slice(data));
-    std.debug.assert(incoming_inverse_bind_poses.len == data_request.boneCount);
+    std.debug.assert(incoming_inverse_bind_poses.len == data_request.bone_count);
 
-    const inverse_bind_poses = try gpa.alloc(math.Matrix4x4f, @intCast(data_request.boneCount));
+    const inverse_bind_poses = try gpa.alloc(math.Matrix4x4f, @intCast(data_request.bone_count));
     errdefer gpa.free(inverse_bind_poses);
     for (inverse_bind_poses, incoming_inverse_bind_poses) |*inverse_bind_pose, *incoming_inverse_bind_pose| {
         inverse_bind_pose.* = incoming_inverse_bind_pose.*;
@@ -421,7 +421,7 @@ fn uploadSkinningData(
 
                 for (vertex_bone_weights_src, 0..) |weight, i| {
                     vertex_bone_weights_array_dst[i] = weight.weight;
-                    vertex_bone_ids_array_dst[i] = weight.boneIndex;
+                    vertex_bone_ids_array_dst[i] = weight.bone_index;
                 }
 
                 bone_weight_ptr += bone_count;
@@ -468,13 +468,13 @@ fn uploadSkinningData(
             const final_offsets: []align(1) graphics.BlendshapeOffset = @ptrCast(mapped_data[0..buffer_size]);
 
             var chunks_read: u32 = 0;
-            for (data_request.blendshapeBuffers) |blendshape_buffer_descriptor| {
-                const offset_start = @as(u32, @intCast(blendshape_buffer_descriptor.blendshapeIndex)) * mesh_layout.num_vertices;
+            for (data_request.blendshape_buffers) |blendshape_buffer_descriptor| {
+                const offset_start = @as(u32, @intCast(blendshape_buffer_descriptor.blendshape_index)) * mesh_layout.num_vertices;
 
                 const blendshape_offsets_dst = final_offsets[offset_start .. offset_start + mesh_layout.num_vertices];
 
                 // NOTE: Renderite.Unity appears to *always* look for the positions, so I've done so here aswell!
-                if (blendshape_buffer_descriptor.dataFlags.Positions or true) {
+                if (blendshape_buffer_descriptor.data_flags.positions or true) {
                     const chunk = getChunk(blendshape_buffer_src, mesh_layout.num_vertices, &chunks_read);
 
                     for (chunk, blendshape_offsets_dst) |src_offset, *offset| {
@@ -483,7 +483,7 @@ fn uploadSkinningData(
                 }
 
                 // Copy in normal offsets, if present
-                if (blendshape_buffer_descriptor.dataFlags.Normals) {
+                if (blendshape_buffer_descriptor.data_flags.normals) {
                     const chunk = getChunk(blendshape_buffer_src, mesh_layout.num_vertices, &chunks_read);
 
                     for (chunk, blendshape_offsets_dst) |src_offset, *offset| {
@@ -492,7 +492,7 @@ fn uploadSkinningData(
                 }
 
                 // Copy in the tangent offsets, if present
-                if (blendshape_buffer_descriptor.dataFlags.Tangets) {
+                if (blendshape_buffer_descriptor.data_flags.tangets) {
                     const chunk = getChunk(blendshape_buffer_src, mesh_layout.num_vertices, &chunks_read);
 
                     for (chunk, blendshape_offsets_dst) |src_offset, *offset| {
@@ -523,7 +523,7 @@ fn uploadSkinningData(
     errdefer frame_context.device.releaseBuffer(blendshape_buffer);
 
     return .{
-        .bone_count = @intCast(data_request.boneCount),
+        .bone_count = @intCast(data_request.bone_count),
         .inverse_bind_poses = inverse_bind_poses,
         .bone_buffer = bone_buffer,
         .ids_start_idx = 0,
@@ -600,7 +600,7 @@ pub fn setData(
     errdefer gpa.free(submeshes);
 
     gpa.free(self.vertex_attributes);
-    const vertex_attributes = try convertVertexAttributes(gpa, data_request.vertexAttributes);
+    const vertex_attributes = try convertVertexAttributes(gpa, data_request.vertex_attributes);
     errdefer gpa.free(vertex_attributes);
 
     const skinning_data = try self.uploadSkinningData(
@@ -612,9 +612,9 @@ pub fn setData(
     );
 
     try frame_context.messaging_host.background.sendTimeout(.{
-        .MeshUploadResult = .{
-            .assetId = data_request.assetId,
-            .instanceChanged = true,
+        .mesh_upload_result = .{
+            .asset_id = data_request.asset_id,
+            .instance_changed = true,
         },
     }, std.time.ns_per_s * 10);
 
@@ -634,7 +634,7 @@ pub fn setData(
     };
 
     try frame_context.mesh_readiness_queue.append(gpa, .{
-        .handle = .from(data_request.assetId),
+        .handle = .from(data_request.asset_id),
         .nonce = nonce,
     });
 }
@@ -654,59 +654,59 @@ pub fn deinit(self: Mesh, gpa: std.mem.Allocator, device: gpu.Device) void {
 }
 
 fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
-    const num_vertices: u32 = @intCast(data_request.vertexCount);
+    const num_vertices: u32 = @intCast(data_request.vertex_count);
 
     var idx: u32 = 0;
 
     var interleaved_vertex_stride: u32 = 0;
-    for (data_request.vertexAttributes) |attribute| {
+    for (data_request.vertex_attributes) |attribute| {
         const format = renderiteVertexAttributeDescriptorToVertexElementFormat(attribute) orelse return error.InvalidVertexAttributeDescriptor;
 
         interleaved_vertex_stride += format.stride();
     }
 
-    idx += interleaved_vertex_stride * @as(u32, @intCast(data_request.vertexCount));
+    idx += interleaved_vertex_stride * @as(u32, @intCast(data_request.vertex_count));
 
     const index_buffer_start = idx;
     var num_indices: u32 = 0;
     for (data_request.submeshes) |submesh| {
-        num_indices = @max(num_indices, submesh.indexStart + submesh.indexCount);
+        num_indices = @max(num_indices, submesh.index_start + submesh.index_count);
     }
 
-    const index_element_type = renderiteIndexBufferFormatToGpu(data_request.indexBufferFormat);
+    const index_element_type = renderiteIndexBufferFormatToGpu(data_request.index_buffer_format);
 
     const index_buffer_byte_size = num_indices * index_element_type.byteSize();
     idx += index_buffer_byte_size;
 
     const bone_counts_buffer_byte_start = idx;
-    const bone_counts_buffer_byte_size: u32 = @intCast(data_request.vertexCount);
+    const bone_counts_buffer_byte_size: u32 = @intCast(data_request.vertex_count);
     idx += bone_counts_buffer_byte_size;
 
     const bone_weights_buffer_byte_start = idx;
-    const num_bone_weights: u32 = @intCast(data_request.boneWeightCount);
+    const num_bone_weights: u32 = @intCast(data_request.bone_weight_count);
     const bone_weights_buffer_byte_size = num_bone_weights * @sizeOf(shared.BoneWeight);
     idx += bone_weights_buffer_byte_size;
 
     const bind_poses_buffer_byte_start = idx;
-    const num_bones: u32 = @intCast(data_request.boneCount);
+    const num_bones: u32 = @intCast(data_request.bone_count);
     const bind_poses_buffer_byte_size = num_bones * @sizeOf(math.Matrix4x4f);
     idx += bone_weights_buffer_byte_size;
 
     var num_blendshapes: u32 = 0;
     const blendshape_buffer_byte_start = idx;
     var blendshape_buffer_byte_size: u32 = 0;
-    for (data_request.blendshapeBuffers) |blendshape_buffer| {
-        if (blendshape_buffer.dataFlags.Normals) {
+    for (data_request.blendshape_buffers) |blendshape_buffer| {
+        if (blendshape_buffer.data_flags.normals) {
             blendshape_buffer_byte_size += @sizeOf(math.Vector3f) * num_vertices;
         }
-        if (blendshape_buffer.dataFlags.Positions) {
+        if (blendshape_buffer.data_flags.positions) {
             blendshape_buffer_byte_size += @sizeOf(math.Vector3f) * num_vertices;
         }
-        if (blendshape_buffer.dataFlags.Tangets) {
+        if (blendshape_buffer.data_flags.tangets) {
             blendshape_buffer_byte_size += @sizeOf(math.Vector3f) * num_vertices;
         }
 
-        num_blendshapes = @max(num_blendshapes, @as(u32, @intCast(blendshape_buffer.blendshapeIndex + 1)));
+        num_blendshapes = @max(num_blendshapes, @as(u32, @intCast(blendshape_buffer.blendshape_index + 1)));
     }
 
     return .{
@@ -726,77 +726,77 @@ fn calculateMeshLayout(data_request: shared.MeshUploadData) !MeshLayout {
 
 fn renderiteIndexBufferFormatToGpu(index_buffer_format: shared.IndexBufferFormat) gpu.IndexElementSize {
     return switch (index_buffer_format) {
-        .UInt16 => .indices_16bit,
-        .UInt32 => .indices_32bit,
+        .u_int16 => .indices_16bit,
+        .u_int32 => .indices_32bit,
     };
 }
 
 fn renderiteVertexAttributeDescriptorToVertexElementFormat(descriptor: shared.VertexAttributeDescriptor) ?gpu.VertexElementFormat {
     return switch (descriptor.format) {
-        .Float32 => switch (descriptor.dimensions) {
+        .float32 => switch (descriptor.dimensions) {
             1 => .f32x1,
             2 => .f32x2,
             3 => .f32x3,
             4 => .f32x4,
             else => null,
         },
-        .Half16 => switch (descriptor.dimensions) {
+        .half16 => switch (descriptor.dimensions) {
             1 => null,
             2 => .f16x2,
             3 => null,
             4 => .f16x4,
             else => null,
         },
-        .SInt16 => switch (descriptor.dimensions) {
+        .s_int16 => switch (descriptor.dimensions) {
             1 => null,
             2 => .i16x2,
             3 => null,
             4 => .i16x4,
             else => null,
         },
-        .SInt32 => switch (descriptor.dimensions) {
+        .s_int32 => switch (descriptor.dimensions) {
             1 => .i32x1,
             2 => .i32x2,
             3 => .i32x3,
             4 => .i32x4,
             else => null,
         },
-        .SInt8 => switch (descriptor.dimensions) {
+        .s_int8 => switch (descriptor.dimensions) {
             1 => null,
             2 => .i8x2,
             3 => null,
             4 => .i8x4,
             else => null,
         },
-        .UInt16 => switch (descriptor.dimensions) {
+        .u_int16 => switch (descriptor.dimensions) {
             1 => null,
             2 => .u16x2,
             3 => null,
             4 => .u16x4,
             else => null,
         },
-        .UInt32 => switch (descriptor.dimensions) {
+        .u_int32 => switch (descriptor.dimensions) {
             1 => .u32x1,
             2 => .u32x2,
             3 => .u32x3,
             4 => .u32x4,
             else => null,
         },
-        .UInt8 => switch (descriptor.dimensions) {
+        .u_int8 => switch (descriptor.dimensions) {
             1 => null,
             2 => .u8x2,
             3 => null,
             4 => .u8x4,
             else => null,
         },
-        .UNorm16 => switch (descriptor.dimensions) {
+        .u_norm16 => switch (descriptor.dimensions) {
             1 => null,
             2 => .u16x2_normalized,
             3 => null,
             4 => .u16x4_normalized,
             else => null,
         },
-        .UNorm8 => switch (descriptor.dimensions) {
+        .u_norm8 => switch (descriptor.dimensions) {
             1 => null,
             2 => .u8x2_normalized,
             3 => null,
@@ -808,20 +808,20 @@ fn renderiteVertexAttributeDescriptorToVertexElementFormat(descriptor: shared.Ve
 
 test renderiteVertexAttributeDescriptorToVertexElementFormat {
     try std.testing.expectEqual(gpu.VertexElementFormat.f16x2, renderiteVertexAttributeDescriptorToVertexElementFormat(.{
-        .attribute = .Position,
+        .attribute = .position,
         .dimensions = 2,
-        .format = .Half16,
+        .format = .half16,
     }));
 
     try std.testing.expectEqual(gpu.VertexElementFormat.f32x3, renderiteVertexAttributeDescriptorToVertexElementFormat(.{
-        .attribute = .Position,
+        .attribute = .position,
         .dimensions = 3,
-        .format = .Float32,
+        .format = .float32,
     }));
 
     try std.testing.expectEqual(gpu.VertexElementFormat.i16x2, renderiteVertexAttributeDescriptorToVertexElementFormat(.{
-        .attribute = .Position,
+        .attribute = .position,
         .dimensions = 2,
-        .format = .SInt16,
+        .format = .s_int16,
     }));
 }

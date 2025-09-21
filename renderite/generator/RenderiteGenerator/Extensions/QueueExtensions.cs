@@ -1,8 +1,15 @@
-﻿namespace RenderiteGenerator.Extensions;
+﻿using RenderiteGenerator.Generator;
+
+namespace RenderiteGenerator.Extensions;
 
 public static class QueueExtensions
 {
-    public static T DequeueLast<T>(this Queue<T> queue)
+    public static string DequeueLastHumanizeField(this Queue<string> queue)
+    {
+        return queue.DequeueLastGeneric().HumanizeField();
+    }
+    
+    public static T DequeueLastGeneric<T>(this Queue<T> queue)
     {
         while (queue.Count != 1)
         {

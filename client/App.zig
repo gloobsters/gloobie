@@ -151,7 +151,7 @@ const MessagingData = struct {
     letter_allocation_mutex: std.Thread.Mutex,
 
     pub fn deinit(self: *MessagingData, gpa: std.mem.Allocator) void {
-        self.host.primary.sendTimeout(.{ .RendererShutdownRequest = .{} }, std.time.ns_per_s) catch {};
+        self.host.primary.sendTimeout(.{ .renderer_shutdown_request = .{} }, std.time.ns_per_s) catch {};
         self.host.deinit();
 
         if (self.accessor) |*accessor| accessor.deinit(gpa);
@@ -362,8 +362,8 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         var sampler_supported_formats: std.EnumSet(shared.TextureFormat) = .initEmpty();
         var cubemap_supported_formats: std.EnumSet(shared.TextureFormat) = .initEmpty();
         for (std.enums.values(shared.TextureFormat)) |renderite_format| {
-            const srgb_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .sRGB) orelse continue;
-            const linear_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .Linear) orelse continue;
+            const srgb_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .s_rgb) orelse continue;
+            const linear_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .linear) orelse continue;
 
             if (gpu_device.textureSupportsFormat(
                 srgb_gpu_format,
@@ -522,7 +522,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
 
         var game_data: GameData = .{
             .run_state = .running,
-            .head_output_device = .UNKNOWN,
+            .head_output_device = .unknown,
             .main_process_pid = null,
             .load_state = .{
                 .phase = .{
@@ -594,7 +594,7 @@ pub fn appRequestSafeExit(self: *App) void {
 
     if (self.game.load_state.full_init) {
         self.game.run_state = .renderer_requested_exit;
-        self.messaging.host.primary.sendTimeout(.{ .RendererShutdownRequest = .{} }, std.time.ns_per_s) catch {
+        self.messaging.host.primary.sendTimeout(.{ .renderer_shutdown_request = .{} }, std.time.ns_per_s) catch {
             log.warn(@src(), "Failed to send shutdown request, exiting without waiting for engine", .{});
             self.game.run_state = .exiting;
         };
@@ -606,19 +606,19 @@ pub fn appRequestSafeExit(self: *App) void {
 fn determineHeadOutput(self: *App, head_output: shared.HeadOutputDevice) shared.HeadOutputDevice {
     return switch (head_output) {
         // If we're autodetecting head output, pick based on whether VR is init
-        .Autodetect => if (self.xr == null)
-            .Screen
+        .autodetect => if (self.xr == null)
+            .screen
         else
-            .SteamVR,
+            .steam_vr,
 
         // Any VR runtime should boot up as VR
-        .SteamVR => .SteamVR,
-        .Oculus => .SteamVR,
-        .OculusQuest => .SteamVR,
-        .WindowsMR => .SteamVR,
+        .steam_vr => .steam_vr,
+        .oculus => .steam_vr,
+        .oculus_quest => .steam_vr,
+        .windows_mr => .steam_vr,
 
         // Anything unknown we should handle as a screen output
-        else => .Screen,
+        else => .screen,
     };
 }
 
@@ -638,23 +638,23 @@ fn handleRendererCommand(
     const command = renderer_command.command;
 
     switch (command) {
-        .RendererInitData => |renderer_init_data| {
+        .renderer_init_data => |renderer_init_data| {
             var title_buf: [128]u8 = undefined;
-            const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.windowTitle)}) catch "Gloobie (running [truncated])";
+            const title = std.fmt.bufPrintZ(&title_buf, "Gloobie (running {f})", .{std.unicode.fmtUtf16Le(renderer_init_data.window_title)}) catch "Gloobie (running [truncated])";
 
             log.debug(@src(), "Setting window title to {s}", .{title});
 
             try self.window_data.window.setTitle(title);
             try self.window_data.window.raise();
 
-            self.game.head_output_device = self.determineHeadOutput(renderer_init_data.outputDevice);
-            self.game.main_process_pid = renderer_init_data.mainProcessId;
+            self.game.head_output_device = self.determineHeadOutput(renderer_init_data.output_device);
+            self.game.main_process_pid = renderer_init_data.main_process_id;
 
             log.debug(@src(), "Attempting to initialize head output to {s}. Engine told us {s}", .{
                 @tagName(self.game.head_output_device),
-                @tagName(renderer_init_data.outputDevice),
+                @tagName(renderer_init_data.output_device),
             });
-            log.debug(@src(), "Main process PID {d}", .{renderer_init_data.mainProcessId});
+            log.debug(@src(), "Main process PID {d}", .{renderer_init_data.main_process_id});
 
             const formats = comptime std.enums.values(shared.TextureFormat);
 
@@ -673,61 +673,61 @@ fn handleRendererCommand(
 
             var shmem_prefix = &self.messaging.shmem_prefix;
 
-            shmem_prefix.len = try std.unicode.utf16LeToUtf8(&shmem_prefix.buffer, renderer_init_data.sharedMemoryPrefix);
+            shmem_prefix.len = try std.unicode.utf16LeToUtf8(&shmem_prefix.buffer, renderer_init_data.shared_memory_prefix);
             self.messaging.accessor = try SharedMemoryAccessor.init(self.gpa, self.messaging.shmem_prefix.constSlice());
 
             log.debug(@src(), "Set shmem prefix to {s} (len {d})", .{ shmem_prefix.constSlice(), shmem_prefix.len });
 
             try self.messaging.host.primary.sendTimeout(.{
-                .RendererInitResult = .{
-                    .actualOutputDevice = self.game.head_output_device,
-                    .stereoRenderingMode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
-                    .rendererIdentifier = std.unicode.utf8ToUtf16LeStringLiteral("Gloobie"),
-                    .mainWindowHandlePtr = 0,
-                    .isGPUTexturePOTByteAligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
-                    .maxTextureSize = 16384, // TODO: determine this from GPU code
-                    .supportedTextureFormats = supported_formats_buf[0..supported_formats_len],
+                .renderer_init_result = .{
+                    .actual_output_device = self.game.head_output_device,
+                    .stereo_rendering_mode = std.unicode.utf8ToUtf16LeStringLiteral("MultiPass"), // out of MultiPass, SinglePass, SinglePassInstanced, SinglePassMultiView
+                    .renderer_identifier = std.unicode.utf8ToUtf16LeStringLiteral("Gloobie"),
+                    .main_window_handle_ptr = 0,
+                    .is_gpu_texture_pot_byte_aligned = true, // TODO: determine this by if we support VK_FORMAT_R8G8B8_UNORM and other such formats
+                    .max_texture_size = 16384, // TODO: determine this from GPU code
+                    .supported_texture_formats = supported_formats_buf[0..supported_formats_len],
                 },
             }, std.time.ns_per_s * 10);
 
             self.game.load_state.init = true;
         },
-        .RendererInitProgressUpdate => |renderer_init_progress_update| {
-            self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phaseIndex);
+        .renderer_init_progress_update => |renderer_init_progress_update| {
+            self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phase_index);
 
             const phase = &self.game.load_state.phase;
 
             phase.phase_name.len = try std.unicode.utf16LeToUtf8(phase.phase_name.buffer[0 .. phase.phase_name.buffer.len - 1], renderer_init_progress_update.phase);
-            phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(phase.sub_phase_name.buffer[0 .. phase.sub_phase_name.buffer.len - 1], renderer_init_progress_update.subPhase);
+            phase.sub_phase_name.len = try std.unicode.utf16LeToUtf8(phase.sub_phase_name.buffer[0 .. phase.sub_phase_name.buffer.len - 1], renderer_init_progress_update.sub_phase);
 
             // null terminate strings
             phase.phase_name.buffer[phase.phase_name.len] = 0;
             phase.sub_phase_name.buffer[phase.sub_phase_name.len] = 0;
         },
-        .RendererShutdown => |_| {
+        .renderer_shutdown => |_| {
             log.info(@src(), "Engine is requesting that we shut down, beginning exit", .{});
             self.game.run_state = .exiting;
         },
-        .RendererInitFinalizeData => |_| {
+        .renderer_init_finalize_data => |_| {
             self.game.load_state.full_init = true;
             log.info(@src(), "Engine is fully loaded!", .{});
         },
-        .KeepAlive => {
+        .keep_alive => {
             // do nothing
         },
-        .DesktopConfig => |desktop| {
-            log.debug(@src(), "Desktop Settings: vsync={any},bg={?d},fg={?d}", .{ desktop.vSync, desktop.maximumBackgroundFramerate, desktop.maximumForegroundFramerate });
+        .desktop_config => |desktop| {
+            log.debug(@src(), "Desktop Settings: vsync={any},bg={?d},fg={?d}", .{ desktop.v_sync, desktop.maximum_background_framerate, desktop.maximum_foreground_framerate });
 
-            self.window_data.bg_max_framerate = if (desktop.maximumBackgroundFramerate) |framerate| @intCast(framerate) else null;
+            self.window_data.bg_max_framerate = if (desktop.maximum_background_framerate) |framerate| @intCast(framerate) else null;
 
             // TODO: Read maximum foreground framerate. Depends on https://github.com/Yellow-Dog-Man/Resonite-Issues/issues/5269
             // We can't do so now since the nature of the bug means that it's uninitialized memory.
             // self.window.fg_max_framerate = if (desktop.maximumForegroundFramerate) |framerate| @intCast(framerate) else null;
             self.window_data.fg_max_framerate = null;
 
-            try self.updateVSync(desktop.vSync);
+            try self.updateVSync(desktop.v_sync);
         },
-        .ResolutionConfig => |resolution| {
+        .resolution_config => |resolution| {
             log.debug(@src(), "Window Settings: res={any},fullscreen={any}", .{ resolution.resolution, resolution.fullscreen });
             self.window_data.fullscreen = resolution.fullscreen;
             try self.window_data.window.setSize(@intCast(resolution.resolution.x), @intCast(resolution.resolution.y));
@@ -743,13 +743,13 @@ fn handleRendererCommand(
 
             self.window_data.resolution_updated = true;
         },
-        .SetTexture2DProperties => |set_texture_2d_properties| {
+        .set_texture_2d_properties => |set_texture_2d_properties| {
             try self.assets.setTexture2dPropertiesOrCreate(self.gpa, frame_context, set_texture_2d_properties);
         },
-        .SetTexture2DFormat => |set_texture_2d_format| {
+        .set_texture_2d_format => |set_texture_2d_format| {
             try self.assets.setTexture2dFormat(self.gpa, frame_context, set_texture_2d_format);
         },
-        .SetTexture2DData => |set_texture_2d_data| {
+        .set_texture_2d_data => |set_texture_2d_data| {
             if (self.messaging.accessor) |*accessor| {
                 try self.assets.setTexture2dData(
                     self.gpa,
@@ -761,13 +761,13 @@ fn handleRendererCommand(
                 std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
             }
         },
-        .SetTexture3DProperties => |set_texture_3d_properties| {
+        .set_texture_3d_properties => |set_texture_3d_properties| {
             try self.assets.setTexture3dPropertiesOrCreate(self.gpa, frame_context, set_texture_3d_properties);
         },
-        .SetTexture3DFormat => |set_texture_3d_format| {
+        .set_texture_3d_format => |set_texture_3d_format| {
             try self.assets.setTexture3dFormat(self.gpa, frame_context, set_texture_3d_format);
         },
-        .SetTexture3DData => |set_texture_3d_data| {
+        .set_texture_3d_data => |set_texture_3d_data| {
             if (self.messaging.accessor) |*accessor| {
                 try self.assets.setTexture3dData(
                     self.gpa,
@@ -779,13 +779,13 @@ fn handleRendererCommand(
                 std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
             }
         },
-        .SetCubemapProperties => |set_cubemap_properties| {
+        .set_cubemap_properties => |set_cubemap_properties| {
             try self.assets.setCubemapPropertiesOrCreate(self.gpa, frame_context, set_cubemap_properties);
         },
-        .SetCubemapFormat => |set_cubemap_format| {
+        .set_cubemap_format => |set_cubemap_format| {
             try self.assets.setCubemapFormat(self.gpa, frame_context, set_cubemap_format);
         },
-        .SetCubemapData => |set_cubemap_data| {
+        .set_cubemap_data => |set_cubemap_data| {
             if (self.messaging.accessor) |*accessor| {
                 try self.assets.setCubemapData(
                     self.gpa,
@@ -797,74 +797,74 @@ fn handleRendererCommand(
                 std.debug.panic("Got texture command before shared memory accessor was initialized!", .{});
             }
         },
-        inline .UnloadTexture2D, .UnloadTexture3D, .UnloadCubemap => |unload_texture, tag| {
+        inline .unload_texture_2d, .unload_texture_3d, .unload_cubemap => |unload_texture, tag| {
             self.assets.unloadTexture(.{
-                .id = .from(unload_texture.assetId),
+                .id = .from(unload_texture.asset_id),
                 .type = switch (tag) {
-                    .UnloadTexture2D => .Texture2D,
-                    .UnloadTexture3D => .Texture3D,
-                    .UnloadCubemap => .Cubemap,
+                    .unload_texture_2d => .texture_2d,
+                    .unload_texture_3d => .texture_3d,
+                    .unload_cubemap => .cubemap,
                     else => @compileError("Unhandled usecase"),
                 },
             }, self.gpa, self.graphics_data.device);
         },
-        .MeshUploadData => |mesh_upload_data| {
+        .mesh_upload_data => |mesh_upload_data| {
             if (self.messaging.accessor) |*accessor| {
                 try self.assets.uploadMeshData(self.gpa, frame_context, accessor, mesh_upload_data);
             } else {
                 std.debug.panic("Got mesh upload before accessor was created.", .{});
             }
         },
-        .MeshUnload => |mesh_unload| {
-            self.assets.unloadMesh(.from(mesh_unload.assetId), self.gpa, self.graphics_data.device);
+        .mesh_unload => |mesh_unload| {
+            self.assets.unloadMesh(.from(mesh_unload.asset_id), self.gpa, self.graphics_data.device);
         },
-        .ShaderUpload => |shader_upload| {
+        .shader_upload => |shader_upload| {
             // TODO: load the associated shader in this case
-            try self.messaging.host.background.sendTimeout(.{ .ShaderUploadResult = .{
-                .assetId = shader_upload.assetId,
-                .instanceChanged = true,
+            try self.messaging.host.background.sendTimeout(.{ .shader_upload_result = .{
+                .asset_id = shader_upload.asset_id,
+                .instance_changed = true,
             } }, std.time.ns_per_s * 10);
         },
-        .ShaderUnload => |shader_unload| {
+        .shader_unload => |shader_unload| {
             // TODO: unload the loaded shader
             _ = shader_unload;
         },
-        .FrameSubmitData => {
+        .frame_submit_data => {
             std.debug.panic("This should be handled by the other thread!", .{});
         },
-        .MaterialPropertyIdRequest => |material_property_id_request| {
-            const property_ids = try frame_context.arena.alloc(i32, material_property_id_request.propertyNames.len);
+        .material_property_id_request => |material_property_id_request| {
+            const property_ids = try frame_context.arena.alloc(i32, material_property_id_request.property_names.len);
             defer frame_context.arena.free(property_ids);
 
             // TODO: handle this properly, when we can
-            for (material_property_id_request.propertyNames, property_ids) |property_name, *property_id| {
+            for (material_property_id_request.property_names, property_ids) |property_name, *property_id| {
                 log.trace(@src(), "Material property name: {f}", .{std.unicode.fmtUtf16Le(property_name)});
 
                 property_id.* = 0;
             }
 
             try self.messaging.host.primary.sendTimeout(.{
-                .MaterialPropertyIdResult = .{
-                    .requestId = material_property_id_request.requestId,
-                    .propertyIDs = property_ids,
+                .material_property_id_result = .{
+                    .request_id = material_property_id_request.request_id,
+                    .property_ids = property_ids,
                 },
             }, std.time.ns_per_s * 10);
         },
-        .MaterialsUpdateBatch => |materials_update_batch| {
+        .materials_update_batch => |materials_update_batch| {
             try self.assets.handleMaterialUpdate(self.gpa, frame_context, &self.messaging.accessor.?, materials_update_batch);
         },
-        .UnloadMaterial => |request| {
+        .unload_material => |request| {
             self.assets.unloadMaterial(request);
         },
-        .UnloadMaterialPropertyBlock => |request| {
+        .unload_material_property_block => |request| {
             self.assets.unloadMaterialPropertyBlock(request);
         },
-        .SetRenderTextureFormat => |set_render_target_format| {
+        .set_render_texture_format => |set_render_target_format| {
             // TODO: actually create render targets
             try self.messaging.host.background.sendTimeout(
-                .{ .RenderTextureResult = .{
-                    .assetId = set_render_target_format.assetId,
-                    .instanceChanged = true,
+                .{ .render_texture_result = .{
+                    .asset_id = set_render_target_format.asset_id,
+                    .instance_changed = true,
                 } },
                 std.time.ns_per_s * 10,
             );
@@ -919,7 +919,7 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
         // messages coming in the primary queue need to be processed ASAP by the main thread
         .primary => {
             // frame submit messages go to the engine thread!
-            if (message.command == .FrameSubmitData) {
+            if (message.command == .frame_submit_data) {
                 self.sendLetterToEngine(.{
                     .renderer_command = message,
                 }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
@@ -930,7 +930,7 @@ fn messagingCallback(self: *App, queue_type: MessagingHost.QueueManager.Type, me
             }
         },
         .background => {
-            if (message.command == .DesktopConfig) {
+            if (message.command == .desktop_config) {
                 self.sendLetterToMain(.{
                     .renderer_command = .{ .command = message, .queue_type = queue_type },
                 }) catch |err| std.debug.panic("Failed to send letter: {any}", .{err});
@@ -1051,18 +1051,18 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
     defer frame_context.deinit(self.gpa);
 
     // SAFETY: only this message should be sent to the engine thread
-    const frame_submit_data = message.command.FrameSubmitData;
+    const frame_submit_data = message.command.frame_submit_data;
 
-    if (frame_submit_data.outputState) |output_state| {
+    if (frame_submit_data.output_state) |output_state| {
         try self.sendLetterToMain(.{ .handle_output_state = output_state });
     }
 
-    self.game.last_frame_index = frame_submit_data.frameIndex;
-    log.trace(@src(), "Frame {d} completion", .{frame_submit_data.frameIndex});
+    self.game.last_frame_index = frame_submit_data.frame_index;
+    log.trace(@src(), "Frame {d} completion", .{frame_submit_data.frame_index});
 
-    self.game.desktop_fov = frame_submit_data.desktopFOV;
-    self.game.near_z = frame_submit_data.nearClip;
-    self.game.far_z = frame_submit_data.farClip;
+    self.game.desktop_fov = frame_submit_data.desktop_fov;
+    self.game.near_z = frame_submit_data.near_clip;
+    self.game.far_z = frame_submit_data.far_clip;
 
     {
         self.game.render_spaces_lock.lock();
@@ -1073,7 +1073,7 @@ fn engineHandleMessage(self: *App, message: renderite.messaging.ParsedCommand) !
         try self.updateRenderSpacesLocked(
             arena,
             &frame_context,
-            frame_submit_data.renderSpaces,
+            frame_submit_data.render_spaces,
         );
 
         try frame_context.end(self.gpa);
@@ -1137,28 +1137,28 @@ fn updateDisplays(self: *App) !void {
 
         const renderite_orientation: shared.RectOrientation = switch (natural_orientation) {
             .landscape => switch (current_orientation) {
-                .landscape => .Default,
-                .landscape_flipped => .UpsideDown180,
-                .portrait => .Clockwise90,
-                .portrait_flipped => .CounterClockwise90,
+                .landscape => .default,
+                .landscape_flipped => .upside_down180,
+                .portrait => .clockwise90,
+                .portrait_flipped => .counter_clockwise90,
             },
             .landscape_flipped => switch (current_orientation) {
-                .landscape => .UpsideDown180,
-                .landscape_flipped => .Default,
-                .portrait => .CounterClockwise90,
-                .portrait_flipped => .Clockwise90,
+                .landscape => .upside_down180,
+                .landscape_flipped => .default,
+                .portrait => .counter_clockwise90,
+                .portrait_flipped => .clockwise90,
             },
             .portrait => switch (current_orientation) {
-                .landscape => .CounterClockwise90,
-                .landscape_flipped => .Clockwise90,
-                .portrait => .Default,
-                .portrait_flipped => .UpsideDown180,
+                .landscape => .counter_clockwise90,
+                .landscape_flipped => .clockwise90,
+                .portrait => .default,
+                .portrait_flipped => .upside_down180,
             },
             .portrait_flipped => switch (current_orientation) {
-                .landscape => .Clockwise90,
-                .landscape_flipped => .CounterClockwise90,
-                .portrait => .UpsideDown180,
-                .portrait_flipped => .Default,
+                .landscape => .clockwise90,
+                .landscape_flipped => .counter_clockwise90,
+                .portrait => .upside_down180,
+                .portrait_flipped => .default,
             },
         };
 
@@ -1166,11 +1166,11 @@ fn updateDisplays(self: *App) !void {
 
         const renderite_display: shared.DisplayState = .{
             .offset = .{ .x = bounds.x, .y = bounds.y },
-            .displayIndex = @intCast(index),
+            .display_index = @intCast(index),
             .dpi = .{ .x = dpi, .y = dpi },
-            .isPrimary = display.value == primary_display.value,
+            .is_primary = display.value == primary_display.value,
             .orientation = renderite_orientation,
-            .refreshRate = display_mode.refresh_rate orelse 60,
+            .refresh_rate = display_mode.refresh_rate orelse 60,
             .resolution = .{ .x = @intCast(display_mode.width), .y = @intCast(display_mode.height) },
         };
         try self.game.displays.append(self.gpa, renderite_display);
@@ -1181,7 +1181,7 @@ fn updateDisplays(self: *App) !void {
 
 fn getPrimaryDisplay(self: *App) ?shared.DisplayState {
     for (self.game.displays.items) |display| {
-        if (display.isPrimary)
+        if (display.is_primary)
             return display;
     }
 
@@ -1206,8 +1206,8 @@ fn updateVSync(self: *App, vsync: bool) !void {
 }
 
 fn applyOutputState(self: *App, output_state: shared.OutputState) !void {
-    if (sdl3.keyboard.textInputActive(self.window_data.window) != output_state.keyboardInputActive) {
-        if (output_state.keyboardInputActive) {
+    if (sdl3.keyboard.textInputActive(self.window_data.window) != output_state.keyboard_input_active) {
+        if (output_state.keyboard_input_active) {
             try sdl3.keyboard.startTextInput(self.window_data.window);
             log.debug(@src(), "Starting text input", .{});
         } else {
@@ -1217,7 +1217,7 @@ fn applyOutputState(self: *App, output_state: shared.OutputState) !void {
     }
 
     const imgui_open = if (self.imgui_data) |imgui_data| imgui_data.open else false;
-    const locking_cursor = output_state.lockCursor and !imgui_open;
+    const locking_cursor = output_state.lock_cursor and !imgui_open;
 
     try sdl3.mouse.setWindowRelativeMode(self.window_data.window, locking_cursor);
 
@@ -1347,44 +1347,44 @@ fn sendNewEngineFrame(
     };
 
     try self.messaging.host.primary.sendTimeout(.{
-        .FrameStartData = .{
-            .lastFrameIndex = self.game.last_frame_index,
+        .frame_start_data = .{
+            .last_frame_index = self.game.last_frame_index,
             .inputs = .{
                 .displays = self.game.displays.items,
                 .gamepads = &.{},
                 .keyboard = .{
-                    .heldKeys = self.game.input.held_keys.keys(),
-                    .typeDelta = self.game.input.takeTypedDelta(),
+                    .held_keys = self.game.input.held_keys.keys(),
+                    .type_delta = self.game.input.takeTypedDelta(),
                 },
                 .mouse = .{
-                    .leftButtonState = self.game.input.left_click_held,
-                    .middleButtonState = self.game.input.middle_click_held,
-                    .rightButtonState = self.game.input.right_click_held,
-                    .button4State = self.game.input.x1_click_held,
-                    .button5State = self.game.input.x2_click_held,
-                    .desktopPosition = self.game.input.mouse_desktop_pos,
-                    .directDelta = self.game.input.takeMouseDelta(),
-                    .isActive = self.window_data.mouse_active,
-                    .scrollWheelDelta = self.game.input.takeScrollDelta(),
-                    .windowPosition = self.game.input.mouse_window_pos,
+                    .left_button_state = self.game.input.left_click_held,
+                    .middle_button_state = self.game.input.middle_click_held,
+                    .right_button_state = self.game.input.right_click_held,
+                    .button4_state = self.game.input.x1_click_held,
+                    .button5_state = self.game.input.x2_click_held,
+                    .desktop_position = self.game.input.mouse_desktop_pos,
+                    .direct_delta = self.game.input.takeMouseDelta(),
+                    .is_active = self.window_data.mouse_active,
+                    .scroll_wheel_delta = self.game.input.takeScrollDelta(),
+                    .window_position = self.game.input.mouse_window_pos,
                 },
                 .touches = &.{},
                 .vr = null,
                 .window = .{
-                    .isFullscreen = self.window_data.fullscreen,
-                    .isWindowFocused = self.window_data.focus,
-                    .dragAndDropEvent = dropped_files,
+                    .is_fullscreen = self.window_data.fullscreen,
+                    .is_window_focused = self.window_data.focus,
+                    .drag_and_drop_event = dropped_files,
                     // TODO: should this be window size or swapchain size?
-                    .windowResolution = .{
+                    .window_resolution = .{
                         .x = @intCast(swapchain_width),
                         .y = @intCast(swapchain_height),
                     },
-                    .resolutionSettingsApplied = self.window_data.takeResolutionUpdate(),
+                    .resolution_settings_applied = self.window_data.takeResolutionUpdate(),
                 },
             },
             .performance = self.game.perf.state,
-            .renderedReflectionProbes = &.{},
-            .videoClockErrors = &.{},
+            .rendered_reflection_probes = &.{},
+            .video_clock_errors = &.{},
         },
     }, std.time.ns_per_s);
 

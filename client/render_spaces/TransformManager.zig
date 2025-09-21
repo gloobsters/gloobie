@@ -136,14 +136,14 @@ fn handleParentUpdates(
     const transforms_parents = self.transforms.items(.parent);
 
     for (parent_updates) |parent_update| {
-        if (parent_update.transformId < 0) {
+        if (parent_update.transform_id < 0) {
             break;
         }
 
-        const transform_index: usize = @intCast(parent_update.transformId);
+        const transform_index: usize = @intCast(parent_update.transform_id);
 
         transforms_computed[transform_index] = false;
-        transforms_parents[transform_index] = .from(parent_update.newParentId);
+        transforms_parents[transform_index] = .from(parent_update.new_parent_id);
     }
 }
 
@@ -158,11 +158,11 @@ fn handlePoseUpdates(
     const transforms_render_transforms = self.transforms.items(.render_transform);
 
     for (pose_updates) |pose_update| {
-        if (pose_update.transformId < 0) {
+        if (pose_update.transform_id < 0) {
             break;
         }
 
-        const transform_index: usize = @intCast(pose_update.transformId);
+        const transform_index: usize = @intCast(pose_update.transform_id);
 
         transforms_computed[transform_index] = false;
         transforms_render_transforms[transform_index] = pose_update.pose;
@@ -340,13 +340,13 @@ pub fn handleUpdate(
     defer removals.release(accessor);
     try self.handleRemovals(render_space, removals.data);
 
-    try self.handleAdditions(gpa, @intCast(update.targetTransformCount));
+    try self.handleAdditions(gpa, @intCast(update.target_transform_count));
 
-    const parent_updates = try accessor.getOrCreate(renderite.shared.TransformParentUpdate, gpa, update.parentUpdates);
+    const parent_updates = try accessor.getOrCreate(renderite.shared.TransformParentUpdate, gpa, update.parent_updates);
     defer parent_updates.release(accessor);
     try self.handleParentUpdates(parent_updates.data);
 
-    const pose_updates = try accessor.getOrCreate(renderite.shared.TransformPoseUpdate, gpa, update.poseUpdates);
+    const pose_updates = try accessor.getOrCreate(renderite.shared.TransformPoseUpdate, gpa, update.pose_updates);
     defer pose_updates.release(accessor);
     try self.handlePoseUpdates(pose_updates.data);
 
@@ -392,14 +392,14 @@ test compute {
 
     var transform_parents: [transform_count - 1]renderite.shared.TransformParentUpdate = undefined;
     for (&transform_parents, 1..) |*parent, i| {
-        parent.transformId = @intCast(i);
-        parent.newParentId = @intCast(i - 1);
+        parent.transform_id = @intCast(i);
+        parent.new_parent_id = @intCast(i - 1);
     }
 
     var transform_poses: [transform_count]renderite.shared.TransformPoseUpdate = undefined;
     for (&transform_poses, 0..) |*pose, i| {
         pose.* = .{
-            .transformId = @intCast(i),
+            .transform_id = @intCast(i),
             .pose = .{
                 .position = .natural_forward,
                 .rotation = .identity,
@@ -429,7 +429,7 @@ test compute {
 
     // Update the root to be at z=-2, moving every other object -1 on Z aswell
     try transforms.handlePoseUpdates(&.{.{
-        .transformId = 0,
+        .transform_id = 0,
         .pose = .{
             .position = .mul(.natural_forward, .splat(2)),
             .rotation = .identity,
@@ -449,7 +449,7 @@ test compute {
 
     // Update the root back to Z=-1
     try transforms.handlePoseUpdates(&.{.{
-        .transformId = 0,
+        .transform_id = 0,
         .pose = .{
             .position = .natural_forward,
             .rotation = .identity,
@@ -459,8 +459,8 @@ test compute {
     // Reparent the fourth item to the root, so the new hierarchy is
     // 0-1-2, 0-3-4
     try transforms.handleParentUpdates(&.{.{
-        .transformId = 3,
-        .newParentId = 0,
+        .transform_id = 3,
+        .new_parent_id = 0,
     }});
 
     transforms.markChildrenUncomputed();

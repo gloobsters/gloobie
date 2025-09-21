@@ -46,7 +46,7 @@ public class ExplicitStructGenerator : StructGenerator
             if (gap < 0) w.Note($"field with gap/overlap, {field.Name} = offset:{offset.Value}, size:{size}, gap:{gap}");
             else if (gap > 0) w.Any($"try ipc.skip({gap});");
 
-            string name = field.Name;
+            string name = field.Name.HumanizeField();
 
             if (!ipcStruct)
             {
@@ -85,15 +85,17 @@ public class ExplicitStructGenerator : StructGenerator
         int size = structLayout.Size;
         if (size == 0)
             size = Marshal.SizeOf(type);
+
+        string type_name = type.Name.HumanizeType();
         
-        w.Any($"std.debug.assert(@sizeOf({type.Name}) == {size});");
+        w.Any($"std.debug.assert(@sizeOf({type_name}) == {size});");
         
         foreach (FieldInfo field in fields)
         {
             FieldOffsetAttribute? fieldOffset = field.GetCustomAttribute<FieldOffsetAttribute>();
             Debug.Assert(fieldOffset != null);
 
-            w.Any($"std.debug.assert(@offsetOf({type.Name}, \"{field.Name}\") == {fieldOffset.Value});");
+            w.Any($"std.debug.assert(@offsetOf({type_name}, \"{field.Name.HumanizeField()}\") == {fieldOffset.Value});");
         }
     }
 }
