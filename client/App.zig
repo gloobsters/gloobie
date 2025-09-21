@@ -412,6 +412,7 @@ fn handleRendererCommand(
             phase.phase_name.buffer[phase.phase_name.len] = 0;
             phase.sub_phase_name.buffer[phase.sub_phase_name.len] = 0;
         },
+        .renderer_engine_ready => {},
         .renderer_shutdown => |_| {
             log.info(@src(), "Engine is requesting that we shut down, beginning exit", .{});
             self.game.run_state = .exiting;
