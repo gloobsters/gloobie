@@ -48,6 +48,7 @@ const GraphicsData = struct {
     sampler_supported_formats: std.enums.EnumSet(shared.TextureFormat),
     cubemap_supported_formats: std.enums.EnumSet(shared.TextureFormat),
 
+    depth_format: gpu.TextureFormat,
     depth_texture: ?gpu.Texture,
     depth_texture_size: math.Vector2i,
 
@@ -70,7 +71,7 @@ const GraphicsData = struct {
             }
 
             self.depth_texture = try self.device.createTexture(.{
-                .format = .depth32_float,
+                .format = self.depth_format,
                 .width = swapchain_width,
                 .height = swapchain_height,
                 .layer_count_or_depth = 1,
@@ -463,6 +464,22 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             test_fragment_shader,
         );
 
+        const wanted_depth_formats: []const gpu.TextureFormat = &.{
+            .depth32_float,
+            .depth24_unorm,
+            .depth16_unorm,
+        };
+
+        var chosen_depth_format: gpu.TextureFormat = .depth16_unorm; // universally supported
+        for (wanted_depth_formats) |wanted_depth_format| {
+            if (gpu_device.textureSupportsFormat(wanted_depth_format, .two_dimensional, .{ .depth_stencil_target = true })) {
+                chosen_depth_format = wanted_depth_format;
+                break;
+            }
+        }
+
+        log.debug(@src(), "Picked depth format {s}", .{@tagName(chosen_depth_format)});
+
         break :create_graphics_data .{
             .device = gpu_device,
             .sampler_supported_formats = sampler_supported_formats,
@@ -470,6 +487,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .transfer_buffer_pool = .init(gpu_device),
             .fence_manager = .init(gpu_device),
             .window_test_pipeline = window_test_pipeline,
+            .depth_format = chosen_depth_format,
             .depth_texture = null,
             .depth_texture_size = .{ .x = 0, .y = 0 },
             .upload_nonce = .init(0),
