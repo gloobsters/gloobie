@@ -19,6 +19,7 @@ pub fn init() PerformanceMonitor {
             .immediateFPS = 0,
             .renderTime = 0,
             .externalUpdateTime = 0,
+            .renderedFramesSinceLast = 0,
             .frameBeginToSubmitTime = 0,
             .frameProcessedToNextBeginTime = 0,
             .integrationProcessingTime = 0,

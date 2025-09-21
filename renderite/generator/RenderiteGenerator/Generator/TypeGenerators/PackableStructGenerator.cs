@@ -49,9 +49,15 @@ public class PackableStructGenerator : StructGenerator
             return written;
         }
 
+        bool skip = false;
         Queue<string> names = new();
         foreach (Instruction instruction in methodDef.Body.Instructions)
         {
+            if (skip)
+            {
+                skip = false;
+                continue;
+            }
             // if (this._ilVerbose)
                 // w.Any($"{instruction} ({instruction.OpCode.FlowControl})");
 
@@ -72,6 +78,11 @@ public class PackableStructGenerator : StructGenerator
 
             if (instruction.OpCode.Code is Code.Call && instruction.Operand is MethodReference callRef)
             {
+                if (instruction.Next.OpCode.Code is Code.Stfld)
+                {
+                    names.Enqueue(((FieldReference)instruction.Next.Operand).Name);
+                }
+                
                 switch (callRef.Name)
                 {
                     // Write single value or packed boolean
@@ -116,6 +127,14 @@ public class PackableStructGenerator : StructGenerator
                         Debug.Assert(paramsList.Count == 8);
                         w.Any($"{string.Join(", ", paramsList)} = try ipc.read{paramsList.Count}PackedBools();");
                         names.Clear();
+                        written = true;
+                        break;
+                    }
+                    // Time functions
+                    case "get_UtcNow":
+                    {
+                        string name = names.DequeueLast();
+                        w.Any($"self.{name} = std.time.nanoTimestamp();");
                         written = true;
                         break;
                     }

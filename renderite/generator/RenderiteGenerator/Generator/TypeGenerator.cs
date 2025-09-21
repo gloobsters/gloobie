@@ -52,6 +52,9 @@ public abstract class TypeGenerator
         if (type == typeof(bool))
             return "bool";
 
+        if (type == typeof(DateTime))
+            return "i128";
+
         switch (type.Name)
         {
             case "RenderVector2":
