@@ -18,112 +18,20 @@ const xr_t = @import("xr");
 const Assets = @import("assets/Assets.zig");
 const Texture = @import("assets/Texture.zig");
 const graphics = @import("graphics.zig");
+const GraphicsData = @import("GraphicsData.zig");
 const ImGuiManager = @import("gui/ImGuiManager.zig");
 const Input = @import("Input.zig");
 const Output = @import("Output.zig");
 const PerformanceMonitor = @import("PerformanceMonitor.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
 const GpuShader = @import("shaders/GpuShader.zig");
-const GraphicsPipeline = @import("shaders/GraphicsPipeline.zig");
+const WindowData = @import("WindowData.zig");
+const XrData = @import("XrData.zig");
 
 pub const MessagingHost = renderite.messaging.Host(*App);
 const log = @import("logger").Scoped(.app);
 
 const App = @This();
-
-const XrData = struct {
-    lock: std.Thread.Mutex,
-
-    backend: *xr_t.Backend,
-
-    pub fn deinit(self: XrData, gpa: std.mem.Allocator) void {
-        self.backend.deinit(gpa);
-    }
-};
-
-pub const FenceManager = graphics.FenceManager(&.{});
-
-const GraphicsData = struct {
-    device: gpu.Device,
-    sampler_supported_formats: std.enums.EnumSet(shared.TextureFormat),
-    cubemap_supported_formats: std.enums.EnumSet(shared.TextureFormat),
-
-    depth_format: gpu.TextureFormat,
-    depth_texture: ?gpu.Texture,
-    depth_texture_size: math.Vector2i,
-
-    transfer_buffer_pool: graphics.TransferBufferPool,
-
-    fence_manager: FenceManager,
-
-    window_test_pipeline: GraphicsPipeline,
-
-    upload_nonce: std.atomic.Value(u64),
-
-    pub fn ensureDepthTexture(
-        self: *GraphicsData,
-        swapchain_width: u32,
-        swapchain_height: u32,
-    ) !void {
-        if (swapchain_width != self.depth_texture_size.x or swapchain_height != self.depth_texture_size.y) {
-            if (self.depth_texture) |depth_texture| {
-                self.device.releaseTexture(depth_texture);
-            }
-
-            self.depth_texture = try self.device.createTexture(.{
-                .format = self.depth_format,
-                .width = swapchain_width,
-                .height = swapchain_height,
-                .layer_count_or_depth = 1,
-                .num_levels = 1,
-                .usage = .{ .depth_stencil_target = true },
-            });
-            self.depth_texture_size = .{
-                .x = @intCast(swapchain_width),
-                .y = @intCast(swapchain_height),
-            };
-        }
-    }
-
-    pub fn deinit(
-        self: *GraphicsData,
-        gpa: std.mem.Allocator,
-    ) void {
-        if (self.depth_texture) |depth_texture| {
-            self.device.releaseTexture(depth_texture);
-        }
-        self.fence_manager.deinit(gpa);
-
-        self.transfer_buffer_pool.deinit(gpa);
-
-        self.device.deinit();
-    }
-};
-
-const WindowData = struct {
-    window: sdl3.video.Window,
-    swapchain_format: gpu.TextureFormat,
-    composition_mode: gpu.SwapchainComposition,
-    default_present_mode: gpu.PresentMode,
-    present_mode: gpu.PresentMode,
-
-    fullscreen: bool,
-    focus: bool,
-    mouse_active: bool,
-    resolution_updated: bool,
-
-    bg_max_framerate: ?u32,
-    fg_max_framerate: ?u32,
-
-    pub fn takeResolutionUpdate(self: *WindowData) bool {
-        defer self.resolution_updated = false;
-        return self.resolution_updated;
-    }
-
-    pub fn deinit(self: WindowData) void {
-        self.window.deinit();
-    }
-};
 
 pub const ToRenderMailbox = mailbox.MailBox(ToRenderLetter);
 
@@ -303,235 +211,17 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
         };
     };
 
-    const xr_data: ?XrData = create_xr_data: {
-        const xr_backend: ?*xr_t.Backend = xr_t.init(gpa) catch |err| backend_create_fail: {
-            log.err(@src(), "Got error {s} when trying to initialize XR backend.", .{@errorName(err)});
-
-            break :backend_create_fail null;
-        };
-        errdefer if (xr_backend) |backend| backend.deinit(gpa);
-
-        if (xr_backend) |_| {
-            log.info(@src(), "Initialized XR backend {s}", .{xr_t.name});
-        } else {
-            log.warn(@src(), "Failed to initialize XR backend {s}, will be starting in desktop-only mode. Restart will be required to begin a VR session.", .{xr_t.name});
-        }
-
-        break :create_xr_data if (xr_backend) |backend| .{
-            .lock = .{},
-            .backend = backend,
-        } else null;
-    };
+    const xr_data: ?XrData = try .tryInit(gpa);
     errdefer if (xr_data) |xr| xr.deinit(gpa);
 
-    var window_data: WindowData = create_window_data: {
-        const window_ret = try sdl3.video.Window.initWithProperties(.{
-            .width = 1280,
-            .height = 720,
-            // TODO: only enable this when using the vulkan backend
-            .vulkan = true,
-            .title = "Gloobie",
-        });
-        const window, const properties = .{ window_ret.window, window_ret.properties };
-        properties.deinit();
-        errdefer window.deinit();
-
-        break :create_window_data .{
-            .window = window,
-            .swapchain_format = undefined,
-            .fullscreen = false,
-            .focus = false,
-            .composition_mode = undefined,
-            .present_mode = undefined,
-            .default_present_mode = undefined,
-            .mouse_active = false,
-            .resolution_updated = false,
-            .bg_max_framerate = 10,
-            .fg_max_framerate = 60, // set reasonable defaults while the engine is loading
-        };
-    };
+    var window_data: WindowData = try .init();
     errdefer window_data.deinit();
 
-    var graphics_data: GraphicsData = create_graphics_data: {
-        const gpu_device = if (xr_data) |xr| xr.backend.getGpuDevice() else try gpu.Device.initWithProperties(.{
-            .debug_mode = build_options.safety,
-            // TODO: Once we get the ability to transpile to other shader types, specify them here!
-            .shaders_spirv = true,
-        });
-        errdefer if (xr_data == null) gpu_device.deinit();
-
-        var sampler_supported_formats: std.EnumSet(shared.TextureFormat) = .initEmpty();
-        var cubemap_supported_formats: std.EnumSet(shared.TextureFormat) = .initEmpty();
-        for (std.enums.values(shared.TextureFormat)) |renderite_format| {
-            const srgb_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .s_rgb) orelse continue;
-            const linear_gpu_format = Texture.renderiteFormatToGpuFormat(renderite_format, .linear) orelse continue;
-
-            if (gpu_device.textureSupportsFormat(
-                srgb_gpu_format,
-                .two_dimensional,
-                .{ .sampler = true },
-            ) and gpu_device.textureSupportsFormat(
-                linear_gpu_format,
-                .two_dimensional,
-                .{ .sampler = true },
-            )) {
-                sampler_supported_formats.insert(renderite_format);
-                log.debug(@src(), "GPU supports {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
-            } else {
-                log.debug(@src(), "GPU does not support {s}/{s} for samplers", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
-            }
-
-            if (gpu_device.textureSupportsFormat(
-                srgb_gpu_format,
-                .cube,
-                .{ .sampler = true },
-            ) and gpu_device.textureSupportsFormat(
-                linear_gpu_format,
-                .cube,
-                .{ .sampler = true },
-            )) {
-                cubemap_supported_formats.insert(renderite_format);
-                log.debug(@src(), "GPU supports {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
-            } else {
-                log.debug(@src(), "GPU does not support {s}/{s} for cubemaps", .{ @tagName(srgb_gpu_format), @tagName(linear_gpu_format) });
-            }
-        }
-
-        // SAFETY: this call never fails if we pass a valid GPU device handle, which we should always have
-        log.info(@src(), "Acquired OpenXR GPU device with driver {s}", .{gpu_device.getDriver() catch unreachable});
-
-        try gpu_device.claimWindow(window_data.window);
-
-        const composition_mode: gpu.SwapchainComposition = .sdr_linear;
-        const present_mode_preferences: []const gpu.PresentMode = &.{
-            .mailbox,
-            .immediate,
-            .vsync,
-        };
-
-        var present_mode: gpu.PresentMode = undefined;
-
-        if (!gpu_device.windowSupportsSwapchainComposition(window_data.window, composition_mode)) {
-            log.err(@src(), "Window does not support the composition mode ({s}) we want. Cannot continue.", .{@tagName(composition_mode)});
-            return error.UnsupportCompositionMode;
-        }
-
-        for (present_mode_preferences) |present_mode_preference| {
-            if (gpu_device.windowSupportsPresentMode(window_data.window, present_mode_preference)) {
-                try gpu_device.setSwapchainParameters(window_data.window, composition_mode, present_mode_preference);
-
-                present_mode = present_mode_preference;
-                log.debug(@src(), "Using swapchain parameters: composition={any},present={any}", .{ composition_mode, present_mode_preference });
-                break;
-            }
-        } else {
-            log.err(@src(), "Window supports none of our wanted present modes. VR performance may be impacted strongly.", .{});
-        }
-
-        window_data.swapchain_format = gpu_device.getSwapchainTextureFormat(window_data.window);
-        window_data.composition_mode = composition_mode;
-        window_data.present_mode = present_mode;
-        window_data.default_present_mode = present_mode;
-
-        log.debug(@src(), "Using window swapchain format {s}", .{@tagName(window_data.swapchain_format)});
-
-        const test_vertex_shader: GpuShader = try .create(
-            arena,
-            gpu_device,
-            @embedFile("shader-basic-vertex-spirv"),
-            @embedFile("shader-basic-vertex-reflection"),
-            .{ .spirv = true },
-            "main",
-            .vertex,
-        );
-        errdefer test_vertex_shader.deinit(gpu_device);
-
-        const test_fragment_shader: GpuShader = try .create(
-            arena,
-            gpu_device,
-            @embedFile("shader-basic-fragment-spirv"),
-            @embedFile("shader-basic-fragment-reflection"),
-            .{ .spirv = true },
-            "main",
-            .fragment,
-        );
-        errdefer test_fragment_shader.deinit(gpu_device);
-
-        const window_test_pipeline: GraphicsPipeline = try .create(
-            gpu_device,
-            window_data.swapchain_format,
-            test_vertex_shader,
-            test_fragment_shader,
-        );
-
-        const wanted_depth_formats: []const gpu.TextureFormat = &.{
-            .depth32_float,
-            .depth24_unorm,
-            .depth16_unorm,
-        };
-
-        var chosen_depth_format: gpu.TextureFormat = .depth16_unorm; // universally supported
-        for (wanted_depth_formats) |wanted_depth_format| {
-            if (gpu_device.textureSupportsFormat(wanted_depth_format, .two_dimensional, .{ .depth_stencil_target = true })) {
-                chosen_depth_format = wanted_depth_format;
-                break;
-            }
-        }
-
-        log.debug(@src(), "Picked depth format {s}", .{@tagName(chosen_depth_format)});
-
-        break :create_graphics_data .{
-            .device = gpu_device,
-            .sampler_supported_formats = sampler_supported_formats,
-            .cubemap_supported_formats = cubemap_supported_formats,
-            .transfer_buffer_pool = .init(gpu_device),
-            .fence_manager = .init(gpu_device),
-            .window_test_pipeline = window_test_pipeline,
-            .depth_format = chosen_depth_format,
-            .depth_texture = null,
-            .depth_texture_size = .{ .x = 0, .y = 0 },
-            .upload_nonce = .init(0),
-        };
-    };
+    var graphics_data: GraphicsData = try .init(arena, xr_data, window_data.window);
     errdefer graphics_data.deinit(gpa);
 
     // TODO: make ImGui an optional build dependency
-    var maybe_imgui_data: ?ImGuiManager = create_imgui_data: {
-        const context = try imgui.Context.create(null);
-        errdefer context.destroy();
-
-        context.setCurrent();
-
-        const style = imgui.getStyle();
-        // Go through every colour and convert it to linear
-        // This is because ImGui uses linear colours but we are using sRGB
-        // This is a simple approximation of the conversion
-        for (0..imgui.c.ImGuiCol_COUNT) |i| {
-            const col = &style.Colors[i];
-            col.x = math.srgbToLinear(f32, col.x);
-            col.y = math.srgbToLinear(f32, col.y);
-            col.z = math.srgbToLinear(f32, col.z);
-        }
-
-        try imgui.sdl3.initForOther(window_data.window);
-        errdefer imgui.sdl3.shutdown();
-
-        log.info(@src(), "Initialized ImGui SDL3 backend", .{});
-
-        try imgui.gpu.init(.{
-            .color_target_format = window_data.swapchain_format,
-            .device = graphics_data.device,
-            .msaa_samples = .no_multisampling,
-        });
-        errdefer imgui.gpu.shutdown();
-
-        log.info(@src(), "Initialized ImGui GPU backend", .{});
-
-        var io = context.getIo();
-        io.ConfigFlags = io.ConfigFlags | imgui.c.ImGuiConfigFlags_NoMouseCursorChange;
-
-        break :create_imgui_data .init(context, app);
-    };
+    var maybe_imgui_data: ?ImGuiManager = try .init(app, graphics_data, window_data.window);
     errdefer if (maybe_imgui_data) |*imgui_data| imgui_data.deinit(gpa);
 
     const game_data = create_game_data: {
@@ -1207,9 +897,9 @@ fn getPrimaryDisplay(self: *App) ?shared.DisplayState {
 }
 
 fn updateVSync(self: *App, vsync: bool) !void {
-    const present_mode = if (vsync) .vsync else self.window_data.default_present_mode;
+    const present_mode = if (vsync) .vsync else self.graphics_data.default_present_mode;
 
-    if (present_mode == self.window_data.present_mode)
+    if (present_mode == self.graphics_data.present_mode)
         return;
 
     if (!self.window_data.window.hasSurface())
@@ -1219,8 +909,8 @@ fn updateVSync(self: *App, vsync: bool) !void {
     if (!self.graphics_data.device.windowSupportsPresentMode(self.window_data.window, present_mode))
         unreachable;
 
-    try self.graphics_data.device.setSwapchainParameters(self.window_data.window, self.window_data.composition_mode, present_mode);
-    self.window_data.present_mode = present_mode;
+    try self.graphics_data.device.setSwapchainParameters(self.window_data.window, self.graphics_data.composition_mode, present_mode);
+    self.graphics_data.present_mode = present_mode;
 }
 
 fn applyOutputState(self: *App, output_state: shared.OutputState) !void {

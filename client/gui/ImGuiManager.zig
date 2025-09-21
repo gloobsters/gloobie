@@ -2,11 +2,16 @@ const std = @import("std");
 
 const gpu = @import("gpu");
 const imgui = @import("imgui");
+const math = @import("math");
+const sdl3 = @import("sdl3");
 
 const App = @import("../App.zig");
 const Texture = @import("../assets/Texture.zig");
+const GraphicsData = @import("../GraphicsData.zig");
 const mesh_renderer_manager = @import("../render_spaces/mesh_renderer_manager.zig");
 const RenderSpace = @import("../render_spaces/RenderSpace.zig");
+
+const log = @import("logger").Scoped(.app);
 
 pub const ImGuiManager = @This();
 
@@ -26,10 +31,47 @@ temporary_graphics_bindings: std.ArrayListUnmanaged(gpu.TextureSamplerBinding),
 
 app: *App,
 
-pub fn init(context: imgui.Context, app: *App) ImGuiManager {
+pub fn init(
+    app: *App,
+    graphics_data: GraphicsData,
+    window: sdl3.video.Window,
+) !ImGuiManager {
+    const context = try imgui.Context.create(null);
+    errdefer context.destroy();
+
+    context.setCurrent();
+
+    const style = imgui.getStyle();
+    // Go through every colour and convert it to linear
+    // This is because ImGui uses linear colours but we are using sRGB
+    // This is a simple approximation of the conversion
+    for (0..imgui.c.ImGuiCol_COUNT) |i| {
+        const col = &style.Colors[i];
+        col.x = math.srgbToLinear(f32, col.x);
+        col.y = math.srgbToLinear(f32, col.y);
+        col.z = math.srgbToLinear(f32, col.z);
+    }
+
+    try imgui.sdl3.initForOther(window);
+    errdefer imgui.sdl3.shutdown();
+
+    log.info(@src(), "Initialized ImGui SDL3 backend", .{});
+
+    try imgui.gpu.init(.{
+        .color_target_format = graphics_data.swapchain_format,
+        .device = graphics_data.device,
+        .msaa_samples = .no_multisampling,
+    });
+    errdefer imgui.gpu.shutdown();
+
+    log.info(@src(), "Initialized ImGui GPU backend", .{});
+
+    var io = context.getIo();
+    io.ConfigFlags = io.ConfigFlags | imgui.c.ImGuiConfigFlags_NoMouseCursorChange;
+
     return .{
-        .context = context,
         .app = app,
+        .context = context,
         .wants_mouse = false,
         .wants_keyboard = false,
         .open = true,
