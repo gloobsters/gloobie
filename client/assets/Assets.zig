@@ -5,7 +5,7 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const graphics = @import("../graphics.zig");
-const Materials = @import("Materials.zig");
+const MaterialManager = @import("MaterialManager.zig");
 const Mesh = @import("Mesh.zig");
 const Texture = @import("Texture.zig");
 
@@ -23,20 +23,20 @@ pub const TextureHandle = packed struct(u64) {
 lock: std.Thread.RwLock,
 textures: std.AutoHashMapUnmanaged(TextureHandle, Texture),
 meshes: std.AutoHashMapUnmanaged(Id, Mesh),
-materials: Materials,
+material_manager: MaterialManager,
 
 pub const empty: Assets = .{
     .lock = .{},
     .textures = .empty,
     .meshes = .empty,
-    .materials = .empty,
+    .material_manager = .empty,
 };
 
 pub fn deinit(self: *Assets, gpa: std.mem.Allocator, device: gpu.Device) void {
     self.lock.lock();
     defer self.lock.unlock();
 
-    self.materials.deinit(gpa);
+    self.material_manager.deinit(gpa);
 
     var tex_iter = self.textures.valueIterator();
     while (tex_iter.next()) |texture| {
@@ -70,17 +70,17 @@ pub fn setTexture2dPropertiesOrCreate(
     defer self.lock.unlock();
 
     const result = try self.textures.getOrPut(gpa, .{
-        .id = .from(properties.assetId),
-        .type = .Texture2D,
+        .id = .from(properties.asset_id),
+        .type = .texture_2d,
     });
 
     const texture = result.value_ptr;
     if (result.found_existing) {
         try texture.setProperties2d(frame_context, properties);
-        log.trace(@src(), "Updated properties of Texture 2D {d}", .{properties.assetId});
+        log.trace(@src(), "Updated properties of Texture 2D {d}", .{properties.asset_id});
     } else {
         texture.* = try .create2d(frame_context, properties);
-        log.debug(@src(), "Created Texture 2D with ID {d}", .{properties.assetId});
+        log.debug(@src(), "Created Texture 2D with ID {d}", .{properties.asset_id});
     }
 }
 
@@ -94,14 +94,14 @@ pub fn setTexture2dFormat(
     defer self.lock.unlock();
 
     const texture = self.textures.getPtr(.{
-        .id = .from(format.assetId),
-        .type = .Texture2D,
+        .id = .from(format.asset_id),
+        .type = .texture_2d,
     }) orelse return error.MissingAsset;
 
     try texture.setFormat2d(gpa, frame_context, format);
 
     log.trace(@src(), "Updated Texture ({d}) format to {s} ({s}), size {d}x{d}", .{
-        format.assetId,
+        format.asset_id,
         @tagName(format.format),
         @tagName(format.profile),
         format.width,
@@ -117,8 +117,8 @@ pub fn setTexture2dData(
     accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const texture = self.textures.getPtr(.{
-        .id = .from(data.assetId),
-        .type = .Texture2D,
+        .id = .from(data.asset_id),
+        .type = .texture_2d,
     }) orelse return error.MissingAsset;
 
     try texture.setData2d(gpa, frame_context, data, accessor);
@@ -134,17 +134,17 @@ pub fn setTexture3dPropertiesOrCreate(
     defer self.lock.unlock();
 
     const result = try self.textures.getOrPut(gpa, .{
-        .id = .from(properties.assetId),
-        .type = .Texture3D,
+        .id = .from(properties.asset_id),
+        .type = .texture_3d,
     });
 
     const texture = result.value_ptr;
     if (result.found_existing) {
         try texture.setProperties3d(frame_context, properties);
-        log.trace(@src(), "Updated properties of Texture 2D {d}", .{properties.assetId});
+        log.trace(@src(), "Updated properties of Texture 2D {d}", .{properties.asset_id});
     } else {
         texture.* = try .create3d(frame_context, properties);
-        log.debug(@src(), "Created Texture 2D with ID {d}", .{properties.assetId});
+        log.debug(@src(), "Created Texture 2D with ID {d}", .{properties.asset_id});
     }
 }
 
@@ -158,14 +158,14 @@ pub fn setTexture3dFormat(
     defer self.lock.unlock();
 
     const texture = self.textures.getPtr(.{
-        .id = .from(format.assetId),
-        .type = .Texture3D,
+        .id = .from(format.asset_id),
+        .type = .texture_3d,
     }) orelse return error.MissingAsset;
 
     try texture.setFormat3d(gpa, frame_context, format);
 
     log.trace(@src(), "Updated Texture ({d}) format to {s} ({s}), size {d}x{d}x{d}", .{
-        format.assetId,
+        format.asset_id,
         @tagName(format.format),
         @tagName(format.profile),
         format.width,
@@ -182,8 +182,8 @@ pub fn setTexture3dData(
     accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const texture = self.textures.getPtr(.{
-        .id = .from(data.assetId),
-        .type = .Texture3D,
+        .id = .from(data.asset_id),
+        .type = .texture_3d,
     }) orelse return error.MissingAsset;
 
     try texture.setData3d(gpa, frame_context, data, accessor);
@@ -199,17 +199,17 @@ pub fn setCubemapPropertiesOrCreate(
     defer self.lock.unlock();
 
     const result = try self.textures.getOrPut(gpa, .{
-        .id = .from(properties.assetId),
-        .type = .Cubemap,
+        .id = .from(properties.asset_id),
+        .type = .cubemap,
     });
 
     const texture = result.value_ptr;
     if (result.found_existing) {
         try texture.setPropertiesCubemap(frame_context, properties);
-        log.trace(@src(), "Updated properties of Cubemap {d}", .{properties.assetId});
+        log.trace(@src(), "Updated properties of Cubemap {d}", .{properties.asset_id});
     } else {
         texture.* = try .createCubemap(frame_context, properties);
-        log.debug(@src(), "Created Cubemap with ID {d}", .{properties.assetId});
+        log.debug(@src(), "Created Cubemap with ID {d}", .{properties.asset_id});
     }
 }
 
@@ -223,14 +223,14 @@ pub fn setCubemapFormat(
     defer self.lock.unlock();
 
     const texture = self.textures.getPtr(.{
-        .id = .from(format.assetId),
-        .type = .Cubemap,
+        .id = .from(format.asset_id),
+        .type = .cubemap,
     }) orelse return error.MissingAsset;
 
     try texture.setFormatCubemap(gpa, frame_context, format);
 
     log.trace(@src(), "Updated Cubemap ({d}) format to {s} ({s}), size {d}", .{
-        format.assetId,
+        format.asset_id,
         @tagName(format.format),
         @tagName(format.profile),
         format.size,
@@ -245,8 +245,8 @@ pub fn setCubemapData(
     accessor: *renderite.buffer.SharedMemoryAccessor,
 ) !void {
     const texture = self.textures.getPtr(.{
-        .id = .from(data.assetId),
-        .type = .Cubemap,
+        .id = .from(data.asset_id),
+        .type = .cubemap,
     }) orelse return error.MissingAsset;
 
     try texture.setDataCubemap(gpa, frame_context, data, accessor);
@@ -279,15 +279,15 @@ pub fn uploadMeshData(
     self.lock.lock();
     defer self.lock.unlock();
 
-    const result = try self.meshes.getOrPut(gpa, .from(mesh_upload_data.assetId));
+    const result = try self.meshes.getOrPut(gpa, .from(mesh_upload_data.asset_id));
 
     const mesh = result.value_ptr;
     if (result.found_existing) {
         try mesh.setData(gpa, frame_context, accessor, mesh_upload_data);
-        log.trace(@src(), "Updated mesh {d}", .{mesh_upload_data.assetId});
+        log.trace(@src(), "Updated mesh {d}", .{mesh_upload_data.asset_id});
     } else {
         mesh.* = try .init(gpa, frame_context, accessor, mesh_upload_data);
-        log.debug(@src(), "Created mesh {d}", .{mesh_upload_data.assetId});
+        log.debug(@src(), "Created mesh {d}", .{mesh_upload_data.asset_id});
     }
 }
 
@@ -316,5 +316,21 @@ pub fn handleMaterialUpdate(
     self.lock.lock();
     defer self.lock.unlock();
 
-    try self.materials.handleUpdate(gpa, frame_context, accessor, update);
+    try self.material_manager.handleUpdate(gpa, frame_context, accessor, update);
+}
+
+pub fn unloadMaterial(self: *Assets, request: renderite.shared.UnloadMaterial) void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    self.material_manager.unloadMaterial(request);
+    log.debug(@src(), "Unloaded Material {d}", .{request.asset_id});
+}
+
+pub fn unloadMaterialPropertyBlock(self: *Assets, request: renderite.shared.UnloadMaterialPropertyBlock) void {
+    self.lock.lock();
+    defer self.lock.unlock();
+
+    self.material_manager.unloadMaterialPropertyBlock(request);
+    log.debug(@src(), "Unloaded Material Property Block {d}", .{request.asset_id});
 }

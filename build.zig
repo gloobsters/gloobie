@@ -392,13 +392,14 @@ pub fn build(b: *std.Build) !void {
             .flags = c_flags,
         });
 
+        // Always add OpenXR headers, since the types are required for compilation
+        translate_c.addIncludePath(openxr_headers_inc);
+        gpu_mod.addIncludePath(openxr_headers_inc);
+
         switch (build_options.xr_backend) {
             .none => {},
             .openxr => {
                 gpu_mod.addImport("openxr", openxr_mod);
-
-                translate_c.addIncludePath(openxr_headers_inc);
-                gpu_mod.addIncludePath(openxr_headers_inc);
 
                 gpu_mod.addCSourceFiles(.{
                     .root = gpu_root.path(b, "xr"),
@@ -468,13 +469,8 @@ pub fn build(b: *std.Build) !void {
             translate_c.addIncludePath(vulkan_headers_inc);
         }
 
-        switch (build_options.xr_backend) {
-            .none => {},
-            .openxr => {
-                imgui_mod.addIncludePath(openxr_headers_inc);
-                translate_c.addIncludePath(openxr_headers_inc);
-            },
-        }
+        imgui_mod.addIncludePath(openxr_headers_inc);
+        translate_c.addIncludePath(openxr_headers_inc);
 
         imgui_mod.addIncludePath(imgui_inc);
         imgui_mod.addIncludePath(gpu_inc);
@@ -560,7 +556,7 @@ pub fn build(b: *std.Build) !void {
     const renderite_mod = create_renderite_mod: {
         const renderite_root = b.path("renderite/");
 
-        const renderite_mod = b.createModule(.{
+        const renderite_mod = b.addModule("renderite", .{
             .target = target,
             .optimize = optimize,
 
@@ -573,6 +569,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "bounded_array", .module = bounded_array_mod },
             },
         });
+        math_mod.addImport("renderite", renderite_mod);
 
         break :create_renderite_mod renderite_mod;
     };
@@ -638,7 +635,7 @@ pub fn build(b: *std.Build) !void {
             try shader_targets.append(b.allocator, .spirv);
         }
 
-        const gloobie_mod = b.addModule("gloobie", .{
+        const gloobie_mod = b.createModule(.{
             .root_source_file = gloobie_root.path(b, "main.zig"),
 
             .optimize = optimize,

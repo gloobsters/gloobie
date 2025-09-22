@@ -4,7 +4,7 @@ const gpu = @import("gpu");
 const renderite = @import("renderite");
 
 const RenderSpace = @import("RenderSpace.zig");
-const Transforms = @import("Transforms.zig");
+const TransformManager = @import("TransformManager.zig");
 
 pub fn RendererManager(
     comptime ChildType: type,
@@ -64,9 +64,9 @@ pub fn RendererManager(
                     break;
                 }
 
-                std.debug.assert(transform < render_space.transforms.transforms.items.len);
+                std.debug.assert(transform < render_space.transform_manager.transforms.len);
 
-                const child: ChildType = .init(Transforms.Transform.Id.from(transform));
+                const child: ChildType = .init(TransformManager.Transform.Id.from(transform));
 
                 self.contents.appendAssumeCapacity(child);
             }

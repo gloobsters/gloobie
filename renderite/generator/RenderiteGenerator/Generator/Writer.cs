@@ -107,11 +107,19 @@ public class Writer : IDisposable
         this._writer.WriteLine(";");
     }
     
-    private void PubEql(string name)
+    private void PubEqlType(string name)
     {
         this.Indents();
         this._writer.Write("pub const ");
-        this._writer.Write(name);
+        this._writer.Write(name.HumanizeType());
+        this._writer.Write(" = ");
+    }
+    
+    private void PubEqlNamespace(string name)
+    {
+        this.Indents();
+        this._writer.Write("pub const ");
+        this._writer.Write(name.HumanizeField());
         this._writer.Write(" = ");
     }
 
@@ -128,9 +136,9 @@ public class Writer : IDisposable
     public Block BeginEnum(string name, string type)
     {
         this.Indents();
-        this.PubEql(name);
+        this.PubEqlType(name);
         this._writer.Write("enum(");
-        this._writer.Write(type);
+        this._writer.Write(type.HumanizeType());
         this._writer.WriteLine(") {");
         return new Block(this);
     }
@@ -138,14 +146,14 @@ public class Writer : IDisposable
     public void EnumMember(string name)
     {
         this.Indents();
-        this._writer.Write(name);
+        this._writer.Write(name.HumanizeField());
         this._writer.WriteLine(',');
     }
     
     public void EnumMember(string name, string value)
     {
         this.Indents();
-        this._writer.Write(name);
+        this._writer.Write(name.HumanizeField());
         this._writer.Write(" = ");
         this._writer.Write(value);
         this._writer.WriteLine(',');
@@ -154,9 +162,9 @@ public class Writer : IDisposable
     public Block BeginUnion(string name)
     {
         this.Indents();
-        this.PubEql(name);
+        this.PubEqlType(name);
         this._writer.Write("union(");
-        this._writer.Write(name);
+        this._writer.Write(name.HumanizeType());
         this._writer.WriteLine("Types) {");
         return new Block(this);
     }
@@ -164,7 +172,7 @@ public class Writer : IDisposable
     public Block BeginStruct(string name)
     {
         this.Indents();
-        this.PubEql(name);
+        this.PubEqlType(name);
         this._writer.WriteLine("struct {");
         return new Block(this);
     }
@@ -172,7 +180,7 @@ public class Writer : IDisposable
     public Block BeginExternStruct(string name)
     {
         this.Indents();
-        this.PubEql(name);
+        this.PubEqlType(name);
         this._writer.WriteLine("extern struct {");
         return new Block(this);
     }
@@ -180,9 +188,9 @@ public class Writer : IDisposable
     public Block BeginPackedStruct(string name, string type)
     {
         this.Indents();
-        this.PubEql(name);
+        this.PubEqlType(name);
         this._writer.Write("packed struct(");
-        this._writer.Write(type);
+        this._writer.Write(type.HumanizeType());
         this._writer.WriteLine(") {");
         return new Block(this);
     }
@@ -195,7 +203,7 @@ public class Writer : IDisposable
         this._writer.Write('(');
         this._writer.Write(string.Join(", ", paramList.Select(p => p.ToString())));
         this._writer.Write(") ");
-        this._writer.Write(type);
+        this._writer.Write(type.HumanizeType());
         this._writer.WriteLine(" {");
         return new Block(this, false);
     }
@@ -210,9 +218,9 @@ public class Writer : IDisposable
     public void StructMember(string name, string type, string? defaultDef = null)
     {
         this.Indents();
-        this._writer.Write(name);
+        this._writer.Write(name.HumanizeField());
         this._writer.Write(": ");
-        this._writer.Write(type);
+        this._writer.Write(type.HumanizeType());
         if (defaultDef != null)
         {
             this._writer.Write(" = ");

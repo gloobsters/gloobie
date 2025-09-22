@@ -6,6 +6,7 @@ const math = @import("math");
 const App = @import("App.zig");
 const Assets = @import("assets/Assets.zig");
 const Texture = @import("assets/Texture.zig");
+const GraphicsData = @import("GraphicsData.zig");
 const pooling = @import("pooling.zig");
 
 const log = @import("logger").Scoped(.graphics);
@@ -180,7 +181,7 @@ pub const FrameContext = struct {
     texture_readiness_queue: std.ArrayListUnmanaged(struct { handle: Assets.TextureHandle, nonce: u64 }),
     mesh_readiness_queue: std.ArrayListUnmanaged(struct { handle: Assets.Id, nonce: u64 }),
     main_thread: bool,
-    fence_manager: *App.FenceManager,
+    fence_manager: *GraphicsData.FenceManager,
     messaging_host: *App.MessagingHost,
     arena: std.mem.Allocator,
     upload_nonce: *std.atomic.Value(u64),

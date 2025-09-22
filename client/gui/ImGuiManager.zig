@@ -2,11 +2,16 @@ const std = @import("std");
 
 const gpu = @import("gpu");
 const imgui = @import("imgui");
+const math = @import("math");
+const sdl3 = @import("sdl3");
 
 const App = @import("../App.zig");
 const Texture = @import("../assets/Texture.zig");
+const GraphicsData = @import("../GraphicsData.zig");
 const mesh_renderer_manager = @import("../render_spaces/mesh_renderer_manager.zig");
 const RenderSpace = @import("../render_spaces/RenderSpace.zig");
+
+const log = @import("logger").Scoped(.app);
 
 pub const ImGuiManager = @This();
 
@@ -26,10 +31,47 @@ temporary_graphics_bindings: std.ArrayListUnmanaged(gpu.TextureSamplerBinding),
 
 app: *App,
 
-pub fn init(context: imgui.Context, app: *App) ImGuiManager {
+pub fn init(
+    app: *App,
+    graphics_data: GraphicsData,
+    window: sdl3.video.Window,
+) !ImGuiManager {
+    const context = try imgui.Context.create(null);
+    errdefer context.destroy();
+
+    context.setCurrent();
+
+    const style = imgui.getStyle();
+    // Go through every colour and convert it to linear
+    // This is because ImGui uses linear colours but we are using sRGB
+    // This is a simple approximation of the conversion
+    for (0..imgui.c.ImGuiCol_COUNT) |i| {
+        const col = &style.Colors[i];
+        col.x = math.srgbToLinear(f32, col.x);
+        col.y = math.srgbToLinear(f32, col.y);
+        col.z = math.srgbToLinear(f32, col.z);
+    }
+
+    try imgui.sdl3.initForOther(window);
+    errdefer imgui.sdl3.shutdown();
+
+    log.info(@src(), "Initialized ImGui SDL3 backend", .{});
+
+    try imgui.gpu.init(.{
+        .color_target_format = graphics_data.swapchain_format,
+        .device = graphics_data.device,
+        .msaa_samples = .no_multisampling,
+    });
+    errdefer imgui.gpu.shutdown();
+
+    log.info(@src(), "Initialized ImGui GPU backend", .{});
+
+    var io = context.getIo();
+    io.ConfigFlags = io.ConfigFlags | imgui.c.ImGuiConfigFlags_NoMouseCursorChange;
+
     return .{
-        .context = context,
         .app = app,
+        .context = context,
         .wants_mouse = false,
         .wants_keyboard = false,
         .open = true,
@@ -73,15 +115,15 @@ pub fn start(self: *ImGuiManager) !void {
             try self.temporary_graphics_bindings.ensureTotalCapacity(self.app.gpa, self.app.assets.textures.count());
 
             if (imgui.collapsingHeader("Texture 2Ds", 0)) {
-                self.fillTextures(.Texture2D);
+                self.fillTextures(.texture_2d);
             }
 
             if (imgui.collapsingHeader("Texture 3Ds", 0)) {
-                self.fillTextures(.Texture3D);
+                self.fillTextures(.texture_3d);
             }
 
             if (imgui.collapsingHeader("Cubemaps", 0)) {
-                self.fillTextures(.Cubemap);
+                self.fillTextures(.cubemap);
             }
 
             if (imgui.collapsingHeader("Meshes", 0)) {
@@ -149,7 +191,7 @@ pub fn draw(draw_data: *imgui.DrawData, command_buffer: gpu.CommandBuffer, rende
 }
 
 fn fillMaterials(self: *ImGuiManager) void {
-    var material_iter = self.app.assets.materials.materials.iterator();
+    var material_iter = self.app.assets.material_manager.materials.iterator();
     while (material_iter.next()) |material_entry| {
         defer imgui.separator();
 
@@ -164,7 +206,7 @@ fn fillMaterials(self: *ImGuiManager) void {
 }
 
 fn fillPropertyBlocks(self: *ImGuiManager) void {
-    var property_block_iter = self.app.assets.materials.property_blocks.iterator();
+    var property_block_iter = self.app.assets.material_manager.property_blocks.iterator();
     while (property_block_iter.next()) |material_entry| {
         defer imgui.separator();
 
@@ -204,7 +246,7 @@ fn fillTextures(self: *ImGuiManager, texture_type: Texture.Type) void {
                 const height = render_scale * @as(f32, @floatFromInt(graphics_data.height));
 
                 // We can only display 2D textures in ImGui
-                if (texture_type == .Texture2D) {
+                if (texture_type == .texture_2d) {
                     // Put it into a stable array
                     self.temporary_graphics_bindings.appendAssumeCapacity(graphics_data.binding);
 
@@ -340,8 +382,10 @@ fn fillRenderSpace(self: *ImGuiManager, render_space: *RenderSpace) void {
     }
 
     if (imgui.collapsingHeader("Transforms", 0)) {
-        for (render_space.transforms.transforms.items, 0..) |*transform, i| {
+        for (0..render_space.transform_manager.transforms.len) |i| {
             defer imgui.separator();
+
+            const transform = render_space.transform_manager.transforms.get(i);
 
             imgui.c.igText("Transform %d", @as(i32, @intCast(i)));
             if (transform.parent != .invalid) {
@@ -427,5 +471,5 @@ fn fillPerformance(self: *ImGuiManager) void {
     const perf = self.app.game.perf.state;
     // TODO: truncate floats so they are prettier
     imgui.c.igText("FPS: %f", perf.fps);
-    imgui.c.igText("Render time: %fms", perf.renderTime);
+    imgui.c.igText("Render time: %fms", perf.render_time);
 }

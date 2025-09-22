@@ -2929,6 +2929,37 @@ pub const Device = packed struct {
         return .from(session);
     }
 
+    pub const EnumerateFormatsError = openxr.ResultError || std.mem.Allocator.Error;
+
+    pub fn enumerateXrSwapchainFormats(
+        self: Device,
+        gpa: std.mem.Allocator,
+        session: openxr.Session,
+    ) EnumerateFormatsError![]TextureFormat {
+        var num_formats: u32 = undefined;
+
+        try openxr.convertResult(c.GPU_EnumerateXRSwapchainFormats(
+            self.value,
+            @ptrCast(session.value),
+            &num_formats,
+            null,
+        ));
+
+        const formats = try gpa.alloc(TextureFormat, num_formats);
+        errdefer gpa.free(formats);
+
+        try openxr.convertResult(c.GPU_EnumerateXRSwapchainFormats(
+            self.value,
+            // SAFETY: these are the same
+            @ptrCast(session.value),
+            &num_formats,
+            // SAFETY: TextureFormat is enum(c_uint)
+            @ptrCast(formats.ptr),
+        ));
+
+        return formats;
+    }
+
     pub fn createXrSwapchain(self: Device, session: openxr.Session, create_info: openxr.Swapchain.CreateInfo) openxr.ResultError!struct {
         texture_format: TextureFormat,
         swapchain: openxr.Swapchain,

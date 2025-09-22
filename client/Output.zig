@@ -10,7 +10,7 @@ const Assets = @import("assets/Assets.zig");
 const graphics = @import("graphics.zig");
 const mesh_renderer_manager = @import("render_spaces/mesh_renderer_manager.zig");
 const RenderSpace = @import("render_spaces/RenderSpace.zig");
-const Transforms = @import("render_spaces/Transforms.zig");
+const TransformManager = @import("render_spaces/TransformManager.zig");
 
 const Output = @This();
 
@@ -66,13 +66,11 @@ fn filterScale(scale: math.Vector3f) math.Vector3f {
 }
 
 fn renderSharedMeshRenderer(
-    arena: std.mem.Allocator,
     command_buffer: gpu.CommandBuffer,
     render_pass: gpu.RenderPass,
     mesh_renderer: mesh_renderer_manager.SharedMeshRenderable,
     assets: *Assets,
-    transforms: []Transforms.Transform,
-    transform_matrix_stack: *std.ArrayListUnmanaged(*const renderite.shared.RenderTransform),
+    computed_transforms: []math.Matrix4x4f,
 ) !void {
     // TODO: is this intended behaviour?
     // std.debug.assert(mesh_renderer.transform != .invalid);
@@ -85,28 +83,12 @@ fn renderSharedMeshRenderer(
         return;
     }
 
-    var transform_id = mesh_renderer.transform;
-    while (transform_id != .invalid) {
-        const transform = &transforms[@intCast(transform_id.to())];
-
-        try transform_matrix_stack.append(arena, &transform.render_transform);
-
-        transform_id = transform.parent;
-    }
-
-    std.debug.assert(transform_matrix_stack.items.len > 0);
-
-    var parent_matrix = renderTransformToMatrix(transform_matrix_stack.pop().?.*);
-    while (transform_matrix_stack.pop()) |child_matrix| {
-        parent_matrix = parent_matrix.mult(&renderTransformToMatrix(child_matrix.*));
-    }
-
-    command_buffer.pushVertexUniformData(1, std.mem.asBytes(&parent_matrix));
+    command_buffer.pushVertexUniformData(1, std.mem.asBytes(&computed_transforms[@intCast(mesh_renderer.transform.to())]));
 
     const position_offset = find_position_offset: {
         var offset: u32 = 0;
         for (mesh.vertex_attributes) |vertex_attribute| {
-            if (vertex_attribute.type == .Position) {
+            if (vertex_attribute.type == .position) {
                 break;
             }
 
@@ -145,35 +127,30 @@ fn renderRenderSpace(
     command_buffer: gpu.CommandBuffer,
     render_pass: gpu.RenderPass,
 ) !void {
+    _ = arena; // autofix
+
     const trace = tracy.traceNamed(@src(), "Render Render Space");
     defer trace.end();
 
-    var transform_matrix_stack: std.ArrayListUnmanaged(*const renderite.shared.RenderTransform) = try .initCapacity(arena, 64);
-    defer transform_matrix_stack.deinit(arena);
-
-    const transforms = render_space.transforms.transforms.items;
+    const computed_transforms = render_space.transform_manager.transforms.items(.matrix);
 
     for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
         try renderSharedMeshRenderer(
-            arena,
             command_buffer,
             render_pass,
             mesh_renderer.shared,
             assets,
-            transforms,
-            &transform_matrix_stack,
+            computed_transforms,
         );
     }
 
     for (render_space.skinned_mesh_renderer_manager.contents.items) |*skinned_mesh_renderer| {
         try renderSharedMeshRenderer(
-            arena,
             command_buffer,
             render_pass,
             skinned_mesh_renderer.shared,
             assets,
-            transforms,
-            &transform_matrix_stack,
+            computed_transforms,
         );
     }
 }

@@ -52,6 +52,9 @@ public abstract class TypeGenerator
         if (type == typeof(bool))
             return "bool";
 
+        if (type == typeof(DateTime))
+            return "i128";
+
         switch (type.Name)
         {
             case "RenderVector2":
@@ -84,7 +87,7 @@ public abstract class TypeGenerator
         if (type.IsClass && !inList)
         {
             QueueType(type);
-            return $"?{type.Name}";
+            return $"?{type.Name.HumanizeType()}";
         }
 
         if (type.Name.StartsWith("SharedMemoryBufferDescriptor"))
@@ -94,25 +97,25 @@ public abstract class TypeGenerator
         }
 
         if (type.IsGenericType)
-            return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(t => MapToZigType(t, inList)))})";
+            return $"{type.Name.Remove(type.Name.IndexOf('`'))}({string.Join(", ", type.GenericTypeArguments.Select(t => MapToZigType(t, inList)))})".HumanizeType();
 
         if (type.DeclaringType != null)
         {
             QueueType(type);
             QueueType(type.DeclaringType);
-            return type.DeclaringType.Name + '_' + type.Name;
+            return (type.DeclaringType.Name + '_' + type.Name).HumanizeType();
         }
         
         QueueType(type);
 
-        return type.Name;
+        return type.Name.HumanizeType();
     }
 
     protected void QueueType(Type type)
     {
         if (this.Context.GeneratedTypes.Contains(type) || this.Context.TypeQueue.Contains(type)) return;
 
-        if (type.Assembly == this.Context.Assembly)
+        if (type.Assembly == this.Context.Assembly || type == typeof(Guid))
             this.Context.TypeQueue.Enqueue(type);
     }
 }

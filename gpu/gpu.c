@@ -3754,6 +3754,17 @@ XrResult GPU_CreateXRSession(
     return device->CreateXRSession(device->driverData, createinfo, session);
 }
 
+XrResult GPU_EnumerateXRSwapchainFormats(
+    GPU_Device *device,
+    XrSession session,
+    Uint32 *formatCount,
+    GPU_TextureFormat *formatsOutput)
+{
+    CHECK_DEVICE_MAGIC(device, XR_NULL_HANDLE);
+
+    return device->EnumerateXRSwapchainFormats(device->driverData, session, formatCount, formatsOutput);
+}
+
 XrResult GPU_CreateXRSwapchain(
     GPU_Device *device,
     XrSession session,

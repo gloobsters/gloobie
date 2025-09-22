@@ -61,6 +61,8 @@ fn start() !void {
         const trace = tracy.traceNamed(@src(), "Init SDL");
         defer trace.end();
 
+        try sdl3.hints.set(.quit_on_last_window_close, "0");
+
         try sdl3.init(.{
             .video = true,
         });

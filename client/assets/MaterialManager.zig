@@ -9,7 +9,7 @@ const shared = renderite.shared;
 const graphics = @import("../graphics.zig");
 const Assets = @import("Assets.zig");
 
-const Materials = @This();
+const MaterialManager = @This();
 
 const Material = struct {
     pub const RenderType = enum(i32) {
@@ -30,39 +30,39 @@ const Material = struct {
         reader: *MaterialUpdateReader,
         update: shared.MaterialPropertyUpdate,
     ) !void {
-        switch (update.updateType) {
-            .UpdateBatchEnd,
-            .SelectTarget,
+        switch (update.update_type) {
+            .update_batch_end,
+            .select_target,
             => return error.InvalidOperation,
-            .SetShader => {
-                material.shader_id = .from(update.propertyID);
+            .set_shader => {
+                material.shader_id = .from(update.property_id);
                 material.render_queue_override = null;
             },
-            .SetRenderQueue => {
-                material.render_queue_override = update.propertyID;
+            .set_render_queue => {
+                material.render_queue_override = update.property_id;
             },
-            .SetInstancing => {
-                material.enable_instancing = update.propertyID > 0;
+            .set_instancing => {
+                material.enable_instancing = update.property_id > 0;
             },
-            .SetRenderType => {
-                material.render_type = @enumFromInt(update.propertyID);
+            .set_render_type => {
+                material.render_type = @enumFromInt(update.property_id);
             },
-            .SetFloat => {
+            .set_float => {
                 _ = try reader.float_buffer.next(gpa, accessor);
             },
-            .SetFloat4 => {
+            .set_float4 => {
                 _ = try reader.vector_buffer.next(gpa, accessor);
             },
-            .SetFloat4x4 => {
+            .set_float4x4 => {
                 _ = try reader.matrix_buffer.nextPtr(gpa, accessor);
             },
-            .SetFloatArray => {
+            .set_float_array => {
                 _ = try reader.float_buffer.nextSlice(gpa, accessor, &reader.int_buffer);
             },
-            .SetFloat4Array => {
+            .set_float4_array => {
                 _ = try reader.vector_buffer.nextSlice(gpa, accessor, &reader.int_buffer);
             },
-            .SetTexture => {
+            .set_texture => {
                 _ = try reader.int_buffer.next(gpa, accessor);
             },
         }
@@ -79,37 +79,37 @@ const PropertyBlock = struct {
     ) !void {
         _ = property_block; // autofix
 
-        switch (update.updateType) {
-            .SelectTarget,
-            .SetShader,
-            .SetRenderQueue,
-            .SetInstancing,
-            .SetRenderType,
-            .UpdateBatchEnd,
+        switch (update.update_type) {
+            .select_target,
+            .set_shader,
+            .set_render_queue,
+            .set_instancing,
+            .set_render_type,
+            .update_batch_end,
             => return error.InvalidOperation,
-            .SetFloat => {
+            .set_float => {
                 _ = try reader.float_buffer.next(gpa, accessor);
             },
-            .SetFloat4 => {
+            .set_float4 => {
                 _ = try reader.vector_buffer.next(gpa, accessor);
             },
-            .SetFloat4x4 => {
+            .set_float4x4 => {
                 _ = try reader.matrix_buffer.nextPtr(gpa, accessor);
             },
-            .SetFloatArray => {
+            .set_float_array => {
                 _ = try reader.float_buffer.nextSlice(gpa, accessor, &reader.int_buffer);
             },
-            .SetFloat4Array => {
+            .set_float4_array => {
                 _ = try reader.vector_buffer.nextSlice(gpa, accessor, &reader.int_buffer);
             },
-            .SetTexture => {
+            .set_texture => {
                 _ = try reader.int_buffer.next(gpa, accessor);
             },
         }
     }
 };
 
-pub const empty: Materials = .{
+pub const empty: MaterialManager = .{
     .materials = .empty,
     .property_blocks = .empty,
 };
@@ -117,7 +117,7 @@ pub const empty: Materials = .{
 materials: std.AutoHashMapUnmanaged(Assets.Id, Material),
 property_blocks: std.AutoHashMapUnmanaged(Assets.Id, PropertyBlock),
 
-pub fn deinit(self: *Materials, gpa: std.mem.Allocator) void {
+pub fn deinit(self: *MaterialManager, gpa: std.mem.Allocator) void {
     self.materials.deinit(gpa);
     self.property_blocks.deinit(gpa);
 }
@@ -266,7 +266,7 @@ const MaterialUpdateReader = struct {
                 return self.update_buffer.next_buffer < self.update_buffer.buffer_descriptors.len;
             }
 
-            return active_buffer.data[self.update_buffer.next_element_index].updateType != .UpdateBatchEnd;
+            return active_buffer.data[self.update_buffer.next_element_index].update_type != .update_batch_end;
         }
         return self.update_buffer.next_buffer < self.update_buffer.buffer_descriptors.len;
     }
@@ -278,13 +278,13 @@ const MaterialUpdateReader = struct {
 };
 
 pub fn handleUpdate(
-    self: *Materials,
+    self: *MaterialManager,
     gpa: std.mem.Allocator,
     frame_context: *graphics.FrameContext,
     accessor: *SharedMemoryAccessor,
     update: shared.MaterialsUpdateBatch,
 ) !void {
-    const instance_changed_buffer = try accessor.getOrCreate(u32, gpa, update.instanceChangedBuffer);
+    const instance_changed_buffer = try accessor.getOrCreate(u32, gpa, update.instance_changed_buffer);
     defer instance_changed_buffer.release(accessor);
 
     var reader: MaterialUpdateReader = .{
@@ -294,11 +294,11 @@ pub fn handleUpdate(
         .instance_changed_index = 0,
         .instance_changed_buffer = .{ .slice = instance_changed_buffer.data },
 
-        .matrix_buffer = .init(update.matrixBuffers),
-        .float_buffer = .init(update.floatBuffers),
-        .int_buffer = .init(update.intBuffers),
-        .update_buffer = .init(update.materialUpdates),
-        .vector_buffer = .init(update.float4Buffers),
+        .matrix_buffer = .init(update.matrix_buffers),
+        .float_buffer = .init(update.float_buffers),
+        .int_buffer = .init(update.int_buffers),
+        .update_buffer = .init(update.material_updates),
+        .vector_buffer = .init(update.float4_buffers),
     };
     defer reader.deinit(accessor);
 
@@ -313,10 +313,10 @@ pub fn handleUpdate(
         // SAFETY: we check in the loop that one is available
         const material_property_update = try reader.update_buffer.next(gpa, accessor) orelse unreachable;
 
-        const as_asset_id: Assets.Id = .from(material_property_update.propertyID);
+        const as_asset_id: Assets.Id = .from(material_property_update.property_id);
 
-        if (material_property_update.updateType == .SelectTarget) {
-            if (i == update.materialUpdateCount) {
+        if (material_property_update.update_type == .select_target) {
+            if (i == update.material_update_count) {
                 handling_property_block_updates = true;
             }
 
@@ -372,7 +372,15 @@ pub fn handleUpdate(
         }
     }
 
-    try frame_context.messaging_host.background.sendTimeout(.{ .MaterialsUpdateBatchResult = .{
-        .updateBatchId = update.updateBatchId,
+    try frame_context.messaging_host.background.sendTimeout(.{ .materials_update_batch_result = .{
+        .update_batch_id = update.update_batch_id,
     } }, std.time.ns_per_s * 10);
+}
+
+pub fn unloadMaterial(self: *MaterialManager, request: renderite.shared.UnloadMaterial) void {
+    _ = self.materials.remove(.from(request.asset_id));
+}
+
+pub fn unloadMaterialPropertyBlock(self: *MaterialManager, request: renderite.shared.UnloadMaterialPropertyBlock) void {
+    _ = self.property_blocks.remove(.from(request.asset_id));
 }

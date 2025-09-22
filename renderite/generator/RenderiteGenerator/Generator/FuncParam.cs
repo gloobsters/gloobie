@@ -13,6 +13,6 @@ public class FuncParam
 
     public override string ToString()
     {
-        return $"{this.Name}: {this.Type}";
+        return $"{this.Name}: {this.Type.HumanizeType()}";
     }
 }
