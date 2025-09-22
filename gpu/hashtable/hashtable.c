@@ -23,7 +23,7 @@
 
 #include "hashtable.h"
 
-typedef struct SDL_HashItem
+typedef struct GPU_HashItem
 {
     // TODO: Splitting off values into a separate array might be more cache-friendly
     const void *key;
@@ -31,22 +31,22 @@ typedef struct SDL_HashItem
     Uint32 hash;
     Uint32 probe_len : 31;
     Uint32 live : 1;
-} SDL_HashItem;
+} GPU_HashItem;
 
-// Must be a power of 2 >= sizeof(SDL_HashItem)
+// Must be a power of 2 >= sizeof(GPU_HashItem)
 #define MAX_HASHITEM_SIZEOF 32u
-SDL_COMPILE_TIME_ASSERT(sizeof_SDL_HashItem, sizeof(SDL_HashItem) <= MAX_HASHITEM_SIZEOF);
+SDL_COMPILE_TIME_ASSERT(sizeof_GPU_HashItem, sizeof(GPU_HashItem) <= MAX_HASHITEM_SIZEOF);
 
 // Anything larger than this will cause integer overflows
 #define MAX_HASHTABLE_SIZE (0x80000000u / (MAX_HASHITEM_SIZEOF))
 
-struct SDL_HashTable
+struct GPU_HashTable
 {
     SDL_RWLock *lock; // NULL if not created threadsafe
-    SDL_HashItem *table;
-    SDL_HashCallback hash;
-    SDL_HashKeyMatchCallback keymatch;
-    SDL_HashDestroyCallback destroy;
+    GPU_HashItem *table;
+    GPU_HashCallback hash;
+    GPU_HashKeyMatchCallback keymatch;
+    GPU_HashDestroyCallback destroy;
     void *userdata;
     Uint32 hash_mask;
     Uint32 max_probe_len;
@@ -70,12 +70,12 @@ static Uint32 CalculateHashBucketsFromEstimate(int estimated_capacity)
     return SDL_min(buckets, MAX_HASHTABLE_SIZE);
 }
 
-SDL_HashTable *SDL_CreateHashTable(int estimated_capacity, bool threadsafe, SDL_HashCallback hash,
-                                   SDL_HashKeyMatchCallback keymatch,
-                                   SDL_HashDestroyCallback destroy, void *userdata)
+GPU_HashTable *GPU_CreateHashTable(int estimated_capacity, bool threadsafe, GPU_HashCallback hash,
+                                   GPU_HashKeyMatchCallback keymatch,
+                                   GPU_HashDestroyCallback destroy, void *userdata)
 {
     const Uint32 num_buckets = CalculateHashBucketsFromEstimate(estimated_capacity);
-    SDL_HashTable *table = (SDL_HashTable *)SDL_calloc(1, sizeof(SDL_HashTable));
+    GPU_HashTable *table = (GPU_HashTable *)SDL_calloc(1, sizeof(GPU_HashTable));
     if (!table)
     {
         return NULL;
@@ -86,15 +86,15 @@ SDL_HashTable *SDL_CreateHashTable(int estimated_capacity, bool threadsafe, SDL_
         table->lock = SDL_CreateRWLock();
         if (!table->lock)
         {
-            SDL_DestroyHashTable(table);
+            GPU_DestroyHashTable(table);
             return NULL;
         }
     }
 
-    table->table = (SDL_HashItem *)SDL_calloc(num_buckets, sizeof(SDL_HashItem));
+    table->table = (GPU_HashItem *)SDL_calloc(num_buckets, sizeof(GPU_HashItem));
     if (!table->table)
     {
-        SDL_DestroyHashTable(table);
+        GPU_DestroyHashTable(table);
         return NULL;
     }
 
@@ -106,7 +106,7 @@ SDL_HashTable *SDL_CreateHashTable(int estimated_capacity, bool threadsafe, SDL_
     return table;
 }
 
-static SDL_INLINE Uint32 calc_hash(const SDL_HashTable *table, const void *key)
+static SDL_INLINE Uint32 calc_hash(const GPU_HashTable *table, const void *key)
 {
     const Uint32 BitMixer = 0x9E3779B1u;
     return table->hash(table->userdata, key) * BitMixer;
@@ -123,16 +123,16 @@ static SDL_INLINE Uint32 get_probe_length(Uint32 zero_idx, Uint32 actual_idx, Ui
     return actual_idx - zero_idx;
 }
 
-static SDL_HashItem *find_item(const SDL_HashTable *ht, const void *key, Uint32 hash, Uint32 *i, Uint32 *probe_len)
+static GPU_HashItem *find_item(const GPU_HashTable *ht, const void *key, Uint32 hash, Uint32 *i, Uint32 *probe_len)
 {
     Uint32 hash_mask = ht->hash_mask;
     Uint32 max_probe_len = ht->max_probe_len;
 
-    SDL_HashItem *table = ht->table;
+    GPU_HashItem *table = ht->table;
 
     while (true)
     {
-        SDL_HashItem *item = table + *i;
+        GPU_HashItem *item = table + *i;
         Uint32 item_hash = item->hash;
 
         if (!item->live)
@@ -162,23 +162,23 @@ static SDL_HashItem *find_item(const SDL_HashTable *ht, const void *key, Uint32 
     }
 }
 
-static SDL_HashItem *find_first_item(const SDL_HashTable *ht, const void *key, Uint32 hash)
+static GPU_HashItem *find_first_item(const GPU_HashTable *ht, const void *key, Uint32 hash)
 {
     Uint32 i = hash & ht->hash_mask;
     Uint32 probe_len = 0;
     return find_item(ht, key, hash, &i, &probe_len);
 }
 
-static SDL_HashItem *insert_item(SDL_HashItem *item_to_insert, SDL_HashItem *table, Uint32 hash_mask, Uint32 *max_probe_len_ptr)
+static GPU_HashItem *insert_item(GPU_HashItem *item_to_insert, GPU_HashItem *table, Uint32 hash_mask, Uint32 *max_probe_len_ptr)
 {
     const Uint32 num_buckets = hash_mask + 1;
     Uint32 idx = item_to_insert->hash & hash_mask;
-    SDL_HashItem *target = NULL;
-    SDL_HashItem temp_item;
+    GPU_HashItem *target = NULL;
+    GPU_HashItem temp_item;
 
     while (true)
     {
-        SDL_HashItem *candidate = table + idx;
+        GPU_HashItem *candidate = table + idx;
 
         if (!candidate->live)
         {
@@ -236,10 +236,10 @@ static SDL_HashItem *insert_item(SDL_HashItem *item_to_insert, SDL_HashItem *tab
     return target;
 }
 
-static void delete_item(SDL_HashTable *ht, SDL_HashItem *item)
+static void delete_item(GPU_HashTable *ht, GPU_HashItem *item)
 {
     const Uint32 hash_mask = ht->hash_mask;
-    SDL_HashItem *table = ht->table;
+    GPU_HashItem *table = ht->table;
 
     if (ht->destroy)
     {
@@ -254,7 +254,7 @@ static void delete_item(SDL_HashTable *ht, SDL_HashItem *item)
     while (true)
     {
         idx = (idx + 1) & hash_mask;
-        SDL_HashItem *next_item = table + idx;
+        GPU_HashItem *next_item = table + idx;
 
         if (next_item->probe_len < 1)
         {
@@ -269,17 +269,17 @@ static void delete_item(SDL_HashTable *ht, SDL_HashItem *item)
     }
 }
 
-static bool resize(SDL_HashTable *ht, Uint32 new_size)
+static bool resize(GPU_HashTable *ht, Uint32 new_size)
 {
     const Uint32 new_hash_mask = new_size - 1;
-    SDL_HashItem *new_table = SDL_calloc(new_size, sizeof(*new_table));
+    GPU_HashItem *new_table = SDL_calloc(new_size, sizeof(*new_table));
 
     if (!new_table)
     {
         return false;
     }
 
-    SDL_HashItem *old_table = ht->table;
+    GPU_HashItem *old_table = ht->table;
     const Uint32 old_size = ht->hash_mask + 1;
 
     ht->max_probe_len = 0;
@@ -288,7 +288,7 @@ static bool resize(SDL_HashTable *ht, Uint32 new_size)
 
     for (Uint32 i = 0; i < old_size; ++i)
     {
-        SDL_HashItem *item = old_table + i;
+        GPU_HashItem *item = old_table + i;
         if (item->live)
         {
             insert_item(item, new_table, new_hash_mask, &ht->max_probe_len);
@@ -299,7 +299,7 @@ static bool resize(SDL_HashTable *ht, Uint32 new_size)
     return true;
 }
 
-static bool maybe_resize(SDL_HashTable *ht)
+static bool maybe_resize(GPU_HashTable *ht)
 {
     const Uint32 capacity = ht->hash_mask + 1;
 
@@ -319,7 +319,7 @@ static bool maybe_resize(SDL_HashTable *ht)
     return true;
 }
 
-bool SDL_InsertIntoHashTable(SDL_HashTable *table, const void *key, const void *value, bool replace)
+bool GPU_InsertIntoHashTable(GPU_HashTable *table, const void *key, const void *value, bool replace)
 {
     if (!table)
     {
@@ -331,7 +331,7 @@ bool SDL_InsertIntoHashTable(SDL_HashTable *table, const void *key, const void *
     SDL_LockRWLockForWriting(table->lock);
 
     const Uint32 hash = calc_hash(table, key);
-    SDL_HashItem *item = find_first_item(table, key, hash);
+    GPU_HashItem *item = find_first_item(table, key, hash);
     bool do_insert = true;
 
     if (item)
@@ -349,7 +349,7 @@ bool SDL_InsertIntoHashTable(SDL_HashTable *table, const void *key, const void *
 
     if (do_insert)
     {
-        SDL_HashItem new_item;
+        GPU_HashItem new_item;
         new_item.key = key;
         new_item.value = value;
         new_item.hash = hash;
@@ -374,7 +374,7 @@ bool SDL_InsertIntoHashTable(SDL_HashTable *table, const void *key, const void *
     return result;
 }
 
-bool SDL_FindInHashTable(const SDL_HashTable *table, const void *key, const void **value)
+bool GPU_FindInHashTable(const GPU_HashTable *table, const void *key, const void **value)
 {
     if (!table)
     {
@@ -389,7 +389,7 @@ bool SDL_FindInHashTable(const SDL_HashTable *table, const void *key, const void
 
     bool result = false;
     const Uint32 hash = calc_hash(table, key);
-    SDL_HashItem *i = find_first_item(table, key, hash);
+    GPU_HashItem *i = find_first_item(table, key, hash);
     if (i)
     {
         if (value)
@@ -404,7 +404,7 @@ bool SDL_FindInHashTable(const SDL_HashTable *table, const void *key, const void
     return result;
 }
 
-bool SDL_RemoveFromHashTable(SDL_HashTable *table, const void *key)
+bool GPU_RemoveFromHashTable(GPU_HashTable *table, const void *key)
 {
     if (!table)
     {
@@ -415,7 +415,7 @@ bool SDL_RemoveFromHashTable(SDL_HashTable *table, const void *key)
 
     bool result = false;
     const Uint32 hash = calc_hash(table, key);
-    SDL_HashItem *item = find_first_item(table, key, hash);
+    GPU_HashItem *item = find_first_item(table, key, hash);
     if (item)
     {
         delete_item(table, item);
@@ -426,7 +426,7 @@ bool SDL_RemoveFromHashTable(SDL_HashTable *table, const void *key)
     return result;
 }
 
-bool SDL_IterateHashTable(const SDL_HashTable *table, SDL_HashTableIterateCallback callback, void *userdata)
+bool GPU_IterateHashTable(const GPU_HashTable *table, GPU_HashTableIterateCallback callback, void *userdata)
 {
     if (!table)
     {
@@ -438,10 +438,10 @@ bool SDL_IterateHashTable(const SDL_HashTable *table, SDL_HashTableIterateCallba
     }
 
     SDL_LockRWLockForReading(table->lock);
-    SDL_HashItem *end = table->table + (table->hash_mask + 1);
+    GPU_HashItem *end = table->table + (table->hash_mask + 1);
     Uint32 num_iterated = 0;
 
-    for (SDL_HashItem *item = table->table; item < end; item++)
+    for (GPU_HashItem *item = table->table; item < end; item++)
     {
         if (item->live)
         {
@@ -460,7 +460,7 @@ bool SDL_IterateHashTable(const SDL_HashTable *table, SDL_HashTableIterateCallba
     return true;
 }
 
-bool SDL_HashTableEmpty(SDL_HashTable *table)
+bool GPU_HashTableEmpty(GPU_HashTable *table)
 {
     if (!table)
     {
@@ -473,14 +473,14 @@ bool SDL_HashTableEmpty(SDL_HashTable *table)
     return retval;
 }
 
-static void destroy_all(SDL_HashTable *table)
+static void destroy_all(GPU_HashTable *table)
 {
-    SDL_HashDestroyCallback destroy = table->destroy;
+    GPU_HashDestroyCallback destroy = table->destroy;
     if (destroy)
     {
         void *userdata = table->userdata;
-        SDL_HashItem *end = table->table + (table->hash_mask + 1);
-        for (SDL_HashItem *i = table->table; i < end; ++i)
+        GPU_HashItem *end = table->table + (table->hash_mask + 1);
+        for (GPU_HashItem *i = table->table; i < end; ++i)
         {
             if (i->live)
             {
@@ -491,7 +491,7 @@ static void destroy_all(SDL_HashTable *table)
     }
 }
 
-void SDL_ClearHashTable(SDL_HashTable *table)
+void GPU_ClearHashTable(GPU_HashTable *table)
 {
     if (table)
     {
@@ -505,7 +505,7 @@ void SDL_ClearHashTable(SDL_HashTable *table)
     }
 }
 
-void SDL_DestroyHashTable(SDL_HashTable *table)
+void GPU_DestroyHashTable(GPU_HashTable *table)
 {
     if (table)
     {
@@ -530,26 +530,26 @@ static SDL_INLINE Uint32 hash_string_djbxor(const char *str, size_t len)
     return hash;
 }
 
-Uint32 SDL_HashPointer(void *unused, const void *key)
+Uint32 GPU_HashPointer(void *unused, const void *key)
 {
     (void)unused;
     return SDL_murmur3_32(&key, sizeof(key), 0);
 }
 
-bool SDL_KeyMatchPointer(void *unused, const void *a, const void *b)
+bool GPU_KeyMatchPointer(void *unused, const void *a, const void *b)
 {
     (void)unused;
     return (a == b);
 }
 
-Uint32 SDL_HashString(void *unused, const void *key)
+Uint32 GPU_HashString(void *unused, const void *key)
 {
     (void)unused;
     const char *str = (const char *)key;
     return hash_string_djbxor(str, SDL_strlen(str));
 }
 
-bool SDL_KeyMatchString(void *unused, const void *a, const void *b)
+bool GPU_KeyMatchString(void *unused, const void *a, const void *b)
 {
     const char *a_string = (const char *)a;
     const char *b_string = (const char *)b;
@@ -571,35 +571,35 @@ bool SDL_KeyMatchString(void *unused, const void *a, const void *b)
 }
 
 // We assume we can fit the ID in the key directly
-SDL_COMPILE_TIME_ASSERT(SDL_HashID_KeySize, sizeof(Uint32) <= sizeof(const void *));
+SDL_COMPILE_TIME_ASSERT(GPU_HashID_KeySize, sizeof(Uint32) <= sizeof(const void *));
 
-Uint32 SDL_HashID(void *unused, const void *key)
+Uint32 GPU_HashID(void *unused, const void *key)
 {
     (void)unused;
     return (Uint32)(uintptr_t)key;
 }
 
-bool SDL_KeyMatchID(void *unused, const void *a, const void *b)
+bool GPU_KeyMatchID(void *unused, const void *a, const void *b)
 {
     (void)unused;
     return (a == b);
 }
 
-void SDL_DestroyHashKeyAndValue(void *unused, const void *key, const void *value)
+void GPU_DestroyHashKeyAndValue(void *unused, const void *key, const void *value)
 {
     (void)unused;
     SDL_free((void *)key);
     SDL_free((void *)value);
 }
 
-void SDL_DestroyHashKey(void *unused, const void *key, const void *value)
+void GPU_DestroyHashKey(void *unused, const void *key, const void *value)
 {
     (void)value;
     (void)unused;
     SDL_free((void *)key);
 }
 
-void SDL_DestroyHashValue(void *unused, const void *key, const void *value)
+void GPU_DestroyHashValue(void *unused, const void *key, const void *value)
 {
     (void)key;
     (void)unused;

@@ -1161,12 +1161,12 @@ struct VulkanRenderer
 
     VulkanFencePool fencePool;
 
-    SDL_HashTable *commandPoolHashTable;
-    SDL_HashTable *renderPassHashTable;
-    SDL_HashTable *framebufferHashTable;
-    SDL_HashTable *graphicsPipelineResourceLayoutHashTable;
-    SDL_HashTable *computePipelineResourceLayoutHashTable;
-    SDL_HashTable *descriptorSetLayoutHashTable;
+    GPU_HashTable *commandPoolHashTable;
+    GPU_HashTable *renderPassHashTable;
+    GPU_HashTable *framebufferHashTable;
+    GPU_HashTable *graphicsPipelineResourceLayoutHashTable;
+    GPU_HashTable *computePipelineResourceLayoutHashTable;
+    GPU_HashTable *descriptorSetLayoutHashTable;
 
     VulkanUniformBuffer **uniformBufferPool;
     Uint32 uniformBufferPoolCount;
@@ -3151,7 +3151,7 @@ typedef struct CheckOneFramebufferForRemovalData
     VkImageView view;
 } CheckOneFramebufferForRemovalData;
 
-static bool SDLCALL CheckOneFramebufferForRemoval(void *userdata, const SDL_HashTable *table, const void *vkey, const void *vvalue)
+static bool SDLCALL CheckOneFramebufferForRemoval(void *userdata, const GPU_HashTable *table, const void *vkey, const void *vvalue)
 {
     CheckOneFramebufferForRemovalData *data = (CheckOneFramebufferForRemovalData *)userdata;
     FramebufferHashTableKey *key = (FramebufferHashTableKey *)vkey;
@@ -3211,11 +3211,11 @@ static void VULKAN_INTERNAL_RemoveFramebuffersContainingView(
 
     SDL_LockMutex(renderer->framebufferFetchLock);
 
-    SDL_IterateHashTable(renderer->framebufferHashTable, CheckOneFramebufferForRemoval, &data);
+    GPU_IterateHashTable(renderer->framebufferHashTable, CheckOneFramebufferForRemoval, &data);
 
     for (Uint32 i = 0; i < data.keysToRemoveCount; i += 1)
     {
-        SDL_RemoveFromHashTable(renderer->framebufferHashTable, (void *)data.keysToRemove[i]);
+        GPU_RemoveFromHashTable(renderer->framebufferHashTable, (void *)data.keysToRemove[i]);
     }
 
     SDL_UnlockMutex(renderer->framebufferFetchLock);
@@ -4043,7 +4043,7 @@ static DescriptorSetLayout *VULKAN_INTERNAL_FetchDescriptorSetLayout(
 
     SDL_LockMutex(renderer->descriptorSetLayoutFetchLock);
 
-    if (SDL_FindInHashTable(
+    if (GPU_FindInHashTable(
             renderer->descriptorSetLayoutHashTable,
             (const void *)&key,
             (const void **)&layout))
@@ -4157,7 +4157,7 @@ static DescriptorSetLayout *VULKAN_INTERNAL_FetchDescriptorSetLayout(
     DescriptorSetLayoutHashTableKey *allocedKey = SDL_malloc(sizeof(DescriptorSetLayoutHashTableKey));
     SDL_memcpy(allocedKey, &key, sizeof(DescriptorSetLayoutHashTableKey));
 
-    SDL_InsertIntoHashTable(
+    GPU_InsertIntoHashTable(
         renderer->descriptorSetLayoutHashTable,
         (const void *)allocedKey,
         (const void *)layout, true);
@@ -4186,7 +4186,7 @@ static VulkanGraphicsPipelineResourceLayout *VULKAN_INTERNAL_FetchGraphicsPipeli
 
     SDL_LockMutex(renderer->graphicsPipelineLayoutFetchLock);
 
-    if (SDL_FindInHashTable(
+    if (GPU_FindInHashTable(
             renderer->graphicsPipelineResourceLayoutHashTable,
             (const void *)&key,
             (const void **)&pipelineResourceLayout))
@@ -4282,7 +4282,7 @@ static VulkanGraphicsPipelineResourceLayout *VULKAN_INTERNAL_FetchGraphicsPipeli
     GraphicsPipelineResourceLayoutHashTableKey *allocedKey = SDL_malloc(sizeof(GraphicsPipelineResourceLayoutHashTableKey));
     SDL_memcpy(allocedKey, &key, sizeof(GraphicsPipelineResourceLayoutHashTableKey));
 
-    SDL_InsertIntoHashTable(
+    GPU_InsertIntoHashTable(
         renderer->graphicsPipelineResourceLayoutHashTable,
         (const void *)allocedKey,
         (const void *)pipelineResourceLayout, true);
@@ -4308,7 +4308,7 @@ static VulkanComputePipelineResourceLayout *VULKAN_INTERNAL_FetchComputePipeline
 
     SDL_LockMutex(renderer->computePipelineLayoutFetchLock);
 
-    if (SDL_FindInHashTable(
+    if (GPU_FindInHashTable(
             renderer->computePipelineResourceLayoutHashTable,
             (const void *)&key,
             (const void **)&pipelineResourceLayout))
@@ -4390,7 +4390,7 @@ static VulkanComputePipelineResourceLayout *VULKAN_INTERNAL_FetchComputePipeline
     ComputePipelineResourceLayoutHashTableKey *allocedKey = SDL_malloc(sizeof(ComputePipelineResourceLayoutHashTableKey));
     SDL_memcpy(allocedKey, &key, sizeof(ComputePipelineResourceLayoutHashTableKey));
 
-    SDL_InsertIntoHashTable(
+    GPU_InsertIntoHashTable(
         renderer->computePipelineResourceLayoutHashTable,
         (const void *)allocedKey,
         (const void *)pipelineResourceLayout, true);
@@ -5317,12 +5317,12 @@ static void VULKAN_DestroyDevice(
     SDL_free(renderer->fencePool.availableFences);
     SDL_DestroyMutex(renderer->fencePool.lock);
 
-    SDL_DestroyHashTable(renderer->commandPoolHashTable);
-    SDL_DestroyHashTable(renderer->renderPassHashTable);
-    SDL_DestroyHashTable(renderer->framebufferHashTable);
-    SDL_DestroyHashTable(renderer->graphicsPipelineResourceLayoutHashTable);
-    SDL_DestroyHashTable(renderer->computePipelineResourceLayoutHashTable);
-    SDL_DestroyHashTable(renderer->descriptorSetLayoutHashTable);
+    GPU_DestroyHashTable(renderer->commandPoolHashTable);
+    GPU_DestroyHashTable(renderer->renderPassHashTable);
+    GPU_DestroyHashTable(renderer->framebufferHashTable);
+    GPU_DestroyHashTable(renderer->graphicsPipelineResourceLayoutHashTable);
+    GPU_DestroyHashTable(renderer->computePipelineResourceLayoutHashTable);
+    GPU_DestroyHashTable(renderer->descriptorSetLayoutHashTable);
 
     for (Uint32 i = 0; i < VK_MAX_MEMORY_TYPES; i += 1)
     {
@@ -7722,7 +7722,7 @@ static VkRenderPass VULKAN_INTERNAL_FetchRenderPass(
 
     SDL_LockMutex(renderer->renderPassFetchLock);
 
-    bool result = SDL_FindInHashTable(
+    bool result = GPU_FindInHashTable(
         renderer->renderPassHashTable,
         (const void *)&key,
         (const void **)&renderPassWrapper);
@@ -7752,7 +7752,7 @@ static VkRenderPass VULKAN_INTERNAL_FetchRenderPass(
     renderPassWrapper = SDL_malloc(sizeof(VulkanRenderPassHashTableValue));
     renderPassWrapper->handle = renderPassHandle;
 
-    SDL_InsertIntoHashTable(
+    GPU_InsertIntoHashTable(
         renderer->renderPassHashTable,
         (const void *)allocedKey,
         (const void *)renderPassWrapper, true);
@@ -7827,7 +7827,7 @@ static VulkanFramebuffer *VULKAN_INTERNAL_FetchFramebuffer(
 
     SDL_LockMutex(renderer->framebufferFetchLock);
 
-    bool findResult = SDL_FindInHashTable(
+    bool findResult = GPU_FindInHashTable(
         renderer->framebufferHashTable,
         (const void *)&key,
         (const void **)&vulkanFramebuffer);
@@ -7906,7 +7906,7 @@ static VulkanFramebuffer *VULKAN_INTERNAL_FetchFramebuffer(
         FramebufferHashTableKey *allocedKey = SDL_malloc(sizeof(FramebufferHashTableKey));
         SDL_memcpy(allocedKey, &key, sizeof(FramebufferHashTableKey));
 
-        SDL_InsertIntoHashTable(
+        GPU_InsertIntoHashTable(
             renderer->framebufferHashTable,
             (const void *)allocedKey,
             (const void *)vulkanFramebuffer, true);
@@ -10072,7 +10072,7 @@ static VulkanCommandPool *VULKAN_INTERNAL_FetchCommandPool(
     CommandPoolHashTableKey key;
     key.threadID = threadID;
 
-    bool result = SDL_FindInHashTable(
+    bool result = GPU_FindInHashTable(
         renderer->commandPoolHashTable,
         (const void *)&key,
         (const void **)&vulkanCommandPool);
@@ -10119,7 +10119,7 @@ static VulkanCommandPool *VULKAN_INTERNAL_FetchCommandPool(
     CommandPoolHashTableKey *allocedKey = SDL_malloc(sizeof(CommandPoolHashTableKey));
     allocedKey->threadID = threadID;
 
-    SDL_InsertIntoHashTable(
+    GPU_InsertIntoHashTable(
         renderer->commandPoolHashTable,
         (const void *)allocedKey,
         (const void *)vulkanCommandPool, true);
@@ -13553,7 +13553,7 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
 
     // Initialize caches
 
-    renderer->commandPoolHashTable = SDL_CreateHashTable(
+    renderer->commandPoolHashTable = GPU_CreateHashTable(
         0,     // !!! FIXME: a real guess here, for a _minimum_ if not a maximum, could be useful.
         false, // manually synchronized due to submission timing
         VULKAN_INTERNAL_CommandPoolHashFunction,
@@ -13561,7 +13561,7 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
         VULKAN_INTERNAL_CommandPoolHashDestroy,
         (void *)renderer);
 
-    renderer->renderPassHashTable = SDL_CreateHashTable(
+    renderer->renderPassHashTable = GPU_CreateHashTable(
         0,     // !!! FIXME: a real guess here, for a _minimum_ if not a maximum, could be useful.
         false, // manually synchronized due to lookup timing
         VULKAN_INTERNAL_RenderPassHashFunction,
@@ -13569,7 +13569,7 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
         VULKAN_INTERNAL_RenderPassHashDestroy,
         (void *)renderer);
 
-    renderer->framebufferHashTable = SDL_CreateHashTable(
+    renderer->framebufferHashTable = GPU_CreateHashTable(
         0,     // !!! FIXME: a real guess here, for a _minimum_ if not a maximum, could be useful.
         false, // manually synchronized due to iteration
         VULKAN_INTERNAL_FramebufferHashFunction,
@@ -13577,7 +13577,7 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
         VULKAN_INTERNAL_FramebufferHashDestroy,
         (void *)renderer);
 
-    renderer->graphicsPipelineResourceLayoutHashTable = SDL_CreateHashTable(
+    renderer->graphicsPipelineResourceLayoutHashTable = GPU_CreateHashTable(
         0,     // !!! FIXME: a real guess here, for a _minimum_ if not a maximum, could be useful.
         false, // manually synchronized due to lookup timing
         VULKAN_INTERNAL_GraphicsPipelineResourceLayoutHashFunction,
@@ -13585,7 +13585,7 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
         VULKAN_INTERNAL_GraphicsPipelineResourceLayoutHashDestroy,
         (void *)renderer);
 
-    renderer->computePipelineResourceLayoutHashTable = SDL_CreateHashTable(
+    renderer->computePipelineResourceLayoutHashTable = GPU_CreateHashTable(
         0,     // !!! FIXME: a real guess here, for a _minimum_ if not a maximum, could be useful.
         false, // manually synchronized due to lookup timing
         VULKAN_INTERNAL_ComputePipelineResourceLayoutHashFunction,
@@ -13593,7 +13593,7 @@ static GPU_Device *VULKAN_CreateDevice(bool debugMode, bool preferLowPower, SDL_
         VULKAN_INTERNAL_ComputePipelineResourceLayoutHashDestroy,
         (void *)renderer);
 
-    renderer->descriptorSetLayoutHashTable = SDL_CreateHashTable(
+    renderer->descriptorSetLayoutHashTable = GPU_CreateHashTable(
         0,     // !!! FIXME: a real guess here, for a _minimum_ if not a maximum, could be useful.
         false, // manually synchronized due to lookup timing
         VULKAN_INTERNAL_DescriptorSetLayoutHashFunction,
