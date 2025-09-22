@@ -2,6 +2,6 @@
     "version": 1,
     "name": "Gloobie",
     "winExecutablePath": "gloobie.exe",
-    "unixExecutablePath": "Renderite.Gloobie",
+    "unixExecutablePath": "./Renderite.Gloobie",
     "runInWine": false
 }

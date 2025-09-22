@@ -158,7 +158,7 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
 
     var renderer = std.process.Child.init(argv.constSlice(), gpa);
     renderer.spawn() catch @panic("Failed to spawn renderer");
-    renderer.waitForSpawn() catch @panic("Failed to wait for renderer to spawn");
+    renderer.waitForSpawn() catch |err| std.debug.panic("Failed to wait for renderer to spawn: {any}", .{err});
 
     log.info(@src(), "Renderer spawned!", .{});
 
