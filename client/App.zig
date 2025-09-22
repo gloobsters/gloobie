@@ -993,7 +993,7 @@ fn pollSdlEvents(self: *App) !void {
                 const key = key_down.key orelse return;
                 var imgui_data = &(self.imgui_data orelse return);
 
-                if (key_down.mod.altDown() and !key_down.mod.shiftDown() and !key_down.mod.controlDown() and key == .func3) {
+                if ((key_down.mod.altDown() or key_down.mod.controlDown()) and !key_down.mod.shiftDown() and key == .func3) {
                     imgui_data.open = !imgui_data.open;
                 }
             },
