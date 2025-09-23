@@ -232,6 +232,15 @@ fn startResonite(prefix: []const u8, gpa: std.mem.Allocator) !std.process.Child 
 }
 
 pub fn deinit(self: *Bootstrap) void {
+    self.run = false;
+
+    log.debug(@src(), "Waiting for reciever thread to exit", .{});
+
+    // wait for exit
+    if (self.thread) |thread| {
+        thread.join();
+    }
+
     if (self.queue_in) |queue| queue.deinit();
     if (self.queue_out) |queue| queue.deinit();
 

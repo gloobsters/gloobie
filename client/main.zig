@@ -78,14 +78,11 @@ fn start() !void {
         const trace = tracy.traceNamed(@src(), "Bootstrap");
         defer trace.end();
 
-        var bootstrap = try renderite.Bootstrap.init(args, gpa, copy, paste);
-        errdefer bootstrap.deinit();
-
-        try bootstrap.startReceiving(gpa);
-
-        break :init_bootstrap bootstrap;
+        break :init_bootstrap try renderite.Bootstrap.init(args, gpa, copy, paste);
     };
     defer bootstrap.deinit();
+
+    try bootstrap.startReceiving(gpa);
 
     const app = init_app: {
         const trace = tracy.traceNamed(@src(), "Init application");
