@@ -2,35 +2,43 @@ const std = @import("std");
 
 const gpu = @import("gpu");
 
+const log = @import("logger").Scoped(.graphics);
+
 const GpuShader = @This();
 
 const ReflectionData = struct {
     const ParameterKind = enum {
         constantBuffer,
+        resource,
+    };
+
+    const BaseShape = enum {
+        structuredBuffer,
     };
 
     parameters: []const struct {
         name: []const u8,
         binding: struct {
             kind: []const u8,
-            space: i64,
+            space: i64 = 0,
             index: i64,
         },
         type: struct {
             kind: ParameterKind,
-            elementType: struct {
+            baseShape: ?BaseShape = null,
+            elementType: ?struct {
                 kind: []const u8,
-                name: []const u8,
-                fields: []const struct {
+                name: ?[]const u8 = null,
+                fields: ?[]const struct {
                     name: []const u8,
                     type: struct {
                         kind: []const u8,
-                        rowCount: i64,
-                        columnCount: i64,
-                        elementType: struct {
+                        rowCount: ?i64 = null,
+                        columnCount: ?i64 = null,
+                        elementType: ?struct {
                             kind: []const u8,
                             scalarType: []const u8,
-                        },
+                        } = null,
                     },
                     binding: struct {
                         kind: []const u8,
@@ -38,15 +46,15 @@ const ReflectionData = struct {
                         size: i64,
                         elementStride: i64,
                     },
-                },
-            },
-            containerVarLayout: struct {
+                } = null,
+            } = null,
+            containerVarLayout: ?struct {
                 binding: struct {
                     kind: []const u8,
                     index: i64,
                 },
-            },
-            elementVarLayout: struct {
+            } = null,
+            elementVarLayout: ?struct {
                 type: struct {
                     kind: []const u8,
                     name: []const u8,
@@ -54,12 +62,12 @@ const ReflectionData = struct {
                         name: []const u8,
                         type: struct {
                             kind: []const u8,
-                            rowCount: i64,
-                            columnCount: i64,
-                            elementType: struct {
+                            rowCount: ?i64 = null,
+                            columnCount: ?i64 = null,
+                            elementType: ?struct {
                                 kind: []const u8,
                                 scalarType: []const u8,
-                            },
+                            } = null,
                         },
                         binding: struct {
                             kind: []const u8,
@@ -75,7 +83,7 @@ const ReflectionData = struct {
                     size: i64,
                     elementStride: i64,
                 },
-            },
+            } = null,
         },
     },
     entryPoints: []const struct {
@@ -131,7 +139,7 @@ const ReflectionData = struct {
             name: []const u8,
             binding: struct {
                 kind: []const u8,
-                space: i64,
+                space: i64 = 0,
                 index: i64,
                 used: i64,
             },
@@ -161,18 +169,46 @@ pub fn create(
         },
     );
 
+    const entry_point_bindings = parsed_reflection_data.entryPoints[0].bindings;
+
     var num_uniform_buffers: u32 = 0;
+    var num_storage_buffers: u32 = 0;
     for (parsed_reflection_data.parameters) |parameter| {
         if (parameter.type.kind == .constantBuffer) {
             num_uniform_buffers += 1;
+
+            // don't include parameters not used
+            for (entry_point_bindings) |binding| {
+                if (std.mem.eql(u8, binding.name, parameter.name) and binding.binding.used == 0) {
+                    num_uniform_buffers -= 1;
+                }
+            }
+        }
+
+        if (parameter.type.kind == .resource) {
+            if (parameter.type.baseShape) |base_shape| {
+                if (base_shape == .structuredBuffer) {
+                    num_storage_buffers += 1;
+
+                    // don't include parameters not used
+                    for (entry_point_bindings) |binding| {
+                        if (std.mem.eql(u8, binding.name, parameter.name) and binding.binding.used == 0) {
+                            num_storage_buffers -= 1;
+                        }
+                    }
+                }
+            }
         }
     }
+
+    log.debug(@src(), "Creating shader with {d} uniform buffers and {d} storage buffers", .{ num_uniform_buffers, num_storage_buffers });
 
     const shader = try device.createShader(.{
         .code = code,
         .format = format,
         .entry_point = entry_point,
         .num_uniform_buffers = num_uniform_buffers,
+        .num_storage_buffers = num_storage_buffers,
         .stage = stage,
     });
 
