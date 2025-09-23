@@ -22,15 +22,9 @@ pub const OutputTarget = struct {
 };
 
 const View = struct {
-    pub const Type = enum {
-        left_eye,
-        right_eye,
-        desktop,
-    };
-
     transform: renderite.shared.RenderTransform,
     projection: math.Matrix4x4f,
-    type: Type,
+    context: renderite.shared.RenderingContext,
     output_target: OutputTarget,
 };
 
@@ -190,7 +184,7 @@ pub fn addDesktopView(
             .depth_target = depth_texture,
             .cycle_depth_target = true,
         },
-        .type = .desktop,
+        .context = .user_view,
     });
 }
 
