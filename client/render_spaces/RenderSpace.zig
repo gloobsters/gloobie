@@ -101,6 +101,7 @@ pub fn handleUpdateLocked(
         try self.transform_manager.handleUpdate(
             gpa,
             arena,
+            frame_context,
             accessor,
             self,
             transforms_update,
@@ -125,7 +126,7 @@ pub fn deinit(
     gpa: std.mem.Allocator,
     device: gpu.Device,
 ) void {
-    self.transform_manager.deinit(gpa);
+    self.transform_manager.deinit(gpa, device);
     self.mesh_renderer_manager.deinit(gpa, device);
     self.skinned_mesh_renderer_manager.deinit(gpa, device);
 }

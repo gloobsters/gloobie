@@ -1,10 +1,12 @@
 const std = @import("std");
 
+const gpu = @import("gpu");
 const math = @import("math");
 const options = @import("options");
 const renderite = @import("renderite");
 const tracy = @import("tracy");
 
+const graphics = @import("../graphics.zig");
 const RenderSpace = @import("RenderSpace.zig");
 
 const Transforms = @This();
@@ -22,15 +24,22 @@ pub const Transform = struct {
 };
 
 transforms: std.MultiArrayList(Transform),
+gpu_buffer: ?gpu.Buffer,
+gpu_buffer_capacity: u32,
 
 pub fn init() Transforms {
     return .{
         .transforms = .empty,
+        .gpu_buffer = null,
+        .gpu_buffer_capacity = 0,
     };
 }
 
-pub fn deinit(self: *Transforms, gpa: std.mem.Allocator) void {
+pub fn deinit(self: *Transforms, gpa: std.mem.Allocator, device: gpu.Device) void {
     self.transforms.deinit(gpa);
+    if (self.gpu_buffer) |gpu_buffer| {
+        device.releaseBuffer(gpu_buffer);
+    }
 }
 
 fn fixupTransformid(
@@ -240,10 +249,11 @@ fn markChildrenUncomputed(self: *Transforms) void {
     }
 }
 
+/// Computes the final transforms, ready for being uploaded. Returns whether or not any computations had to occur.
 fn compute(
     self: *Transforms,
     arena: std.mem.Allocator,
-) !void {
+) !bool {
     const trace = tracy.traceNamed(@src(), "Compute Matrices");
     defer trace.end();
 
@@ -312,6 +322,7 @@ fn compute(
 
                 break :get_topmost_matrix uppermost_matrix;
             };
+
         while (stack.pop()) |child_id| {
             const child_index: usize = @intCast(child_id.to());
 
@@ -323,12 +334,15 @@ fn compute(
             num_computed += 1;
         }
     }
+
+    return num_computed > 0;
 }
 
 pub fn handleUpdate(
     self: *Transforms,
     gpa: std.mem.Allocator,
     arena: std.mem.Allocator,
+    frame_context: *graphics.FrameContext,
     accessor: *renderite.buffer.SharedMemoryAccessor,
     render_space: *RenderSpace,
     update: renderite.shared.TransformsUpdate,
@@ -352,7 +366,47 @@ pub fn handleUpdate(
 
     self.markChildrenUncomputed();
 
-    try self.compute(arena);
+    if (try self.compute(arena)) {
+        const capacity_needed: u32 = @intCast(@sizeOf(math.Matrix4x4f) * self.transforms.len);
+
+        if (self.transforms.len > 0) {
+            const transfer_buffer_value = try frame_context.transfer_buffer_pool.acquire(.{ .size = capacity_needed, .value = .upload });
+            defer frame_context.transfer_buffer_pool.release(gpa, transfer_buffer_value) catch @panic("OOM");
+
+            {
+                const mapped_data: [*]align(1) math.Matrix4x4f = @ptrCast(try frame_context.device.mapTransferBuffer(transfer_buffer_value.value, true));
+                defer frame_context.device.unmapTransferBuffer(transfer_buffer_value.value);
+
+                @memcpy(mapped_data, self.transforms.items(.matrix));
+            }
+
+            const copy_pass = try frame_context.getSharedCopyPass();
+
+            if (self.gpu_buffer_capacity < capacity_needed) {
+                if (self.gpu_buffer) |old_buffer| {
+                    frame_context.device.releaseBuffer(old_buffer);
+                    self.gpu_buffer = null;
+                }
+
+                self.gpu_buffer = try frame_context.device.createBuffer(.{
+                    .props = .{ .name = "Transform Buffer" },
+                    .size = capacity_needed,
+                    .usage = .{ .graphics_storage_read = true },
+                });
+            }
+
+            copy_pass.uploadToBuffer(.{
+                .offset = 0,
+                .transfer_buffer = transfer_buffer_value.value,
+            }, .{
+                .buffer = self.gpu_buffer.?,
+                .offset = 0,
+                .size = capacity_needed,
+            }, true);
+        }
+
+        self.gpu_buffer_capacity = capacity_needed;
+    }
 }
 
 fn dumpTransforms(transforms: []const Transform) void {
@@ -409,13 +463,13 @@ test compute {
     }
 
     var transforms: Transforms = .init();
-    defer transforms.deinit(gpa);
+    defer transforms.deinit(gpa, undefined);
 
     try transforms.handleAdditions(gpa, transform_count);
     try transforms.handleParentUpdates(&transform_parents);
     try transforms.handlePoseUpdates(&transform_poses);
     transforms.markChildrenUncomputed();
-    try transforms.compute(arena);
+    _ = try transforms.compute(arena);
 
     const computed_matrices = transforms.transforms.items(.matrix);
 
@@ -437,7 +491,7 @@ test compute {
         },
     }});
     transforms.markChildrenUncomputed();
-    try transforms.compute(arena);
+    _ = try transforms.compute(arena);
 
     for (computed_matrices, 0..) |matrix, i| {
         const expected_position: math.Vector3f = .add(.mul(.natural_forward, .splat(@floatFromInt(i + 1))), .natural_forward);
@@ -464,7 +518,7 @@ test compute {
     }});
 
     transforms.markChildrenUncomputed();
-    try transforms.compute(arena);
+    _ = try transforms.compute(arena);
 
     const expected: []const f32 = &.{ -1, -2, -3, -2, -3 };
 

@@ -22,15 +22,9 @@ pub const OutputTarget = struct {
 };
 
 const View = struct {
-    pub const Type = enum {
-        left_eye,
-        right_eye,
-        desktop,
-    };
-
     transform: renderite.shared.RenderTransform,
     projection: math.Matrix4x4f,
-    type: Type,
+    context: renderite.shared.RenderingContext,
     output_target: OutputTarget,
 };
 
@@ -65,12 +59,15 @@ fn filterScale(scale: math.Vector3f) math.Vector3f {
     return scale;
 }
 
+const ModelData = extern struct {
+    model_matrix_idx: i32,
+};
+
 fn renderSharedMeshRenderer(
     command_buffer: gpu.CommandBuffer,
     render_pass: gpu.RenderPass,
     mesh_renderer: mesh_renderer_manager.SharedMeshRenderable,
     assets: *Assets,
-    computed_transforms: []math.Matrix4x4f,
 ) !void {
     // TODO: is this intended behaviour?
     // std.debug.assert(mesh_renderer.transform != .invalid);
@@ -83,7 +80,11 @@ fn renderSharedMeshRenderer(
         return;
     }
 
-    command_buffer.pushVertexUniformData(1, std.mem.asBytes(&computed_transforms[@intCast(mesh_renderer.transform.to())]));
+    const model_data: ModelData = .{
+        .model_matrix_idx = mesh_renderer.transform.to(),
+    };
+
+    command_buffer.pushVertexUniformData(1, std.mem.asBytes(&model_data));
 
     const position_offset = find_position_offset: {
         var offset: u32 = 0;
@@ -127,12 +128,10 @@ fn renderRenderSpace(
     command_buffer: gpu.CommandBuffer,
     render_pass: gpu.RenderPass,
 ) !void {
-    _ = arena; // autofix
+    _ = arena;
 
     const trace = tracy.traceNamed(@src(), "Render Render Space");
     defer trace.end();
-
-    const computed_transforms = render_space.transform_manager.transforms.items(.matrix);
 
     for (render_space.mesh_renderer_manager.contents.items) |*mesh_renderer| {
         try renderSharedMeshRenderer(
@@ -140,7 +139,6 @@ fn renderRenderSpace(
             render_pass,
             mesh_renderer.shared,
             assets,
-            computed_transforms,
         );
     }
 
@@ -150,7 +148,6 @@ fn renderRenderSpace(
             render_pass,
             skinned_mesh_renderer.shared,
             assets,
-            computed_transforms,
         );
     }
 }
@@ -190,7 +187,7 @@ pub fn addDesktopView(
             .depth_target = depth_texture,
             .cycle_depth_target = true,
         },
-        .type = .desktop,
+        .context = .user_view,
     });
 }
 
@@ -245,6 +242,13 @@ pub fn renderScene(
             if (!render_space.properties.active) {
                 continue;
             }
+
+            // Skip render spaces that don't have any transforms, and therefore have no transform GPU buffer
+            if (render_space.transform_manager.gpu_buffer == null) {
+                continue;
+            }
+
+            render_pass.bindVertexStorageBuffers(0, &.{render_space.transform_manager.gpu_buffer.?});
 
             var view_transform = render_space.properties.overridden_view_transform orelse render_space.properties.root_transform;
             view_transform.scale = filterScale(view_transform.scale);
