@@ -132,13 +132,7 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
     const manifest = self.manifests[@intCast(self.selected_manifest_idx)].value;
     const executable = switch (builtin.os.tag) {
         .windows => manifest.winExecutablePath,
-        else => unix_executable: {
-            if (manifest.runInWine orelse false) {
-                break :unix_executable manifest.winExecutablePath;
-            }
-
-            break :unix_executable manifest.unixExecutablePath;
-        },
+        else => if (manifest.runInWine) manifest.winExecutablePath else manifest.unixExecutablePath,
     };
 
     log.info(@src(), "Starting renderer '{s}' at '{s}'", .{ manifest.name, executable });

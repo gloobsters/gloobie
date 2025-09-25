@@ -5,7 +5,7 @@ version: u8,
 name: [:0]const u8,
 winExecutablePath: [:0]const u8,
 unixExecutablePath: [:0]const u8,
-runInWine: ?bool,
+runInWine: bool = false,
 
 pub fn parseFromFile(file: std.fs.File, gpa: std.mem.Allocator) !std.json.Parsed(Manifest) {
     var buffer: [128]u8 = undefined;

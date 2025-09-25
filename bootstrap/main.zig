@@ -15,7 +15,7 @@ pub fn main() !void {
         @panic("Memory leak!");
     };
 
-    const gpa = debug_allocator_impl.allocator();
+    const gpa = if (build_options.safety) debug_allocator_impl.allocator() else std.heap.smp_allocator;
 
     var env_vars = try std.process.getEnvMap(gpa);
     defer env_vars.deinit();
