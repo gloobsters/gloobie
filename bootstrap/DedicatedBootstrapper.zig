@@ -9,17 +9,19 @@ const bounded_array = @import("bounded_array");
 
 const Manifest = @import("Manifest.zig");
 
-const ParsedManifest = std.json.Parsed(Manifest);
-
 const DedicatedBootstrapper = @This();
 const log = logger.Scoped(.bootstrap);
 
 engine_init_thread: std.Thread,
+
 ready_to_boot: bool,
 ui_shutdown: bool,
 bootstrap_shutdown: bool,
-manifests: []ParsedManifest,
+
 selected_manifest_idx: i32,
+
+manifests: []Manifest,
+json_gpa: std.heap.ArenaAllocator,
 
 pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !*DedicatedBootstrapper {
     const bootstrapper = try gpa.create(DedicatedBootstrapper);
@@ -28,9 +30,11 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !*DedicatedBootstr
     const thread = try std.Thread.spawn(.{}, bootstrapEngine, .{ bootstrapper, args, gpa });
     bootstrapper.engine_init_thread = thread;
 
-    bootstrapper.manifests = try parseManifestFiles(gpa);
+    bootstrapper.json_gpa = std.heap.ArenaAllocator.init(gpa);
+
+    bootstrapper.manifests = try parseManifestFiles(bootstrapper.json_gpa.allocator());
     for (bootstrapper.manifests) |manifest| {
-        log.debug(@src(), "Read manifest: {f}", .{std.json.fmt(manifest.value, .{})});
+        log.debug(@src(), "Read manifest: {f}", .{std.json.fmt(manifest, .{})});
     }
 
     return bootstrapper;
@@ -94,7 +98,7 @@ fn selectionWindow(self: *DedicatedBootstrapper) void {
     if (!draw) return;
 
     for (self.manifests, 0..) |manifest, i| {
-        _ = imgui.radioButton(manifest.value.name, &self.selected_manifest_idx, @intCast(i));
+        _ = imgui.radioButton(manifest.name, &self.selected_manifest_idx, @intCast(i));
     }
 
     imgui.separator();
@@ -129,7 +133,7 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
 
     log.info(@src(), "Ready to boot!", .{});
 
-    const manifest = self.manifests[@intCast(self.selected_manifest_idx)].value;
+    const manifest = self.manifests[@intCast(self.selected_manifest_idx)];
     const executable = switch (builtin.os.tag) {
         .windows => manifest.winExecutablePath,
         else => if (manifest.runInWine) manifest.winExecutablePath else manifest.unixExecutablePath,
@@ -165,7 +169,7 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
     bootstrap.receiverLoop(gpa);
 }
 
-fn parseManifestFiles(gpa: std.mem.Allocator) ![]ParsedManifest {
+fn parseManifestFiles(gpa: std.mem.Allocator) ![]Manifest {
     const cwd = std.fs.cwd();
     try cwd.makePath("Renderers");
 
@@ -181,7 +185,7 @@ fn parseManifestFiles(gpa: std.mem.Allocator) ![]ParsedManifest {
     }
 
     log.debug(@src(), "Manifests: {d}", .{manifest_count});
-    const manifests = try gpa.alloc(ParsedManifest, manifest_count);
+    const manifests = try gpa.alloc(Manifest, manifest_count);
 
     iterator = renderers_dir.iterate();
 
@@ -211,9 +215,6 @@ fn paste() anyerror![:0]u8 {
 }
 
 pub fn deinit(self: *DedicatedBootstrapper, gpa: std.mem.Allocator) void {
-    for (self.manifests) |manifest| {
-        manifest.deinit();
-    }
-    gpa.free(self.manifests);
+    self.json_gpa.deinit();
     gpa.destroy(self);
 }
