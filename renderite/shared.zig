@@ -311,7 +311,8 @@ pub const SetWindowIcon = struct {
         self.icon_data = try ipc.read(@TypeOf(self.icon_data));
         // FIXME: Unknown Cond_Branch instruction
         // IL_0036: brfalse.s IL_0044
-        self.overlay_description = try ipc.read(@TypeOf(self.overlay_description));
+        // FIXME: manually commenting this out to workaround crash
+        // self.overlay_description = try ipc.read(@TypeOf(self.overlay_description));
         return self;
     }
 };
