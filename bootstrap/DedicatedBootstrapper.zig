@@ -48,8 +48,7 @@ pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !*DedicatedBootstr
     };
 
     const thread = try std.Thread.spawn(.{}, bootstrapEngine, .{ &bootstrapper.shared, args, gpa });
-    bootstrapper.engine_init_thread = thread;
-
+    
     bootstrapper.* = .{
         .engine_init_thread = thread,
         .json_arena = arena,
