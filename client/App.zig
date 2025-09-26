@@ -83,11 +83,8 @@ const MessagingData = struct {
     }
 };
 
-// TODO: warn when we need to update this (when this differs on full load)
-pub const total_load_phases = 25;
-
 const LoadPhase = struct {
-    phase_index: u8,
+    progress: f32,
     phase_name: bounded_array.BoundedArray(u8, 128),
     sub_phase_name: bounded_array.BoundedArray(u8, 128),
 };
@@ -234,7 +231,7 @@ pub fn init(gpa: std.mem.Allocator, settings: InitSettings) !*App {
             .main_process_pid = null,
             .load_state = .{
                 .phase = .{
-                    .phase_index = 0,
+                    .progress = 0,
                     .phase_name = .{ .buffer = @splat(0) },
                     .sub_phase_name = .{ .buffer = @splat(0) },
                 },
@@ -401,7 +398,7 @@ fn handleRendererCommand(
             self.game.load_state.init = true;
         },
         .renderer_init_progress_update => |renderer_init_progress_update| {
-            self.game.load_state.phase.phase_index = @intCast(renderer_init_progress_update.phase_index);
+            self.game.load_state.phase.progress = renderer_init_progress_update.progress;
 
             const phase = &self.game.load_state.phase;
 

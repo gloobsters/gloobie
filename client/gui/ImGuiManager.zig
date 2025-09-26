@@ -159,8 +159,7 @@ pub fn start(self: *ImGuiManager) !void {
             if (phase.sub_phase_name.len != 0)
                 imgui.text(phase.sub_phase_name.buffer[0..phase.sub_phase_name.len :0]);
 
-            const progress: f32 = @as(f32, @floatFromInt(phase.phase_index)) / @as(f32, @floatFromInt(App.total_load_phases));
-            imgui.progressBar(progress, .{ .x = 0, .y = 0 }, "");
+            imgui.progressBar(phase.progress, .{ .x = 0, .y = 0 }, "");
         }
     }
 
