@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const compile_commands = @import("build/compile_commands.zig");
 
@@ -13,6 +14,24 @@ const Options = struct {
 
     render_backends: struct {
         vulkan: bool,
+        d3d12: bool,
+        metal: bool,
+
+        pub fn toShaderTargets(self: @This(), gpa: std.mem.Allocator) ![]const ShaderTarget {
+            var targets: std.ArrayListUnmanaged(ShaderTarget) = .empty;
+
+            if (self.vulkan) {
+                try targets.append(gpa, .spirv);
+            }
+            if (self.d3d12) {
+                try targets.append(gpa, .dxil);
+            }
+            if (self.metal) {
+                try targets.append(gpa, .metal);
+            }
+
+            return targets.toOwnedSlice(gpa);
+        }
     },
 
     xr_backend: XrBackend,
@@ -67,95 +86,18 @@ fn addPlatformDefines(module: anytype, options: Options, target: std.Build.Resol
     }
 }
 
-const Shader = struct {
-    pub const Stage = enum {
-        vertex,
-        fragment,
-        compute,
-
-        pub fn toSlang(self: Stage) []const u8 {
-            return switch (self) {
-                .vertex => "vertex",
-                .fragment => "fragment",
-                .compute => "compute",
-            };
-        }
-    };
-
-    pub const Target = enum {
-        spirv,
-        glsl,
-        dxil,
-        msl,
-        metallib,
-
-        pub fn toSlang(self: Target) []const u8 {
-            return switch (self) {
-                .spirv => "spirv",
-                .glsl => "glsl",
-                .dxil => "dxil",
-                .msl => "metal",
-                .metallib => "metallib",
-            };
-        }
-    };
-
+const SlangModule = struct {
     path: std.Build.LazyPath,
-    name: []const u8,
-    stage: Stage,
-    entry_point: []const u8,
+};
 
-    pub fn fillOutArguments(
-        self: Shader,
-        optimize: std.builtin.OptimizeMode,
-        step: *std.Build.Step.Run,
-        target: Target,
-        generate_reflection: bool,
-    ) struct {
-        shader: std.Build.LazyPath,
-        reflection_json: ?std.Build.LazyPath,
-    } {
-        step.addFileArg(self.path);
-        step.addArgs(&.{ "-profile", switch (target) {
-            .dxil => "sm_6_0",
-            .spirv => "spirv_1_0+GLSL_450",
-            .msl, .metallib, .glsl => "glsl_450",
-        } });
-        step.addArgs(&.{ "-target", target.toSlang() });
-        step.addArgs(&.{ "-entry", self.entry_point });
-        step.addArgs(&.{ "-stage", self.stage.toSlang() });
-        step.addArg(switch (optimize) {
-            .Debug => "-O0",
-            .ReleaseSafe => "-O1",
-            .ReleaseSmall => "-O2",
-            .ReleaseFast => "-O3",
-        });
-        step.addArg(switch (optimize) {
-            .ReleaseSmall => "-gnone",
-            .ReleaseFast => "-gminimal",
-            .ReleaseSafe => "-gstandard",
-            .Debug => "-gmaximal",
-        });
-        step.addArgs(&.{ "-std", "2026" });
-        step.addArgs(&.{ "-capability", "spirv_1_0" });
-        step.addArg("-fspv-reflect");
-        step.addArg("-matrix-layout-column-major");
-        step.addArg("-allow-glsl");
-        if (target == .spirv) {
-            step.addArg("-emit-spirv-via-glsl");
-        }
+pub const ShaderTarget = enum {
+    spirv,
+    dxil,
+    metal,
+};
 
-        if (generate_reflection) {
-            step.addArg("-reflection-json");
-        }
-        const reflection_json =
-            if (generate_reflection) step.addOutputFileArg("reflection") else null;
-
-        step.addArg("-o");
-        const shader = step.addOutputFileArg(self.name);
-
-        return .{ .shader = shader, .reflection_json = reflection_json };
-    }
+const Shader = struct {
+    module_name: []const u8,
 };
 
 pub fn build(b: *std.Build) !void {
@@ -165,7 +107,10 @@ pub fn build(b: *std.Build) !void {
     };
 
     const c_flags = shared_c_cpp_flags;
-    const cpp_flags = shared_c_cpp_flags;
+    const cpp_flags: []const []const u8 = try std.mem.concat(b.allocator, []const u8, &.{
+        shared_c_cpp_flags,
+        &.{"-std=c++23"},
+    });
 
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -180,6 +125,8 @@ pub fn build(b: *std.Build) !void {
 
         .render_backends = .{
             .vulkan = b.option(bool, "vulkan", "Enable Vulkan render backend") orelse true,
+            .d3d12 = b.option(bool, "d3d12", "Enable D3D12 render backend") orelse false,
+            .metal = b.option(bool, "metal", "Enable Metal render backend") orelse false,
         },
 
         .safety = optimize == .ReleaseSafe or optimize == .Debug,
@@ -197,7 +144,9 @@ pub fn build(b: *std.Build) !void {
         },
     };
 
-    const options_module = create_options_module: {
+    const enabled_shader_formats = try build_options.render_backends.toShaderTargets(b.allocator);
+
+    const options_mod = create_options_module: {
         const options = b.addOptions();
         options.addOption(Options, "build_options", build_options);
         const options_module = options.createModule();
@@ -227,13 +176,14 @@ pub fn build(b: *std.Build) !void {
     const openxr_headers_dep = b.dependency("openxr-headers", .{});
     const openxr_headers_inc = openxr_headers_dep.path("include/");
 
-    const slang_compiler_path = b.dependency("slang", .{}).namedLazyPath("compiler");
-
     const win32_dep = b.dependency("zigwin32", .{});
     const win32_mod = win32_dep.module("win32");
 
     const bounded_array_dep = b.dependency("bounded_array", .{});
     const bounded_array_mod = bounded_array_dep.module("bounded_array");
+
+    const cpp_args_dep = b.dependency("cpp-args", .{});
+    const cpp_args_inc = cpp_args_dep.path("");
 
     const vulkan_mod = b.dependency("vulkan-zig", .{
         .registry = b.dependency("vulkan-headers", .{}).path("registry/vk.xml"),
@@ -254,7 +204,7 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = logger_root.path(b, "logger.zig"),
 
             .imports = &.{
-                .{ .name = "options", .module = options_module },
+                .{ .name = "options", .module = options_mod },
             },
         });
 
@@ -271,7 +221,7 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = tracy_root.path(b, "tracy.zig"),
 
             .imports = &.{
-                .{ .name = "options", .module = options_module },
+                .{ .name = "options", .module = options_mod },
             },
 
             // tracy is silly goofy
@@ -378,7 +328,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "sdl3", .module = sdl3_mod },
                 .{ .name = "c", .module = translate_c_mod },
                 .{ .name = "openxr", .module = openxr_mod },
-                .{ .name = "options", .module = options_module },
+                .{ .name = "options", .module = options_mod },
             },
 
             .link_libc = true,
@@ -516,7 +466,7 @@ pub fn build(b: *std.Build) !void {
             .imports = &.{
                 .{ .name = "sdl3", .module = sdl3_mod },
                 .{ .name = "gpu", .module = gpu_mod },
-                .{ .name = "options", .module = options_module },
+                .{ .name = "options", .module = options_mod },
                 .{ .name = "logger", .module = logger_mod },
             },
         });
@@ -589,7 +539,7 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "imgui", .module = imgui_mod },
                 .{ .name = "renderite", .module = renderite_mod },
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
-                .{ .name = "options", .module = options_module },
+                .{ .name = "options", .module = options_mod },
                 .{ .name = "logger", .module = logger_mod },
                 .{ .name = "bounded_array", .module = bounded_array_mod },
             },
@@ -598,42 +548,83 @@ pub fn build(b: *std.Build) !void {
         break :create_bootstrap_mod bootstrap_mod;
     };
 
+    const gloobie_shader_compiler_exe, const shader_reflection_mod = create_shader_compiler: {
+        const spirv_reflect_dep = b.dependency("spirv-reflect", .{});
+
+        const dep_name = switch (builtin.cpu.arch) {
+            .x86_64 => switch (builtin.os.tag) {
+                .linux => "slang_linux_x86_64",
+                .windows => "slang_windows_x86_64",
+                else => std.debug.panic("Unsupported platform {s}", .{@tagName(builtin.os.tag)}),
+            },
+            .aarch64 => switch (builtin.os.tag) {
+                .linux => "slang_linux_aarch64",
+                .windows => "slang_windows_aarch64",
+                else => std.debug.panic("Unsupported platform {s}", .{@tagName(builtin.os.tag)}),
+            },
+            else => std.debug.panic("Unsupported platform {s}", .{@tagName(builtin.cpu.arch)}),
+        };
+
+        const maybe_slang_dep = b.lazyDependency(dep_name, .{});
+
+        const gloobie_compiler_mod = b.createModule(.{
+            .link_libc = true,
+            .link_libcpp = true,
+            .target = b.resolveTargetQuery(.fromTarget(&builtin.target)),
+            .optimize = .Debug,
+        });
+
+        gloobie_compiler_mod.addCSourceFiles(.{
+            .files = &.{"gloobie_compiler.cc"},
+            .flags = cpp_flags,
+            .language = .cpp,
+            .root = b.path("build/slang/"),
+        });
+        gloobie_compiler_mod.addCSourceFiles(.{
+            .files = &.{"spirv_reflect.c"},
+            .flags = c_flags,
+            .root = spirv_reflect_dep.path(""),
+        });
+
+        if (maybe_slang_dep) |slang_dep| {
+            gloobie_compiler_mod.addLibraryPath(slang_dep.path("lib"));
+            gloobie_compiler_mod.addRPath(slang_dep.path("lib"));
+            gloobie_compiler_mod.addIncludePath(slang_dep.path("include"));
+        }
+        gloobie_compiler_mod.addIncludePath(cpp_args_inc);
+        gloobie_compiler_mod.addIncludePath(spirv_reflect_dep.path(""));
+
+        gloobie_compiler_mod.linkSystemLibrary("slang", .{
+            .search_strategy = .paths_first,
+            .use_pkg_config = .no,
+        });
+
+        const gloobie_compiler_exe = b.addExecutable(.{
+            .name = "gloobie_compiler",
+            .root_module = gloobie_compiler_mod,
+        });
+
+        const shader_reflection_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = b.path("build/slang/reflection.zig"),
+        });
+
+        break :create_shader_compiler .{ gloobie_compiler_exe, shader_reflection_mod };
+    };
+
     const gloobie_mod = create_gloobie_mod: {
         const gloobie_root = b.path("client");
 
         const shaders_root = gloobie_root.path(b, "shaders");
-        const shaders: []const Shader = &.{
-            .{
-                .path = shaders_root.path(b, "basic.slang"),
-                .name = "basic",
-                .stage = .vertex,
-                .entry_point = "vertexMain",
-            },
-            .{
-                .path = shaders_root.path(b, "basic.slang"),
-                .name = "basic",
-                .stage = .fragment,
-                .entry_point = "fragmentMain",
-            },
-            .{
-                .path = shaders_root.path(b, "basic_skinned.slang"),
-                .name = "basic_skinned",
-                .stage = .vertex,
-                .entry_point = "vertexMain",
-            },
-            .{
-                .path = shaders_root.path(b, "basic_skinned.slang"),
-                .name = "basic_skinned",
-                .stage = .fragment,
-                .entry_point = "fragmentMain",
-            },
-        };
 
-        var shader_targets: std.ArrayListUnmanaged(Shader.Target) = .empty;
-        try shader_targets.append(b.allocator, .glsl);
-        if (build_options.render_backends.vulkan) {
-            try shader_targets.append(b.allocator, .spirv);
-        }
+        var modules: std.StringArrayHashMap(SlangModule) = .init(b.allocator);
+        try modules.putNoClobber("basic", .{ .path = shaders_root.path(b, "basic.slang") });
+        try modules.putNoClobber("materials", .{ .path = shaders_root.path(b, "materials/materials.slang") });
+
+        const shaders: []const Shader = &.{
+            .{ .module_name = "basic" },
+        };
 
         const gloobie_mod = b.createModule(.{
             .root_source_file = gloobie_root.path(b, "main.zig"),
@@ -647,60 +638,63 @@ pub fn build(b: *std.Build) !void {
                 .{ .name = "xr", .module = xr_mod },
                 .{ .name = "renderite", .module = renderite_mod },
                 .{ .name = "zinterprocess", .module = zinterprocess_mod },
-                .{ .name = "options", .module = options_module },
+                .{ .name = "options", .module = options_mod },
                 .{ .name = "imgui", .module = imgui_mod },
                 .{ .name = "math", .module = math_mod },
                 .{ .name = "mailbox", .module = mailbox_mod },
                 .{ .name = "tracy", .module = tracy_mod },
                 .{ .name = "logger", .module = logger_mod },
                 .{ .name = "bounded_array", .module = bounded_array_mod },
+                .{ .name = "reflection", .module = shader_reflection_mod },
             },
         });
 
-        for (shaders) |shader| {
-            var output_reflection = true;
-            for (shader_targets.items) |shader_target| {
-                const run_step = std.Build.Step.Run.create(b, b.fmt("Build Shader {s} for {s}", .{
-                    shader.name,
-                    @tagName(shader_target),
-                }));
-                run_step.addFileArg(slang_compiler_path);
-                const compiler_output = shader.fillOutArguments(optimize, run_step, shader_target, output_reflection);
-                output_reflection = false;
+        {
+            const run_shader_compiler = b.addRunArtifact(gloobie_shader_compiler_exe);
+            run_shader_compiler.addArg("-v");
+            run_shader_compiler.addArg(switch (optimize) {
+                .Debug => "-O0",
+                .ReleaseSafe => "-O1",
+                .ReleaseSmall => "-O2",
+                .ReleaseFast => "-O3",
+            });
+            run_shader_compiler.addArg(switch (optimize) {
+                .Debug => "-gmaximal",
+                .ReleaseSafe => "-gstandard",
+                .ReleaseFast => "-gminimal",
+                .ReleaseSmall => "-gnone",
+            });
 
-                gloobie_mod.addAnonymousImport(
-                    b.fmt("shader-{s}-{s}-{s}", .{
-                        shader.name,
-                        @tagName(shader.stage),
-                        @tagName(shader_target),
-                    }),
-                    .{ .root_source_file = compiler_output.shader },
-                );
+            for (modules.keys(), modules.values()) |module_name, module| {
+                run_shader_compiler.addPrefixedFileArg(b.fmt("-i{s}:", .{module_name}), module.path);
+            }
 
-                const install_step = b.addInstallBinFile(compiler_output.shader, b.fmt("shaders/{s}-{s}.{s}", .{
-                    shader.name,
-                    @tagName(shader.stage),
-                    @tagName(shader_target),
-                }));
+            for (shaders) |shader| {
+                const shader_mod = b.createModule(.{
+                    .root_source_file = run_shader_compiler.addPrefixedOutputFileArg(
+                        b.fmt("-r{s}:", .{shader.module_name}),
+                        b.fmt("{s}.zig", .{shader.module_name}),
+                    ),
+                    .target = target,
+                    .optimize = optimize,
+                    .imports = &.{
+                        .{ .name = "reflection", .module = shader_reflection_mod },
+                        .{ .name = "options", .module = options_mod },
+                    },
+                });
 
-                b.getInstallStep().dependOn(&install_step.step);
-
-                if (compiler_output.reflection_json) |reflection_json| {
-                    gloobie_mod.addAnonymousImport(
-                        b.fmt("shader-{s}-{s}-reflection", .{
-                            shader.name,
-                            @tagName(shader.stage),
-                        }),
-                        .{ .root_source_file = reflection_json },
+                for (enabled_shader_formats) |shader_target| {
+                    const compiled_bin = run_shader_compiler.addPrefixedOutputFileArg(
+                        b.fmt("-o{s}:{s}:", .{ shader.module_name, @tagName(shader_target) }),
+                        b.fmt("{s}.{s}", .{ shader.module_name, @tagName(shader_target) }),
                     );
 
-                    const install_reflection_step = b.addInstallBinFile(reflection_json, b.fmt("shaders/{s}-{s}.json", .{
-                        shader.name,
-                        @tagName(shader.stage),
-                    }));
-
-                    b.getInstallStep().dependOn(&install_reflection_step.step);
+                    shader_mod.addAnonymousImport(@tagName(shader_target), .{
+                        .root_source_file = compiled_bin,
+                    });
                 }
+
+                gloobie_mod.addImport(b.fmt("shaders.{s}", .{shader.module_name}), shader_mod);
             }
         }
 
@@ -745,6 +739,7 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(gloobie_exe);
     b.installArtifact(bootstrap_exe);
+    b.installArtifact(gloobie_shader_compiler_exe);
 
     const manifest_file = b.path("client/Gloobie.renderer.json");
     const manifest_file_step = b.addInstallBinFile(manifest_file, "Renderers/Gloobie.renderer.json");
@@ -797,5 +792,6 @@ pub fn build(b: *std.Build) !void {
         "compile_commands.json",
     );
     gen_file_step.dependOn(&gloobie_exe.step);
+    gen_file_step.dependOn(&gloobie_shader_compiler_exe.step);
     cc_step.dependOn(gen_file_step);
 }

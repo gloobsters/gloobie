@@ -1,3 +1,5 @@
+#language slang 2026
+
 struct Vertex
 {
     float3 position : POSITION;
@@ -37,7 +39,7 @@ struct BlendshapeOffset
 }
 
 [vk::binding(0, 0)]
-StructuredBuffer<float4x4> skinning_matrices;
+StructuredBuffer<int32_t> skinning_matrices;
 [vk::binding(1, 0)]
 StructuredBuffer<BlendshapeOffset> vertex_offsets;
 [vk::binding(2, 0)]

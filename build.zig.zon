@@ -44,6 +44,34 @@
             .url = "git+https://github.com/jedisct1/zig-bounded-array#1dc4361da8ee667a2f352b938045e09bda8ea379",
             .hash = "bounded_array-0.1.0-VF2RKohKAAAnG-uH_4cQr-Vc9eizfnpEgDL9U_g6a2oz",
         },
+        .slang_linux_aarch64 = .{
+            .url = "https://github.com/shader-slang/slang/releases/download/v2025.17.2/slang-2025.17.2-linux-aarch64.tar.gz",
+            .hash = "N-V-__8AAPBCFAIpTk7rH6Zq_YKy6lrbPwDQZ3Pny-5ZqJ-d",
+            .lazy = true,
+        },
+        .slang_linux_x86_64 = .{
+            .url = "https://github.com/shader-slang/slang/releases/download/v2025.17.2/slang-2025.17.2-linux-x86_64.tar.gz",
+            .hash = "N-V-__8AAA1OhAgT1hr9fnYGXl8YakkwuWy-htN3FkNxvBpg",
+            .lazy = true,
+        },
+        .slang_windows_aarch64 = .{
+            .url = "https://github.com/shader-slang/slang/releases/download/v2025.17.2/slang-2025.17.2-windows-aarch64.tar.gz",
+            .hash = "N-V-__8AAGUWsQLVRav8Unjkz0RtX814nXRTomkVjSq6A0b-",
+            .lazy = true,
+        },
+        .slang_windows_x86_64 = .{
+            .url = "https://github.com/shader-slang/slang/releases/download/v2025.17.2/slang-2025.17.2-windows-x86_64.tar.gz",
+            .hash = "N-V-__8AACvJGwe1DZm3XCYmuzIGFFAHoftdQlDGnfNjUa0V",
+            .lazy = true,
+        },
+        .@"cpp-args" = .{
+            .url = "git+https://github.com/Taywee/args#114200a9ad5fe06c8dea76e15d92325695cf3e34",
+            .hash = "N-V-__8AAJIFEAAvUIM36D3gh9VyUFDYRW_bih56tSQkW4jv",
+        },
+        .@"spirv-reflect" = .{
+            .url = "git+https://github.com/KhronosGroup/SPIRV-Reflect#ef913b3ab3da1becca3cf46b15a10667c67bebe5",
+            .hash = "N-V-__8AADosLwCHkY3B_V4OQ8CVNrmbzJzS-KTwOLVaGVBf",
+        },
     },
     .paths = .{
         "build.zig",

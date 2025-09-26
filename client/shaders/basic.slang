@@ -1,3 +1,7 @@
+#language slang 2026
+
+module basic;
+
 struct Vertex
 {
     float3 position : POSITION;
