@@ -13,29 +13,48 @@ const DedicatedBootstrapper = @This();
 const log = logger.Scoped(.bootstrap);
 
 engine_init_thread: std.Thread,
+json_arena: std.heap.ArenaAllocator,
+shared: SharedState,
 
-ready_to_boot: bool,
-ui_shutdown: bool,
-bootstrap_shutdown: bool,
+const SharedState = struct {
+    lock: std.Thread.Mutex,
 
-selected_manifest_idx: i32,
+    ready_to_boot: bool,
+    ui_shutdown: bool,
+    bootstrap_shutdown: bool,
+    selected_manifest_idx: i32,
 
-manifests: []Manifest,
-json_gpa: std.heap.ArenaAllocator,
+    manifests: []Manifest,
+};
 
 pub fn init(args: []const []const u8, gpa: std.mem.Allocator) !*DedicatedBootstrapper {
     const bootstrapper = try gpa.create(DedicatedBootstrapper);
     errdefer gpa.destroy(bootstrapper);
 
-    const thread = try std.Thread.spawn(.{}, bootstrapEngine, .{ bootstrapper, args, gpa });
-    bootstrapper.engine_init_thread = thread;
+    var arena = std.heap.ArenaAllocator.init(gpa);
 
-    bootstrapper.json_gpa = std.heap.ArenaAllocator.init(gpa);
-
-    bootstrapper.manifests = try parseManifestFiles(bootstrapper.json_gpa.allocator());
-    for (bootstrapper.manifests) |manifest| {
+    const manifests = try parseManifestFiles(arena.allocator());
+    for (manifests) |manifest| {
         log.debug(@src(), "Read manifest: {f}", .{std.json.fmt(manifest, .{})});
     }
+
+    bootstrapper.shared = .{
+        .lock = .{},
+        .ready_to_boot = false,
+        .ui_shutdown = false,
+        .bootstrap_shutdown = false,
+        .selected_manifest_idx = 0,
+        .manifests = manifests,
+    };
+
+    const thread = try std.Thread.spawn(.{}, bootstrapEngine, .{ &bootstrapper.shared, args, gpa });
+    bootstrapper.engine_init_thread = thread;
+
+    bootstrapper.* = .{
+        .engine_init_thread = thread,
+        .json_arena = arena,
+        .shared = bootstrapper.shared,
+    };
 
     return bootstrapper;
 }
@@ -57,7 +76,15 @@ pub fn run(self: *DedicatedBootstrapper) !void {
     try imgui.sdl_renderer.init(renderer);
     defer imgui.sdl_renderer.shutdown();
 
-    while (!self.ui_shutdown) {
+    while (true) {
+        {
+            self.shared.lock.lock();
+            defer self.shared.lock.unlock();
+
+            if (self.shared.ui_shutdown)
+                break;
+        }
+
         try self.frame(imgui_ctx, renderer);
     }
 }
@@ -67,7 +94,10 @@ fn frame(self: *DedicatedBootstrapper, imgui_ctx: imgui.Context, renderer: sdl3.
         _ = imgui.sdl3.processEvent(event);
         switch (event) {
             inline .quit, .window_close_requested => {
-                self.ui_shutdown = true;
+                self.shared.lock.lock();
+                defer self.shared.lock.unlock();
+
+                self.shared.ui_shutdown = true;
             },
             // .window_close_requested => |window| if (window.id == self.window.window.getId() catch unreachable) {
             //     self.window_open = false;
@@ -97,35 +127,49 @@ fn selectionWindow(self: *DedicatedBootstrapper) void {
     defer imgui.end();
     if (!draw) return;
 
-    for (self.manifests, 0..) |manifest, i| {
-        _ = imgui.radioButton(manifest.name, &self.selected_manifest_idx, @intCast(i));
+    for (self.shared.manifests, 0..) |manifest, i| {
+        _ = imgui.radioButton(manifest.name, &self.shared.selected_manifest_idx, @intCast(i));
     }
 
     imgui.separator();
     if (imgui.button("OK")) {
-        self.ui_shutdown = true;
-        self.bootstrap_shutdown = false;
-        self.ready_to_boot = true;
+        self.shared.lock.lock();
+        defer self.shared.lock.unlock();
+
+        self.shared.ui_shutdown = true;
+        self.shared.bootstrap_shutdown = false;
+        self.shared.ready_to_boot = true;
     }
     imgui.sameLine();
     if (imgui.button("Cancel")) {
-        self.ui_shutdown = true;
-        self.bootstrap_shutdown = true;
-        self.ready_to_boot = false;
+        self.shared.lock.lock();
+        defer self.shared.lock.unlock();
+
+        self.shared.ui_shutdown = true;
+        self.shared.bootstrap_shutdown = true;
+        self.shared.ready_to_boot = false;
     }
 }
 
-fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: std.mem.Allocator) void {
+fn bootstrapEngine(shared: *SharedState, args: []const []const u8, gpa: std.mem.Allocator) void {
     log.info(@src(), "Starting FrooxEngine in the background...", .{});
     var child = renderite.Bootstrap.ChildInfo.init(args, gpa) catch @panic("Failed to start FrooxEngine");
 
     var bootstrap = renderite.Bootstrap.initBootstrap(&child, gpa, copy, paste) catch @panic("Failed to bootstrap FrooxEngine");
 
     log.info(@src(), "FrooxEngine spawned, waiting for user selection...", .{});
-    while (!self.ready_to_boot) {
-        if (self.bootstrap_shutdown) {
-            log.warn(@src(), "Bootstrapper is shutting down, won't boot", .{});
-            return;
+    while (true) {
+        {
+            shared.lock.lock();
+            defer shared.lock.unlock();
+
+            if (shared.bootstrap_shutdown) {
+                log.warn(@src(), "Bootstrapper is shutting down, won't boot", .{});
+                return;
+            }
+
+            if (shared.ready_to_boot)
+                break;
         }
 
         std.Thread.sleep(100 * std.time.ns_per_ms);
@@ -133,7 +177,7 @@ fn bootstrapEngine(self: *DedicatedBootstrapper, args: []const []const u8, gpa: 
 
     log.info(@src(), "Ready to boot!", .{});
 
-    const manifest = self.manifests[@intCast(self.selected_manifest_idx)];
+    const manifest = shared.manifests[@intCast(shared.selected_manifest_idx)];
     const executable = switch (builtin.os.tag) {
         .windows => manifest.winExecutablePath,
         else => if (manifest.runInWine) manifest.winExecutablePath else manifest.unixExecutablePath,
@@ -215,6 +259,6 @@ fn paste() anyerror![:0]u8 {
 }
 
 pub fn deinit(self: *DedicatedBootstrapper, gpa: std.mem.Allocator) void {
-    self.json_gpa.deinit();
+    self.json_arena.deinit();
     gpa.destroy(self);
 }
