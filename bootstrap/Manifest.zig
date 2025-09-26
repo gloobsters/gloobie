@@ -1,0 +1,23 @@
+const std = @import("std");
+const Manifest = @This();
+
+version: u8,
+name: [:0]const u8,
+winExecutablePath: [:0]const u8,
+unixExecutablePath: [:0]const u8,
+runInWine: bool = false,
+
+pub fn parseFromFile(file: std.fs.File, gpa: std.mem.Allocator) !Manifest {
+    var buffer: [128]u8 = undefined;
+    var file_reader = file.readerStreaming(&buffer);
+    var reader = std.json.Reader.init(gpa, &file_reader.interface);
+    defer reader.deinit();
+
+    return try std.json.parseFromTokenSourceLeaky(Manifest, gpa, &reader, .{
+        .duplicate_field_behavior = .use_first,
+        .allocate = .alloc_always,
+        .ignore_unknown_fields = true,
+        .parse_numbers = true,
+        .max_value_len = std.fs.max_path_bytes,
+    });
+}

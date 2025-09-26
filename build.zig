@@ -495,6 +495,7 @@ pub fn build(b: *std.Build) !void {
                 "cimgui.cpp",
                 "imgui_impl_gpu.cpp",
                 "imgui_impl_sdl3.cpp",
+                "imgui_impl_sdlrenderer3.cpp",
             },
             .language = .cpp,
             .flags = cpp_flags,
@@ -571,6 +572,30 @@ pub fn build(b: *std.Build) !void {
         math_mod.addImport("renderite", renderite_mod);
 
         break :create_renderite_mod renderite_mod;
+    };
+
+    const bootstrap_mod = create_bootstrap_mod: {
+        const bootstrap_root = b.path("bootstrap");
+
+        const bootstrap_mod = b.addModule("bootstrap", .{
+            .root_source_file = bootstrap_root.path(b, "main.zig"),
+
+            .optimize = optimize,
+            .target = target,
+
+            .imports = &.{
+                .{ .name = "sdl3", .module = sdl3_mod },
+                .{ .name = "gpu", .module = gpu_mod },
+                .{ .name = "imgui", .module = imgui_mod },
+                .{ .name = "renderite", .module = renderite_mod },
+                .{ .name = "zinterprocess", .module = zinterprocess_mod },
+                .{ .name = "options", .module = options_module },
+                .{ .name = "logger", .module = logger_mod },
+                .{ .name = "bounded_array", .module = bounded_array_mod },
+            },
+        });
+
+        break :create_bootstrap_mod bootstrap_mod;
     };
 
     const gloobie_mod = create_gloobie_mod: {
@@ -683,6 +708,7 @@ pub fn build(b: *std.Build) !void {
     };
 
     addPlatformDefines(gloobie_mod, build_options, target);
+    addPlatformDefines(bootstrap_mod, build_options, target);
 
     // NOTE: Use a special name on Linux to temporarily workaround Resonite looking up by process name on Linux
     // https://github.com/Yellow-Dog-Man/Resonite-Issues/issues/5222
@@ -704,22 +730,46 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
+    const bootstrap_exe = b.addExecutable(.{
+        .name = "bootstrap",
+        .root_module = bootstrap_mod,
+        .use_lld = build_options.use_lld,
+        .use_llvm = build_options.use_llvm,
+        .version = .{
+            .major = 0,
+            .minor = 0,
+            .patch = 1,
+            .pre = "alpha",
+        },
+    });
+
     b.installArtifact(gloobie_exe);
+    b.installArtifact(bootstrap_exe);
 
     const manifest_file = b.path("client/Gloobie.renderer.json");
     const manifest_file_step = b.addInstallBinFile(manifest_file, "Renderers/Gloobie.renderer.json");
     b.getInstallStep().dependOn(&manifest_file_step.step);
 
     const run_step = b.step("run", "Runs the gloobie executable");
-
     const gloobie_exe_run = b.addRunArtifact(gloobie_exe);
     run_step.dependOn(&gloobie_exe_run.step);
+
+    const bootstrap_run_step = b.step("bootstrap", "Runs the bootstrap executable");
+    const bootstrap_exe_run = b.addRunArtifact(bootstrap_exe);
+    bootstrap_run_step.dependOn(&bootstrap_exe_run.step);
 
     const test_step = b.step("test", "Runs tests on the various gloobie subsystems");
 
     const gloobie_test_exe = b.addTest(.{
         .name = "gloobie",
         .root_module = gloobie_mod,
+        .use_lld = build_options.use_lld,
+        .use_llvm = build_options.use_llvm,
+    });
+
+    const imgui_test_exe = b.addTest(.{
+        .name = "imgui",
+        .root_module = imgui_mod,
         .use_lld = build_options.use_lld,
         .use_llvm = build_options.use_llvm,
     });
@@ -733,6 +783,9 @@ pub fn build(b: *std.Build) !void {
 
     const gloobie_test_exe_run = b.addRunArtifact(gloobie_test_exe);
     test_step.dependOn(&gloobie_test_exe_run.step);
+
+    const imgui_test_exe_run = b.addRunArtifact(imgui_test_exe);
+    test_step.dependOn(&imgui_test_exe_run.step);
 
     const renderite_test_exe_run = b.addRunArtifact(renderite_test_exe);
     test_step.dependOn(&renderite_test_exe_run.step);

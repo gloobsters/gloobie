@@ -52,6 +52,14 @@ pub fn render() void {
     return c.igRender();
 }
 
+pub fn setNextWindowPos(pos: ImVec2) void {
+    return c.igSetNextWindowPos(pos, 0, .{ .x = 0, .y = 0 });
+}
+
+pub fn setNextWindowSize(size: ImVec2) void {
+    return c.igSetNextWindowSize(size, 0);
+}
+
 pub fn begin(name: [:0]const u8, open: *bool, flags: c.ImGuiWindowFlags) bool {
     return c.igBegin(name.ptr, open, flags);
 }
@@ -68,12 +76,24 @@ pub fn separator() void {
     return c.igSeparator();
 }
 
+pub fn sameLine() void {
+    return c.igSameLine(0, -1);
+}
+
 pub fn text(str: [:0]const u8) void {
     return c.igText(str.ptr);
 }
 
 pub fn progressBar(fraction: f32, size_arg: ImVec2, overlay: [:0]const u8) void {
     return c.igProgressBar(fraction, size_arg, overlay.ptr);
+}
+
+pub fn radioButton(label: [:0]const u8, v: *i32, v_button: i32) bool {
+    return c.igRadioButton_IntPtr(label, v, v_button);
+}
+
+pub fn button(label: [:0]const u8) bool {
+    return c.igButton(label, .{ .x = 0, .y = 0 });
 }
 
 pub fn getDrawData() *DrawData {
@@ -101,6 +121,11 @@ pub const sdl3 = struct {
     pub fn initForOther(window: sdl3_t.video.Window) !void {
         // SAFETY: These should be compatible values of "window"
         return if (c.ImGui_ImplSDL3_InitForOther(@ptrCast(window.value))) {} else error.FailedToInitSdl3Backend;
+    }
+
+    pub fn initForSdlRenderer(window: sdl3_t.video.Window, renderer: sdl3_t.render.Renderer) !void {
+        // SAFETY: These should be compatible values of "window" and "renderer"
+        return if (c.ImGui_ImplSDL3_InitForSDLRenderer(@ptrCast(window.value), @ptrCast(renderer.value))) {} else error.FailedToInitSdl3Backend;
     }
 
     pub fn shutdown() void {
@@ -159,3 +184,30 @@ pub const gpu = struct {
         );
     }
 };
+
+pub const sdl_renderer = struct {
+    pub fn init(renderer: sdl3_t.render.Renderer) !void {
+        // SAFETY: These should be compatible values of "renderer"
+        return if (c.ImGui_ImplSDLRenderer3_Init(@ptrCast(renderer.value))) {} else error.FailedToInitSdlRenderer3Backend;
+    }
+
+    pub fn shutdown() void {
+        c.ImGui_ImplSDLRenderer3_Shutdown();
+    }
+
+    pub fn newFrame() void {
+        c.ImGui_ImplSDLRenderer3_NewFrame();
+    }
+
+    pub fn renderDrawData(draw_data: *c.ImDrawData, renderer: sdl3_t.render.Renderer) !void {
+        // SAFETY: These should be compatible values of "renderer"
+        c.ImGui_ImplSDLRenderer3_RenderDrawData(draw_data, @ptrCast(renderer.value));
+    }
+};
+
+test {
+    std.testing.refAllDecls(@This());
+    std.testing.refAllDecls(sdl3);
+    std.testing.refAllDecls(gpu);
+    std.testing.refAllDecls(sdl_renderer);
+}
