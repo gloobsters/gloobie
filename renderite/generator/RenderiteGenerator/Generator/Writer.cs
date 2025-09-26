@@ -215,6 +215,15 @@ public class Writer : IDisposable
         return new Block(this, false);
     }
 
+    public Block BeginIf(string statement)
+    {
+        this.Indents();
+        this._writer.Write("if (");
+        this._writer.Write(statement);
+        this._writer.WriteLine(") {");
+        return new Block(this, false);
+    }
+
     public void StructMember(string name, string type, string? defaultDef = null)
     {
         this.Indents();

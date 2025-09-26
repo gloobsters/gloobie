@@ -5,6 +5,7 @@ using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using RenderiteGenerator.Extensions;
 using RenderiteGenerator.Generator.Blocks;
+using RenderiteGenerator.Generator.Info;
 
 namespace RenderiteGenerator.Generator.TypeGenerators;
 
@@ -51,6 +52,7 @@ public class PackableStructGenerator : StructGenerator
 
         bool skip = false;
         Queue<string> names = new();
+        List<IfStatementInfo> ifStatements = [];
         foreach (Instruction instruction in methodDef.Body.Instructions)
         {
             if (skip)
@@ -62,10 +64,22 @@ public class PackableStructGenerator : StructGenerator
                 // w.Any($"{instruction} ({instruction.OpCode.FlowControl})");
 
             FlowControl flow = instruction.OpCode.FlowControl;
-            if (flow != FlowControl.Next && flow != FlowControl.Call && flow != FlowControl.Return)
+            if (flow != FlowControl.Next && flow != FlowControl.Call && flow != FlowControl.Return && flow != FlowControl.Cond_Branch && instruction.OpCode.Code != Code.Brfalse_S)
             {
                 w.Fixme($"Unknown {flow} instruction");
                 w.Comment(instruction.ToString());
+            }
+
+            if (instruction.OpCode.Code == Code.Brfalse_S)
+            {
+                string name = names.DequeueLastHumanizeField();
+                ifStatements.Add(new IfStatementInfo(w.BeginIf("self." + name), (Instruction)instruction.Operand));
+            }
+            
+            foreach (IfStatementInfo ifStatement in ifStatements)
+            {
+                if(ifStatement.JumpDestination == instruction)
+                    ifStatement.Dispose();
             }
 
             if (instruction.OpCode.Code is Code.Ldfld or Code.Ldflda)
