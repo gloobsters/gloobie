@@ -152,7 +152,7 @@ void diagnoseIfNeeded(slang::IBlob *diagnosticsBlob)
             std::string diagnostics;
             diagnostics.assign(diagnosticsPtr, diagnosticsSize);
 
-            std::cout << diagnostics << std::endl;
+            std::cerr << diagnostics << std::endl;
         }
     }
 }
@@ -215,7 +215,7 @@ void parseShaderOutputs(std::vector<ParsedOutput> &outOutputs, const args::Value
     }
 }
 
-SpvReflectResult reflectSpirvCode(Slang::ComPtr<slang::IBlob> spirvCode, ReflectResult &result)
+SpvReflectResult reflectSpirvCode(bool verbose, Slang::ComPtr<slang::IBlob> spirvCode, ReflectResult &result)
 {
     SpvReflectShaderModule module;
     auto ret = spvReflectCreateShaderModule2(SPV_REFLECT_MODULE_FLAG_NO_COPY, spirvCode->getBufferSize(), spirvCode->getBufferPointer(), &module);
@@ -227,13 +227,19 @@ SpvReflectResult reflectSpirvCode(Slang::ComPtr<slang::IBlob> spirvCode, Reflect
 
     // TODO: support the compute stage
 
-    std::cout << "SPIR-V Reflection:" << std::endl;
-    std::cout << "Descriptor Sets: " << module.descriptor_set_count << std::endl;
+    if (verbose)
+    {
+        std::cerr << "SPIR-V Reflection:" << std::endl;
+        std::cerr << "Descriptor Sets: " << module.descriptor_set_count << std::endl;
+    }
     for (uint32_t i = 0; i < module.descriptor_set_count; i++)
     {
         const SpvReflectDescriptorSet &set = module.descriptor_sets[i];
 
-        std::cout << "  Set " << set.set << " has " << set.binding_count << " bindings." << std::endl;
+        if (verbose)
+        {
+            std::cerr << "  Set " << set.set << " has " << set.binding_count << " bindings." << std::endl;
+        }
         for (uint32_t j = 0; j < set.binding_count; j++)
         {
             const SpvReflectDescriptorBinding &binding = *set.bindings[j];
@@ -256,7 +262,10 @@ SpvReflectResult reflectSpirvCode(Slang::ComPtr<slang::IBlob> spirvCode, Reflect
                 break;
             }
 
-            std::cout << "    Binding " << binding.binding << ": " << binding.name << " (type: " << binding.descriptor_type << ", count: " << binding.count << ")" << std::endl;
+            if (verbose)
+            {
+                std::cerr << "    Binding " << binding.binding << ": " << binding.name << " (type: " << binding.descriptor_type << ", count: " << binding.count << ")" << std::endl;
+            }
         }
     }
 
@@ -305,12 +314,12 @@ int main(int argc, char **argv)
     }
     catch (const args::Completion &e)
     {
-        std::cout << e.what();
+        std::cerr << e.what();
         return 0;
     }
     catch (const args::Help &)
     {
-        std::cout << parser;
+        std::cerr << parser;
         return 0;
     }
     catch (const args::ParseError &e)
@@ -435,13 +444,13 @@ int main(int argc, char **argv)
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
         {
-            std::cout << "Error loading module: " << name << std::endl;
+            std::cerr << "Error loading module: " << name << std::endl;
             return -1;
         }
 
         if (verbose)
         {
-            std::cout << "Loaded module: " << name << std::endl;
+            std::cerr << "Loaded module: " << name << std::endl;
         }
     }
 
@@ -460,7 +469,7 @@ int main(int argc, char **argv)
                 entryPoints.emplace_back().writeRef());
             if (SLANG_FAILED(result))
             {
-                std::cout << "Error finding entry point: " << entryPointName << " for shader " << shaderSrc.moduleName << ", Got result: " << result << std::endl;
+                std::cerr << "Error finding entry point: " << entryPointName << " for shader " << shaderSrc.moduleName << ", Got result: " << result << std::endl;
                 SLANG_RETURN_ON_FAIL(result);
             }
             entryPointNames.push_back(entryPointName);
@@ -505,7 +514,7 @@ int main(int argc, char **argv)
             SLANG_RETURN_ON_FAIL(result);
 
             ReflectResult reflectResult{};
-            auto spirvResult = reflectSpirvCode(spirvCode, reflectResult);
+            auto spirvResult = reflectSpirvCode(verbose, spirvCode, reflectResult);
             if (spirvResult != SPV_REFLECT_RESULT_SUCCESS)
             {
                 std::cerr << "Failed to reflect SPIR-V code: " << spirvResult << std::endl;
@@ -522,27 +531,27 @@ int main(int argc, char **argv)
 
             if (verbose)
             {
-                std::cout << "Reflection result for module " << shaderSrc.moduleName << ":" << std::endl;
-                std::cout << "  Vertex Stage:" << std::endl;
-                std::cout << "    Samplers: " << reflectResult.vertex.numSamplers << std::endl;
-                std::cout << "    Uniform Buffers: " << reflectResult.vertex.numUniformBuffers << std::endl;
-                std::cout << "    Storage Textures: " << reflectResult.vertex.numStorageTextures << std::endl;
-                std::cout << "    Storage Buffers: " << reflectResult.vertex.numStorageBuffers << std::endl;
-                std::cout << "  Fragment Stage:" << std::endl;
-                std::cout << "    Samplers: " << reflectResult.fragment.numSamplers << std::endl;
-                std::cout << "    Uniform Buffers: " << reflectResult.fragment.numUniformBuffers << std::endl;
-                std::cout << "    Storage Textures: " << reflectResult.fragment.numStorageTextures << std::endl;
-                std::cout << "    Storage Buffers: " << reflectResult.fragment.numStorageBuffers << std::endl;
-                std::cout << "  Compute Stage:" << std::endl;
-                std::cout << "    Samplers: " << reflectResult.compute.numSamplers << std::endl;
-                std::cout << "    Readonly Storage Textures: " << reflectResult.compute.numReadonlyStorageTextures << std::endl;
-                std::cout << "    Readonly Storage Buffers: " << reflectResult.compute.numReadonlyStorageBuffers << std::endl;
-                std::cout << "    Readwrite Storage Textures: " << reflectResult.compute.numReadwriteStorageTextures << std::endl;
-                std::cout << "    Readwrite Storage Buffers: " << reflectResult.compute.numReadwriteStorageBuffers << std::endl;
-                std::cout << "    Uniform Buffers: " << reflectResult.compute.numUniformBuffers << std::endl;
-                std::cout << "    Thread Count X: " << reflectResult.compute.threadcountX << std::endl;
-                std::cout << "    Thread Count Y: " << reflectResult.compute.threadcountY << std::endl;
-                std::cout << "    Thread Count Z: " << reflectResult.compute.threadcountZ << std::endl;
+                std::cerr << "Reflection result for module " << shaderSrc.moduleName << ":" << std::endl;
+                std::cerr << "  Vertex Stage:" << std::endl;
+                std::cerr << "    Samplers: " << reflectResult.vertex.numSamplers << std::endl;
+                std::cerr << "    Uniform Buffers: " << reflectResult.vertex.numUniformBuffers << std::endl;
+                std::cerr << "    Storage Textures: " << reflectResult.vertex.numStorageTextures << std::endl;
+                std::cerr << "    Storage Buffers: " << reflectResult.vertex.numStorageBuffers << std::endl;
+                std::cerr << "  Fragment Stage:" << std::endl;
+                std::cerr << "    Samplers: " << reflectResult.fragment.numSamplers << std::endl;
+                std::cerr << "    Uniform Buffers: " << reflectResult.fragment.numUniformBuffers << std::endl;
+                std::cerr << "    Storage Textures: " << reflectResult.fragment.numStorageTextures << std::endl;
+                std::cerr << "    Storage Buffers: " << reflectResult.fragment.numStorageBuffers << std::endl;
+                std::cerr << "  Compute Stage:" << std::endl;
+                std::cerr << "    Samplers: " << reflectResult.compute.numSamplers << std::endl;
+                std::cerr << "    Readonly Storage Textures: " << reflectResult.compute.numReadonlyStorageTextures << std::endl;
+                std::cerr << "    Readonly Storage Buffers: " << reflectResult.compute.numReadonlyStorageBuffers << std::endl;
+                std::cerr << "    Readwrite Storage Textures: " << reflectResult.compute.numReadwriteStorageTextures << std::endl;
+                std::cerr << "    Readwrite Storage Buffers: " << reflectResult.compute.numReadwriteStorageBuffers << std::endl;
+                std::cerr << "    Uniform Buffers: " << reflectResult.compute.numUniformBuffers << std::endl;
+                std::cerr << "    Thread Count X: " << reflectResult.compute.threadcountX << std::endl;
+                std::cerr << "    Thread Count Y: " << reflectResult.compute.threadcountY << std::endl;
+                std::cerr << "    Thread Count Z: " << reflectResult.compute.threadcountZ << std::endl;
             }
         }
 
@@ -560,7 +569,7 @@ int main(int argc, char **argv)
             {
                 if (verbose)
                 {
-                    std::cout << "Skipping output for module " << shaderSrc.moduleName << " target " << prefix << " as no output specified" << std::endl;
+                    std::cerr << "Skipping output for module " << shaderSrc.moduleName << " target " << prefix << " as no output specified" << std::endl;
                 }
                 continue;
             }
@@ -591,12 +600,12 @@ int main(int argc, char **argv)
 
             if (verbose)
             {
-                std::cout << "Compiled entry points: " << std::endl;
+                std::cerr << "Compiled entry points: " << std::endl;
                 for (auto &entryPoint : entryPointNames)
                 {
-                    std::cout << "  " << entryPoint << std::endl;
+                    std::cerr << "  " << entryPoint << std::endl;
                 }
-                std::cout << "for module " << shaderSrc.moduleName << " target " << prefix << std::endl
+                std::cerr << "for module " << shaderSrc.moduleName << " target " << prefix << std::endl
                           << std::endl;
             }
         }
@@ -609,14 +618,14 @@ int main(int argc, char **argv)
             auto codeIter = finalCode.find(output.targetPrefix);
             if (codeIter == finalCode.end())
             {
-                std::cout << "No compiled code for module " << shaderSrc.moduleName << " target " << output.targetPrefix << std::endl;
+                std::cerr << "No compiled code for module " << shaderSrc.moduleName << " target " << output.targetPrefix << std::endl;
                 continue;
             }
 
             writeBlobToFileTruncate(output.path, codeIter->second);
             if (verbose)
             {
-                std::cout << "Wrote output for module " << shaderSrc.moduleName << " target " << output.targetPrefix << " to " << output.path << std::endl;
+                std::cerr << "Wrote output for module " << shaderSrc.moduleName << " target " << output.targetPrefix << " to " << output.path << std::endl;
             }
         }
     }

@@ -117,6 +117,8 @@ pub fn build(b: *std.Build) !void {
 
     const enable_tracy = b.option(bool, "tracy", "Enable tracy integration") orelse false;
 
+    const ci = b.option(bool, "ci", "Whether to enable extra logging/tooling for CI") orelse false;
+
     const build_options: Options = .{
         .use_lld = if (enable_tracy) true else b.option(bool, "use_lld", "Link using LLD"),
         .use_llvm = if (enable_tracy) true else b.option(bool, "use_llvm", "Compile using LLVM"),
@@ -651,7 +653,9 @@ pub fn build(b: *std.Build) !void {
 
         {
             const run_shader_compiler = b.addRunArtifact(gloobie_shader_compiler_exe);
-            run_shader_compiler.addArg("-v");
+            if (ci) {
+                run_shader_compiler.addArg("-v");
+            }
             run_shader_compiler.addArg(switch (optimize) {
                 .Debug => "-O0",
                 .ReleaseSafe => "-O1",

@@ -39,12 +39,12 @@ jobs:
           cache-size-limit: 512 # 512mb
       - name: Build & Install with stub XR backend
         if: matrix.target == 'native'
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} -Dxr_backend=none --summary all install
+        run: zig build -Dci -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} -Dxr_backend=none --summary all install
       - name: Build & Install with OpenXR backend
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} -Dxr_backend=openxr --summary all install
+        run: zig build -Dci -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} -Dxr_backend=openxr --summary all install
       - name: Run Tests
         if: matrix.target == 'native'
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} --summary all test
+        run: zig build -Dci -Dtarget=${{ matrix.target }} -Doptimize=${{ matrix.optimize }} --summary all test
       - name: Upload Build
         if: matrix.os == 'ubuntu-latest' && matrix.target != 'native' && (matrix.optimize == 'ReleaseSafe' || matrix.optimize == 'Debug')
         uses: actions/upload-artifact@v4
