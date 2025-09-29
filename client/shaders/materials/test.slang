@@ -4,7 +4,7 @@ implementing materials;
 
 public struct TestMaterial : IMaterial
 {
-    float3 eval()
+    public float3 eval()
     {
         return float3(1, 0, 0);
     }

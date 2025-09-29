@@ -6,5 +6,5 @@ __include "test.slang";
 
 public interface IMaterial
 {
-    float3 eval();
+    public float3 eval();
 }
