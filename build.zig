@@ -590,7 +590,9 @@ pub fn build(b: *std.Build) !void {
 
         if (maybe_slang_dep) |slang_dep| {
             gloobie_compiler_mod.addLibraryPath(slang_dep.path("lib"));
+            gloobie_compiler_mod.addLibraryPath(slang_dep.path("bin"));
             gloobie_compiler_mod.addRPath(slang_dep.path("lib"));
+            gloobie_compiler_mod.addRPath(slang_dep.path("bin"));
             gloobie_compiler_mod.addIncludePath(slang_dep.path("include"));
         }
         gloobie_compiler_mod.addIncludePath(cpp_args_inc);
