@@ -45,6 +45,7 @@ pub fn init(
     xr_data: ?XrData,
     window: sdl3.video.Window,
 ) !GraphicsData {
+    _ = arena; // autofix
     const gpu_device = if (xr_data) |xr| xr.backend.getGpuDevice() else try gpu.Device.initWithProperties(.{
         .debug_mode = build_options.safety,
         // TODO: Once we get the ability to transpile to other shader types, specify them here!
@@ -124,24 +125,22 @@ pub fn init(
 
     log.debug(@src(), "Using window swapchain format {s}", .{@tagName(swapchain_format)});
 
+    const basic_shader = @import("shaders.basic").basic;
+
     const test_vertex_shader: GpuShader = try .create(
-        arena,
         gpu_device,
-        @embedFile("shader-basic-vertex-spirv"),
-        @embedFile("shader-basic-vertex-reflection"),
+        basic_shader,
         .{ .spirv = true },
-        "main",
+        "vertexMain",
         .vertex,
     );
     errdefer test_vertex_shader.deinit(gpu_device);
 
     const test_fragment_shader: GpuShader = try .create(
-        arena,
         gpu_device,
-        @embedFile("shader-basic-fragment-spirv"),
-        @embedFile("shader-basic-fragment-reflection"),
+        basic_shader,
         .{ .spirv = true },
-        "main",
+        "fragmentMain",
         .fragment,
     );
     errdefer test_fragment_shader.deinit(gpu_device);

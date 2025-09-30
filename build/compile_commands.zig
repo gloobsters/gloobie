@@ -33,7 +33,7 @@ const CompileCommands = []const Entry;
 const Entry = struct {
     directory: []const u8,
     file: []const u8,
-    arguments: ?[]const []const u8 = null,
+    arguments: ?[][]const u8 = null,
     command: ?[]const []const u8 = null,
     output: []const u8,
 };
@@ -58,6 +58,7 @@ pub fn fromDir(allocator: mem.Allocator, path: []const u8) !CompileCommands {
             contents[0 .. contents.len - 2], // trailing comma
             .{ .ignore_unknown_fields = true },
         );
+        entry.value.arguments.?[0] = "clang++";
 
         try entries.append(allocator, entry.value);
     };
