@@ -317,7 +317,7 @@ fn skinnedMeshRendererFinishUpdates(
             if (renderable.bones.len != bone_assignment.bone_count) {
                 gpa.free(renderable.bones);
 
-                renderable.bones = try gpa.alloc(TransformManager.Transform.Id, @intCast(bone_assignment.bone_count));
+                renderable.bones = try gpa.alloc(TransformManager.Transform.Id, @intCast(@max(bone_assignment.bone_count, 0)));
             }
             errdefer @compileError("Cannot error! bones may not be set to a value!");
 
