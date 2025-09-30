@@ -47,7 +47,7 @@ VertexStageOutput vertexMain(Vertex vertex)
     float4x4 mvp = mul(render_data.projection_matrix, mul(render_data.view_matrix, model_matrix));
 
     output.position = mul(mvp, float4(vertex.position, 1.0));
-    output.frag_input.color = float4((vertex.position.x * 10.0) % 1.0, (vertex.position.y * 10.0) % 1.0, (vertex.position.z * 10.0) % 1.0, 1.0); // test nonsense
+    output.frag_input.color = abs(float4((vertex.position.x * 10.0) % 1.0, (vertex.position.y * 10.0) % 1.0, (vertex.position.z * 10.0) % 1.0, 1.0)); // test nonsense
 
     return output;
 }
