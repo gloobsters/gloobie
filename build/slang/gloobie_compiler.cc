@@ -15,6 +15,9 @@
 #include <iostream>
 #include <spirv_reflect.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 struct StageReflectResult
 {
     uint32_t numSamplers;
@@ -307,6 +310,7 @@ int main(int argc, char **argv)
     args::ValueFlagList<std::string> reflectOutputs(parser, "reflects", "The shader reflection data outputs, in the format of module_name:output_path", {'r'});
     args::ValueFlag<int> optimizationLevel(parser, "opt", "The optimization level (0-3)", {'O'});
     args::ValueFlag<std::string> debugLevel(parser, "debug", "The debug level", {'g'});
+    args::ValueFlagList<std::string> extraLoadPaths(parser, "dll-path", "An extra path to add to the DLL search path.", {'d'});
     args::CompletionFlag completion(parser, {"complete"});
     try
     {
@@ -368,6 +372,13 @@ int main(int argc, char **argv)
         options.push_back(slang::CompilerOptionEntry{slang::CompilerOptionName::DebugInformation, {slang::CompilerOptionValueKind::Int, (int)debugInfoLevel, 0, nullptr, nullptr}});
     }
 
+    for (auto &path : extraLoadPaths)
+    {
+#ifdef _WIN32
+        SetDllDirectoryA(path.c_str());
+#endif
+    }
+
     // Pares out the module sources
     std::unordered_map<std::string, std::string> moduleSourcePaths;
     parseShaderInputs(moduleSourcePaths, shaderInputs);
@@ -382,6 +393,8 @@ int main(int argc, char **argv)
 
     Slang::ComPtr<slang::IGlobalSession> globalSession;
     createGlobalSession(globalSession.writeRef());
+
+    globalSession->setDownstreamCompilerPath(SlangPassThrough::SLANG_PASS_THROUGH_GLSLANG, "");
 
     slang::SessionDesc sessionDesc = {};
 

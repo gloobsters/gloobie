@@ -550,7 +550,7 @@ pub fn build(b: *std.Build) !void {
         break :create_bootstrap_mod bootstrap_mod;
     };
 
-    const gloobie_shader_compiler_exe, const shader_reflection_mod = create_shader_compiler: {
+    const gloobie_shader_compiler_exe, const shader_reflection_mod, const slang_bin_path = create_shader_compiler: {
         const spirv_reflect_dep = b.dependency("spirv-reflect", .{});
 
         const dep_name = switch (builtin.cpu.arch) {
@@ -588,13 +588,19 @@ pub fn build(b: *std.Build) !void {
             .root = spirv_reflect_dep.path(""),
         });
 
-        if (maybe_slang_dep) |slang_dep| {
-            gloobie_compiler_mod.addLibraryPath(slang_dep.path("lib"));
-            gloobie_compiler_mod.addLibraryPath(slang_dep.path("bin"));
-            gloobie_compiler_mod.addRPath(slang_dep.path("lib"));
-            gloobie_compiler_mod.addRPath(slang_dep.path("bin"));
+        const bin_path = if (maybe_slang_dep) |slang_dep| get_bin_path: {
+            const lib_path = slang_dep.path("lib");
+            const bin_path = slang_dep.path("bin");
+
+            gloobie_compiler_mod.addLibraryPath(lib_path);
+            gloobie_compiler_mod.addLibraryPath(bin_path);
+            gloobie_compiler_mod.addRPath(lib_path);
+            gloobie_compiler_mod.addRPath(bin_path);
+
             gloobie_compiler_mod.addIncludePath(slang_dep.path("include"));
-        }
+
+            break :get_bin_path bin_path;
+        } else b.path(".");
         gloobie_compiler_mod.addIncludePath(cpp_args_inc);
         gloobie_compiler_mod.addIncludePath(spirv_reflect_dep.path(""));
 
@@ -614,7 +620,7 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = b.path("build/slang/reflection.zig"),
         });
 
-        break :create_shader_compiler .{ gloobie_compiler_exe, shader_reflection_mod };
+        break :create_shader_compiler .{ gloobie_compiler_exe, shader_reflection_mod, bin_path };
     };
 
     const gloobie_mod = create_gloobie_mod: {
@@ -658,6 +664,9 @@ pub fn build(b: *std.Build) !void {
             if (ci) {
                 run_shader_compiler.addArg("-v");
             }
+
+            run_shader_compiler.addPrefixedDirectoryArg("-d", slang_bin_path);
+
             run_shader_compiler.addArg(switch (optimize) {
                 .Debug => "-O0",
                 .ReleaseSafe => "-O1",
