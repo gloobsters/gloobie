@@ -666,6 +666,7 @@ pub fn build(b: *std.Build) !void {
             }
 
             run_shader_compiler.addPrefixedDirectoryArg("-d", slang_bin_path);
+            run_shader_compiler.addPathDir(try slang_bin_path.getPath3(b, &run_shader_compiler.step).toString(b.allocator));
 
             run_shader_compiler.addArg(switch (optimize) {
                 .Debug => "-O0",
