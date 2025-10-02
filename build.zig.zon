@@ -69,8 +69,8 @@
             .hash = "N-V-__8AAJIFEAAvUIM36D3gh9VyUFDYRW_bih56tSQkW4jv",
         },
         .@"spirv-reflect" = .{
-            .url = "git+https://github.com/KhronosGroup/SPIRV-Reflect#ef913b3ab3da1becca3cf46b15a10667c67bebe5",
-            .hash = "N-V-__8AADosLwCHkY3B_V4OQ8CVNrmbzJzS-KTwOLVaGVBf",
+            .url = "git+https://github.com/Beyley/SPIRV-Reflect?ref=main#3fb8a44e55f0fd4fa2938794e5a38b60f19b1705",
+            .hash = "N-V-__8AAOMsLwDt1r_KnU_jBNcLNx36GHnd8Rgy9UQK2s4H",
         },
     },
     .paths = .{

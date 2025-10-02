@@ -2,10 +2,10 @@
 
 module basic;
 
-struct Vertex
-{
-    float3 position : POSITION;
-};
+import materials;
+import common;
+
+extern struct Material : IMaterial = TestMaterial;
 
 struct FragmentStageInput
 {
@@ -14,40 +14,42 @@ struct FragmentStageInput
 
 struct VertexStageOutput
 {
-    FragmentStageInput frag_input : FragmentStageInput;
+    FragmentStageInput fragInput : FragmentStageInput;
     float4 position : SV_Position;
 };
 
 struct RenderData
 {
-    float4x4 view_matrix;
-    float4x4 projection_matrix;
+    float4x4 viewMatrix;
+    float4x4 projectionMatrix;
 }
 
 struct ModelData
 {
-    int32_t model_matrix_idx;
+    int32_t modelMatrixIdx;
 }
 
 [vk::binding(0, 0)]
-StructuredBuffer<float4x4> transform_matrices;
+StructuredBuffer<float4x4> transformMatrices;
 
 [vk::binding(0, 1)]
-ConstantBuffer<RenderData> render_data;
+ConstantBuffer<RenderData> renderData;
 [vk::binding(1, 1)]
-ConstantBuffer<ModelData> model_data;
+ConstantBuffer<ModelData> modelData;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(Vertex vertex)
 {
     VertexStageOutput output;
 
-    float4x4 model_matrix = transform_matrices[model_data.model_matrix_idx];
+    float4x4 modelMatrix = transformMatrices[modelData.modelMatrixIdx];
 
-    float4x4 mvp = mul(render_data.projection_matrix, mul(render_data.view_matrix, model_matrix));
+    float4x4 mvp = mul(renderData.projectionMatrix, mul(renderData.viewMatrix, modelMatrix));
+
+    Material mat = Material();
 
     output.position = mul(mvp, float4(vertex.position, 1.0));
-    output.frag_input.color = abs(float4((vertex.position.x * 10.0) % 1.0, (vertex.position.y * 10.0) % 1.0, (vertex.position.z * 10.0) % 1.0, 1.0)); // test nonsense
+    output.fragInput.color = mat.eval(vertex);
 
     return output;
 }

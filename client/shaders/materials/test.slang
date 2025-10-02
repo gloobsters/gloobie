@@ -4,8 +4,8 @@ implementing materials;
 
 public struct TestMaterial : IMaterial
 {
-    public float3 eval()
+    public float4 eval(Vertex vertex)
     {
-        return float3(1, 0, 0);
+        return abs(float4((vertex.position.x * 10.0) % 1.0, (vertex.position.y * 10.0) % 1.0, (vertex.position.z * 10.0) % 1.0, 1.0));
     }
 }

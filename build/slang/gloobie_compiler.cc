@@ -49,6 +49,7 @@ struct ReflectResult
 static std::vector<std::string> moduleNames = {
     "materials",
     "basic",
+    "common",
 };
 
 struct ShaderSource

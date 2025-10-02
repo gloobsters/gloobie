@@ -630,7 +630,8 @@ pub fn build(b: *std.Build) !void {
 
         var modules: std.StringArrayHashMap(SlangModule) = .init(b.allocator);
         try modules.putNoClobber("basic", .{ .path = shaders_root.path(b, "basic.slang") });
-        try modules.putNoClobber("materials", .{ .path = shaders_root.path(b, "materials/materials.slang") });
+        try modules.putNoClobber("materials", .{ .path = shaders_root.path(b, "materials.slang") });
+        try modules.putNoClobber("common", .{ .path = shaders_root.path(b, "common.slang") });
 
         const shaders: []const Shader = &.{
             .{ .module_name = "basic" },
