@@ -150,6 +150,7 @@ pub fn init(
         swapchain_format,
         test_vertex_shader,
         test_fragment_shader,
+        basic_shader,
     );
 
     const wanted_depth_formats: []const gpu.TextureFormat = &.{

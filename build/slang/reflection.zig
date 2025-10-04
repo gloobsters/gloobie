@@ -1,3 +1,5 @@
+const gpu = @import("gpu");
+
 pub const StageData = struct {
     num_samplers: u32,
     num_uniform_buffers: u32,
@@ -23,4 +25,9 @@ pub const Shader = struct {
     vertex_stage: StageData,
     fragment_stage: StageData,
     compute_stage: ComputeData,
+    vertex_inputs: []const VertexInput,
+};
+pub const VertexInput = struct {
+    location: u32,
+    format: gpu.VertexElementFormat,
 };

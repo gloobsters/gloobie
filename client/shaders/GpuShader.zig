@@ -12,7 +12,7 @@ shader: gpu.Shader,
 
 pub fn create(
     device: gpu.Device,
-    shader_data: reflection.Shader,
+    comptime shader_data: reflection.Shader,
     format: gpu.ShaderFormatFlags,
     entry_point: [:0]const u8,
     stage: gpu.ShaderStage,

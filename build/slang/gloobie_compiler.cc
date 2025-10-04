@@ -39,11 +39,19 @@ struct ComputeReflectResult
     uint32_t threadcountZ;
 };
 
+struct VertexInput
+{
+    uint32_t location;
+    std::string format;
+};
+
 struct ReflectResult
 {
     StageReflectResult vertex;
     StageReflectResult fragment;
     ComputeReflectResult compute;
+
+    std::vector<VertexInput> vertexInputs;
 };
 
 static std::vector<std::string> moduleNames = {
@@ -136,6 +144,12 @@ void writeReflectToZigFile(const std::string &path, const ReflectResult &result)
     file << "        .threadcount_x = " << result.compute.threadcountX << "," << std::endl;
     file << "        .threadcount_y = " << result.compute.threadcountY << "," << std::endl;
     file << "        .threadcount_z = " << result.compute.threadcountZ << "," << std::endl;
+    file << "    }," << std::endl;
+    file << "    .vertex_inputs = &.{" << std::endl;
+    for (const auto &input : result.vertexInputs)
+    {
+        file << "        .{ .location = " << input.location << ", .format = ." + input.format + " }," << std::endl;
+    }
     file << "    }," << std::endl;
     file << "};" << std::endl;
     file << std::endl;
@@ -263,7 +277,51 @@ SpvReflectResult reflectSpirvCode(bool verbose, Slang::ComPtr<slang::IBlob> spir
     {
         std::cerr << "SPIR-V Reflection:" << std::endl;
         std::cerr << "Descriptor Sets: " << module.descriptor_set_count << std::endl;
+        std::cerr << "Input Variables: " << module.input_variable_count << std::endl;
     }
+
+    for (uint32_t i = 0; i < module.input_variable_count; i++)
+    {
+        const SpvReflectInterfaceVariable &var = *module.input_variables[i];
+
+        std::string name = var.name ? var.name : "<unnamed>";
+
+        if (verbose)
+        {
+            std::string semantic = var.semantic ? var.semantic : "<no-semantic>";
+
+            std::cerr << "  Input " << i << ": " << name << " (location: " << var.location << ", semantic: " << semantic << ", format: " << var.format << ")" << std::endl;
+        }
+
+        if (name.find("vertex") == std::string::npos)
+        {
+            if (verbose)
+            {
+                std::cerr << "Warning: Input variable name does not contain 'vertex': " << name << std::endl;
+            }
+            continue;
+        }
+
+        std::string format;
+        switch (var.format)
+        {
+        case SPV_REFLECT_FORMAT_R32G32B32_SFLOAT:
+            format = "f32x3";
+            break;
+        case SPV_REFLECT_FORMAT_R32G32B32A32_SINT:
+            format = "i32x4";
+            break;
+        case SPV_REFLECT_FORMAT_R32G32B32A32_SFLOAT:
+            format = "f32x4";
+            break;
+        default:
+            std::cerr << "Unhandled vertex input format: " << var.format << std::endl;
+            return SPV_REFLECT_RESULT_ERROR_INTERNAL_ERROR;
+        }
+
+        result.vertexInputs.push_back({var.location, format});
+    }
+
     for (uint32_t i = 0; i < module.descriptor_set_count; i++)
     {
         const SpvReflectDescriptorSet &set = module.descriptor_sets[i];
@@ -272,6 +330,7 @@ SpvReflectResult reflectSpirvCode(bool verbose, Slang::ComPtr<slang::IBlob> spir
         {
             std::cerr << "  Set " << set.set << " has " << set.binding_count << " bindings." << std::endl;
         }
+
         for (uint32_t j = 0; j < set.binding_count; j++)
         {
             const SpvReflectDescriptorBinding &binding = *set.bindings[j];
@@ -308,7 +367,7 @@ SpvReflectResult reflectSpirvCode(bool verbose, Slang::ComPtr<slang::IBlob> spir
 
 struct ParsedReflectOutput
 {
-    std::string moduleName;
+    std::string key;
     std::string path;
 };
 
@@ -593,7 +652,7 @@ int main(int argc, char **argv)
 
             // Write out the reflection result if needed
             auto reflectOutputIter = std::find_if(parsedReflectOutputs.begin(), parsedReflectOutputs.end(), [&](const ParsedReflectOutput &output)
-                                                  { return output.moduleName == shaderSrc.moduleName; });
+                                                  { return output.key == (shaderSrc.moduleName + "." + parsedOutput.variantStr); });
             if (reflectOutputIter != parsedReflectOutputs.end())
             {
                 writeReflectToZigFile(reflectOutputIter->path, reflectResult);

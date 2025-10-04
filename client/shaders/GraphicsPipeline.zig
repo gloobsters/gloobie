@@ -1,5 +1,6 @@
 const gpu = @import("gpu");
 const math = @import("math");
+const reflection = @import("reflection");
 
 const GpuShader = @import("GpuShader.zig");
 
@@ -13,7 +14,28 @@ pub fn create(
     target_format: gpu.TextureFormat,
     vertex_shader: GpuShader,
     fragment_shader: GpuShader,
+    comptime shader_data: reflection.Shader,
 ) !GraphicsPipeline {
+    var vertex_attributes: [shader_data.vertex_inputs.len]gpu.VertexAttribute = @splat(undefined);
+    var vertex_buffer_descriptions: [shader_data.vertex_inputs.len]gpu.VertexBufferDescription = @splat(undefined);
+    for (&vertex_buffer_descriptions, &vertex_attributes, shader_data.vertex_inputs) |
+        *description,
+        *attribute,
+        vertex_input,
+    | {
+        description.* = .{
+            .input_rate = .vertex,
+            .pitch = vertex_input.format.stride(),
+            .slot = vertex_input.location,
+        };
+        attribute.* = .{
+            .buffer_slot = vertex_input.location,
+            .format = vertex_input.format,
+            .location = vertex_input.location,
+            .offset = 0,
+        };
+    }
+
     const pipeline = try device.createGraphicsPipeline(.{
         .vertex_shader = vertex_shader.shader,
         .fragment_shader = fragment_shader.shader,
@@ -29,12 +51,8 @@ pub fn create(
             .enable_depth_clip = true,
         },
         .vertex_input_state = .{
-            .vertex_attributes = &.{
-                .{ .location = 0, .buffer_slot = 0, .format = .f32x3, .offset = 0 },
-            },
-            .vertex_buffer_descriptions = &.{
-                .{ .slot = 0, .pitch = @sizeOf(math.Vector3f), .input_rate = .vertex },
-            },
+            .vertex_attributes = &vertex_attributes,
+            .vertex_buffer_descriptions = &vertex_buffer_descriptions,
         },
         .depth_stencil_state = .{
             .enable_stencil_test = false,

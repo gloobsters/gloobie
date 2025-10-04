@@ -626,6 +626,9 @@ pub fn build(b: *std.Build) !void {
             .target = target,
             .optimize = optimize,
             .root_source_file = b.path("build/slang/reflection.zig"),
+            .imports = &.{
+                .{ .name = "gpu", .module = gpu_mod },
+            },
         });
 
         break :create_shader_compiler .{ gloobie_compiler_exe, shader_reflection_mod, bin_path };
@@ -703,10 +706,12 @@ pub fn build(b: *std.Build) !void {
                 for (shader_variants) |shader_variant| {
                     const variant_str = try shader_variant.toString(b.allocator);
 
+                    const basename = b.fmt("{s}.{s}", .{ shader.module_name, variant_str });
+
                     const shader_mod = b.createModule(.{
                         .root_source_file = run_shader_compiler.addPrefixedOutputFileArg(
-                            b.fmt("-r{s}:", .{shader.module_name}),
-                            b.fmt("{s}.zig", .{shader.module_name}),
+                            b.fmt("-r{s}:", .{basename}),
+                            b.fmt("{s}.zig", .{basename}),
                         ),
                         .target = target,
                         .optimize = optimize,
@@ -717,7 +722,7 @@ pub fn build(b: *std.Build) !void {
                     });
 
                     for (enabled_shader_formats) |shader_target| {
-                        const basename = b.fmt("{s}.{s}.{s}", .{ shader.module_name, variant_str, @tagName(shader_target) });
+                        const basename_format = b.fmt("{s}.{s}", .{ basename, @tagName(shader_target) });
 
                         const compiled_bin = run_shader_compiler.addPrefixedOutputFileArg(
                             b.fmt("-o{s}:{s}:{s}:", .{
@@ -725,14 +730,14 @@ pub fn build(b: *std.Build) !void {
                                 @tagName(shader_target),
                                 variant_str,
                             }),
-                            basename,
+                            basename_format,
                         );
 
                         shader_mod.addAnonymousImport(@tagName(shader_target), .{
                             .root_source_file = compiled_bin,
                         });
 
-                        const install_shader_binary = b.addInstallBinFile(compiled_bin, b.fmt("shaders/{s}", .{basename}));
+                        const install_shader_binary = b.addInstallBinFile(compiled_bin, b.fmt("shaders/{s}", .{basename_format}));
                         b.getInstallStep().dependOn(&install_shader_binary.step);
                     }
 
