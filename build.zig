@@ -97,6 +97,14 @@ pub const ShaderTarget = enum {
 };
 
 const Shader = struct {
+    pub const Variant = struct {
+        skinned: bool,
+
+        pub fn toString(self: Variant, gpa: std.mem.Allocator) ![]const u8 {
+            return std.fmt.allocPrint(gpa, "{s}", .{if (self.skinned) "skinned" else ""});
+        }
+    };
+
     module_name: []const u8,
 };
 
@@ -637,6 +645,11 @@ pub fn build(b: *std.Build) !void {
             .{ .module_name = "basic" },
         };
 
+        const shader_variants: []const Shader.Variant = &.{
+            .{ .skinned = false },
+            .{ .skinned = true },
+        };
+
         const gloobie_mod = b.createModule(.{
             .root_source_file = gloobie_root.path(b, "main.zig"),
 
@@ -687,31 +700,50 @@ pub fn build(b: *std.Build) !void {
             }
 
             for (shaders) |shader| {
-                const shader_mod = b.createModule(.{
-                    .root_source_file = run_shader_compiler.addPrefixedOutputFileArg(
-                        b.fmt("-r{s}:", .{shader.module_name}),
-                        b.fmt("{s}.zig", .{shader.module_name}),
-                    ),
-                    .target = target,
-                    .optimize = optimize,
-                    .imports = &.{
-                        .{ .name = "reflection", .module = shader_reflection_mod },
-                        .{ .name = "options", .module = options_mod },
-                    },
-                });
+                for (shader_variants) |shader_variant| {
+                    const variant_str = try shader_variant.toString(b.allocator);
 
-                for (enabled_shader_formats) |shader_target| {
-                    const compiled_bin = run_shader_compiler.addPrefixedOutputFileArg(
-                        b.fmt("-o{s}:{s}:", .{ shader.module_name, @tagName(shader_target) }),
-                        b.fmt("{s}.{s}", .{ shader.module_name, @tagName(shader_target) }),
-                    );
-
-                    shader_mod.addAnonymousImport(@tagName(shader_target), .{
-                        .root_source_file = compiled_bin,
+                    const shader_mod = b.createModule(.{
+                        .root_source_file = run_shader_compiler.addPrefixedOutputFileArg(
+                            b.fmt("-r{s}:", .{shader.module_name}),
+                            b.fmt("{s}.zig", .{shader.module_name}),
+                        ),
+                        .target = target,
+                        .optimize = optimize,
+                        .imports = &.{
+                            .{ .name = "reflection", .module = shader_reflection_mod },
+                            .{ .name = "options", .module = options_mod },
+                        },
                     });
-                }
 
-                gloobie_mod.addImport(b.fmt("shaders.{s}", .{shader.module_name}), shader_mod);
+                    for (enabled_shader_formats) |shader_target| {
+                        const basename = b.fmt("{s}.{s}.{s}", .{ shader.module_name, variant_str, @tagName(shader_target) });
+
+                        const compiled_bin = run_shader_compiler.addPrefixedOutputFileArg(
+                            b.fmt("-o{s}:{s}:{s}:", .{
+                                shader.module_name,
+                                @tagName(shader_target),
+                                variant_str,
+                            }),
+                            basename,
+                        );
+
+                        shader_mod.addAnonymousImport(@tagName(shader_target), .{
+                            .root_source_file = compiled_bin,
+                        });
+
+                        const install_shader_binary = b.addInstallBinFile(compiled_bin, b.fmt("shaders/{s}", .{basename}));
+                        b.getInstallStep().dependOn(&install_shader_binary.step);
+                    }
+
+                    gloobie_mod.addImport(
+                        b.fmt("shaders.{s}.{s}", .{
+                            shader.module_name,
+                            variant_str,
+                        }),
+                        shader_mod,
+                    );
+                }
             }
         }
 

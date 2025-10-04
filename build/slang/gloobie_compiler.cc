@@ -188,12 +188,27 @@ void parseShaderInputs(std::unordered_map<std::string, std::string> &outSourcePa
     }
 }
 
+struct ShaderVariant
+{
+    bool skinned;
+};
+
 struct ParsedOutput
 {
     std::string moduleName;
     std::string path;
     std::string targetPrefix;
+    std::string variantStr;
+    struct ShaderVariant variant;
 };
+
+void generateShaderVariantFile(ShaderVariant variant, std::string &out)
+{
+    out.clear();
+    out += "export static const bool g_skinning = ";
+    out += variant.skinned ? "true" : "false";
+    out += ";";
+}
 
 void parseShaderOutputs(std::vector<ParsedOutput> &outOutputs, const args::ValueFlagList<std::string> &shaderOutputs)
 {
@@ -211,11 +226,24 @@ void parseShaderOutputs(std::vector<ParsedOutput> &outOutputs, const args::Value
             throw std::runtime_error("Invalid shader output format: " + output);
         }
 
+        size_t thirdColonPos = output.find(':', secondColonPos + 1);
+        if (thirdColonPos == std::string::npos)
+        {
+            throw std::runtime_error("Invalid shader output format: " + output);
+        }
+
         std::string moduleName = output.substr(0, firstColonPos);
         std::string target = output.substr(firstColonPos + 1, secondColonPos - firstColonPos - 1);
-        std::string path = output.substr(secondColonPos + 1);
+        std::string variantStr = output.substr(secondColonPos + 1, thirdColonPos - secondColonPos - 1);
+        std::string path = output.substr(thirdColonPos + 1);
 
-        outOutputs.push_back({moduleName, path, target});
+        bool skinned = false;
+        if (variantStr.find("skinned") != std::string::npos)
+        {
+            skinned = true;
+        }
+
+        outOutputs.push_back({moduleName, path, target, variantStr, {skinned}});
     }
 }
 
@@ -468,11 +496,21 @@ int main(int argc, char **argv)
         }
     }
 
-    for (size_t i = 0; i < shaderSources.size(); i++)
+    for (size_t i = 0; i < parsedOutputs.size(); i++)
     {
-        ShaderSource &shaderSrc = shaderSources[i];
+        ParsedOutput &parsedOutput = parsedOutputs[i];
 
-        Slang::ComPtr<slang::IModule> slangModule = loadedModules[shaderSrc.moduleName];
+        // find shader source from module name
+        auto shaderSrcIter = std::find_if(shaderSources.begin(), shaderSources.end(), [&](const ShaderSource &src)
+                                          { return src.moduleName == parsedOutput.moduleName; });
+        if (shaderSrcIter == shaderSources.end())
+        {
+            std::cerr << "No shader source found for module: " << parsedOutput.moduleName << std::endl;
+            return -1;
+        }
+        const ShaderSource &shaderSrc = *shaderSrcIter;
+
+        Slang::ComPtr<slang::IModule> slangModule = loadedModules[parsedOutput.moduleName];
 
         std::vector<std::string> entryPointNames;
         std::vector<Slang::ComPtr<slang::IEntryPoint>> entryPoints;
@@ -489,10 +527,28 @@ int main(int argc, char **argv)
             entryPointNames.push_back(entryPointName);
         }
 
-        std::vector<slang::IComponentType *> componentTypes =
-            {
-                slangModule,
-            };
+        std::string variantSource;
+        generateShaderVariantFile(parsedOutput.variant, variantSource);
+
+        std::string variantSourcePath = parsedOutput.moduleName + ".variant." + parsedOutput.variantStr;
+
+        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        slang::IModule *variantModule = session->loadModuleFromSourceString(variantSourcePath.c_str(), (variantSourcePath + ".slang").c_str(), variantSource.c_str(), nullptr);
+        diagnoseIfNeeded(diagnosticsBlob);
+
+        if (verbose)
+        {
+            std::cerr << "Using variant for module " << parsedOutput.moduleName << ": " << std::endl;
+            std::cerr << "Variant source path: " << variantSourcePath << std::endl;
+            std::cerr << variantSource << std::endl;
+        }
+
+        std::vector<slang::IComponentType *>
+            componentTypes =
+                {
+                    slangModule,
+                    variantModule,
+                };
         for (auto &entryPoint : entryPoints)
         {
             componentTypes.push_back(entryPoint);
@@ -624,23 +680,17 @@ int main(int argc, char **argv)
             }
         }
 
-        for (auto &output : parsedOutputs)
+        auto codeIter = finalCode.find(parsedOutput.targetPrefix);
+        if (codeIter == finalCode.end())
         {
-            if (output.moduleName != shaderSrc.moduleName)
-                continue;
+            std::cerr << "No compiled code for module " << shaderSrc.moduleName << " target " << parsedOutput.targetPrefix << std::endl;
+            continue;
+        }
 
-            auto codeIter = finalCode.find(output.targetPrefix);
-            if (codeIter == finalCode.end())
-            {
-                std::cerr << "No compiled code for module " << shaderSrc.moduleName << " target " << output.targetPrefix << std::endl;
-                continue;
-            }
-
-            writeBlobToFileTruncate(output.path, codeIter->second);
-            if (verbose)
-            {
-                std::cerr << "Wrote output for module " << shaderSrc.moduleName << " target " << output.targetPrefix << " to " << output.path << std::endl;
-            }
+        writeBlobToFileTruncate(parsedOutput.path, codeIter->second);
+        if (verbose)
+        {
+            std::cerr << "Wrote output for module " << shaderSrc.moduleName << " target " << parsedOutput.targetPrefix << " to " << parsedOutput.path << std::endl;
         }
     }
 

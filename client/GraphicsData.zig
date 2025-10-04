@@ -125,7 +125,7 @@ pub fn init(
 
     log.debug(@src(), "Using window swapchain format {s}", .{@tagName(swapchain_format)});
 
-    const basic_shader = @import("shaders.basic").basic;
+    const basic_shader = @import("shaders.basic.").basic;
 
     const test_vertex_shader: GpuShader = try .create(
         gpu_device,

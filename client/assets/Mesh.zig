@@ -384,9 +384,7 @@ fn uploadSkinningData(
 
     const inverse_bind_poses = try gpa.alloc(math.Matrix4x4f, @intCast(data_request.bone_count));
     errdefer gpa.free(inverse_bind_poses);
-    for (inverse_bind_poses, incoming_inverse_bind_poses) |*inverse_bind_pose, *incoming_inverse_bind_pose| {
-        inverse_bind_pose.* = incoming_inverse_bind_pose.*;
-    }
+    @memcpy(inverse_bind_poses, incoming_inverse_bind_poses);
 
     const bytes_per_vertex = @sizeOf(math.Vector4f) + @sizeOf(math.Vector4i);
 
