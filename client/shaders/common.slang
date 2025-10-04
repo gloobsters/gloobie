@@ -38,7 +38,7 @@ public struct Vertex
     public Conditional<float2, g_has_uv7> uv7 : TEXCOORD7;
 
     public Conditional<float4, g_skinning> bone_weights : BONE_WEIGHTS;
-    public Conditional<int4, g_skinning> bone_indices : BONE_IDS;
+    public Conditional<int4, g_skinning> bone_indicies : BONE_IDS;
 };
 
 public struct ModelData
@@ -100,13 +100,13 @@ public static Vertex applySkinning(
     }
 
     float4 weights = vertex.bone_weights.get().value;
-    int4 indices = vertex.bone_indices.get().value;
+    int4 indicies = vertex.bone_indicies.get().value;
 
     float4x4 skin_matrix =
-        transform_matrices[indices.x] * weights.x +
-        transform_matrices[indices.y] * weights.y +
-        transform_matrices[indices.z] * weights.z +
-        transform_matrices[indices.w] * weights.w;
+        transform_matrices[indicies.x] * weights.x +
+        transform_matrices[indicies.y] * weights.y +
+        transform_matrices[indicies.z] * weights.z +
+        transform_matrices[indicies.w] * weights.w;
 
     vertex.position = mul(skin_matrix, float4(vertex.position, 1.0)).xyz;
 

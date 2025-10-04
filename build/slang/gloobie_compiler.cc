@@ -43,6 +43,7 @@ struct VertexInput
 {
     uint32_t location;
     std::string format;
+    std::string type;
 };
 
 struct ReflectResult
@@ -148,7 +149,7 @@ void writeReflectToZigFile(const std::string &path, const ReflectResult &result)
     file << "    .vertex_inputs = &.{" << std::endl;
     for (const auto &input : result.vertexInputs)
     {
-        file << "        .{ .location = " << input.location << ", .format = ." + input.format + " }," << std::endl;
+        file << "        .{ .location = " << input.location << ", .format = ." + input.format + ", .type = ." + input.type + " }," << std::endl;
     }
     file << "    }," << std::endl;
     file << "};" << std::endl;
@@ -319,7 +320,20 @@ SpvReflectResult reflectSpirvCode(bool verbose, Slang::ComPtr<slang::IBlob> spir
             return SPV_REFLECT_RESULT_ERROR_INTERNAL_ERROR;
         }
 
-        result.vertexInputs.push_back({var.location, format});
+        std::string type = name;
+        // from name, strip out `vertex.` prefix and remove anything after a dot, including the dot
+        size_t prefixPos = type.find("vertex.");
+        if (prefixPos != std::string::npos)
+        {
+            type = type.substr(prefixPos + 7);
+        }
+        size_t dotPos = type.find('.');
+        if (dotPos != std::string::npos)
+        {
+            type = type.substr(0, dotPos);
+        }
+
+        result.vertexInputs.push_back({var.location, format, type});
     }
 
     for (uint32_t i = 0; i < module.descriptor_set_count; i++)

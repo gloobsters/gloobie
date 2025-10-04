@@ -628,6 +628,7 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = b.path("build/slang/reflection.zig"),
             .imports = &.{
                 .{ .name = "gpu", .module = gpu_mod },
+                .{ .name = "renderite", .module = renderite_mod },
             },
         });
 

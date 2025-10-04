@@ -1,4 +1,5 @@
 const gpu = @import("gpu");
+const shared = @import("renderite").shared;
 
 pub const StageData = struct {
     num_samplers: u32,
@@ -30,4 +31,5 @@ pub const Shader = struct {
 pub const VertexInput = struct {
     location: u32,
     format: gpu.VertexElementFormat,
+    type: shared.VertexAttributeType,
 };
