@@ -8,5 +8,5 @@ __include "materials/test.slang";
 
 public interface IMaterial
 {
-    public float4 eval(Vertex vertex);
+    public float4 eval();
 }
